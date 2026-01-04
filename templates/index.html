@@ -1,0 +1,1476 @@
+<!-- v1.0 - Official Release -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predictability Score Calculator v1.0</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        :root {
+            --bg-color: #f8f9fa; --container-bg: #ffffff; --text-color: #212529;
+            --subtle-text-color: #6c757d; --border-color: #dee2e6; --primary-color: #007bff;
+            --result-bg: #e9ecef; --shadow-color: rgba(0, 0, 0, 0.05);
+            --alert-color: #dc3545;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #121212; --container-bg: #1e1e1e; --text-color: #e9ecef;
+                --subtle-text-color: #adb5bd; --border-color: #495057; --primary-color: #0d6efd;
+                --result-bg: #343a40; --shadow-color: rgba(0, 0, 0, 0.2);
+            }
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color); color: var(--text-color); margin: 0;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .header {
+            background-color: var(--container-bg);
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px var(--shadow-color);
+        }
+        .title-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .header .logo {
+            max-height: 40px;
+            width: auto;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 1.5em;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+        .header h1 a {
+            color: inherit;
+            text-decoration: none;
+        }
+        .nav a {
+            color: var(--primary-color);
+            text-decoration: none;
+            margin-left: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .nav a:hover {
+            text-decoration: underline;
+        }
+
+        /* Dashboard Layout */
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+            transition: filter 0.3s;
+        }
+
+        .blurred {
+            filter: blur(5px);
+            pointer-events: none;
+            user-select: none;
+        }
+
+        @media (min-width: 992px) {
+            .dashboard-container {
+                grid-template-columns: 350px 1fr; /* Fixed sidebar, flexible main content */
+                align-items: start;
+            }
+        }
+
+        .panel {
+            background: var(--container-bg);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px var(--shadow-color);
+            border: 1px solid var(--border-color);
+            /* Ensure panel doesn't overflow */
+            min-width: 0;
+        }
+
+        h2 { font-size: 1.2em; margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px; }
+
+        /* Input Styles */
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
+        textarea, input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-family: inherit;
+        }
+        #scores-input { height: 120px; resize: vertical; }
+        #notes-input { height: 80px; resize: vertical; }
+
+        /* Button Styles */
+        button {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1em;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-secondary { background-color: transparent; border: 1px solid var(--primary-color); color: var(--primary-color); }
+        .btn-danger { background-color: #dc3545; color: white; }
+
+        /* Switch Styles */
+        .switch-container { margin-bottom: 20px; }
+        .switch-label { font-weight: bold; margin-bottom: 8px; display: block; font-size: 0.9em; }
+        .switch-group { display: flex; gap: 5px; }
+        .switch-btn {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-color);
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: bold;
+            color: var(--subtle-text-color);
+            font-size: 0.85em;
+        }
+        .switch-btn.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
+        .switch-btn.disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Mode Selector */
+        .mode-selector { display: flex; gap: 10px; margin-bottom: 15px; }
+        .mode-btn { flex: 1; padding: 8px; border: 1px solid var(--border-color); background: var(--bg-color); cursor: pointer; border-radius: 6px; font-weight: bold; font-size: 0.9em; }
+        .mode-btn.active { background-color: #6610f2; color: white; border-color: #6610f2; }
+
+        /* Result Area */
+        #result-area {
+            text-align: center;
+            padding: 20px;
+            background-color: var(--result-bg);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        #result-area .label { font-size: 1em; color: var(--subtle-text-color); margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+        #result-area .value { font-size: 3.5em; font-weight: bold; color: var(--primary-color); margin: 5px 0; line-height: 1; }
+
+        /* Critical Alert Box */
+        #critical-alert {
+            display: none;
+            background-color: #ffe6e6;
+            border: 2px solid #dc3545;
+            color: #dc3545;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+
+        /* Chart */
+        #chart-wrapper {
+            position: relative;
+            height: 350px; /* Reset to original height */
+            width: 100%;
+            max-width: 100%; /* Strict max-width */
+            margin-bottom: 20px;
+            resize: vertical;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            box-sizing: border-box; /* Include padding in width */
+        }
+
+        #scores-chart {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* Saved Analyses List */
+        #dashboard-section { margin-top: 0; }
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .dashboard-actions { display: flex; gap: 10px; margin-bottom: 10px; }
+        .dashboard-actions button { width: auto; padding: 5px 10px; font-size: 0.85em; }
+
+        /* Folder Layout Fix */
+        .folder-wrapper {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            margin-bottom: 15px;
+        }
+        #folders-container {
+            column-count: 3;
+            column-gap: 15px;
+        }
+        @media (max-width: 992px) { #folders-container { column-count: 2; } }
+        @media (max-width: 768px) { #folders-container { column-count: 1; } }
+
+        .folder-card {
+            background-color: var(--result-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            position: relative;
+            font-size: 0.9em;
+        }
+        .folder-card:hover { border-color: var(--primary-color); }
+        .folder-delete-btn { position: absolute; top: 2px; right: 2px; background: transparent; border: none; font-size: 0.8em; width: auto; padding: 0; color: var(--subtle-text-color); }
+        .folder-delete-btn:hover { color: #dc3545; }
+
+        .folder-content-list {
+            list-style: none;
+            padding: 5px;
+            margin: 0;
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            display: none; /* Hide by default */
+        }
+        .folder-content-list.open {
+            display: block; /* Show when open */
+        }
+
+        #saved-list { list-style: none; padding: 0; margin: 0; }
+        #saved-list li, .folder-content-list li {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            margin-bottom: 5px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9em;
+        }
+        .item-info { display: flex; align-items: center; overflow: hidden; }
+        .item-info input { width: auto; margin-right: 8px; }
+        .item-details {
+            /* Fix: Allow text to wrap */
+            white-space: normal;
+            overflow: visible;
+            text-align: left;
+        }
+        .item-notes { font-size: 0.85em; color: var(--subtle-text-color); margin-left: 8px; font-style: italic; }
+        .actions button { padding: 2px 5px; font-size: 1em; width: auto; background: transparent; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;
+            display: flex; justify-content: center; align-items: center; opacity: 0; visibility: hidden; transition: 0.2s;
+        }
+        .modal-overlay.visible { opacity: 1; visibility: visible; }
+        .modal-content { background: var(--container-bg); padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .modal-actions { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+        .modal-actions button { width: auto; padding: 8px 20px; }
+
+        /* Login Overlay */
+        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 2000; display: flex; justify-content: center; align-items: center; }
+        .login-box { background: var(--container-bg); padding: 40px; border-radius: 12px; border: 1px solid var(--border-color); width: 90%; max-width: 350px; text-align: center; box-shadow: 0 5px 20px var(--shadow-color); }
+
+        .footer { text-align: center; padding: 20px; color: var(--subtle-text-color); font-size: 0.8em; grid-column: 1 / -1; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="title-container">
+            <img src="/static/images/P.logo.png" alt="Logo" class="logo">
+            <h1><a href="/">The Predictability Score</a></h1>
+        </div>
+        <nav class="nav">
+            <a href="/">Home</a>
+            <a href="/tutorial">Tutorial</a>
+            <a href="/contact">Contact</a>
+            <span id="user-info-container" style="margin-left: 20px; font-size: 0.9em;"></span>
+        </nav>
+    </header>
+
+    <!-- Login Overlay -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2>Welcome Back</h2>
+            <div class="form-group"><input type="text" id="username" placeholder="Username" required></div>
+            <div class="form-group"><input type="password" id="password" placeholder="Password" required></div>
+            <button id="login-btn" class="btn-primary">Login</button>
+            <button id="register-btn" class="btn-secondary" style="margin-top: 10px;">Register</button>
+            <p id="auth-error" style="color: #dc3545; margin-top: 10px; font-size: 0.9em;"></p>
+        </div>
+    </div>
+
+    <!-- Added id="app-section" to the main dashboard container -->
+    <div id="app-section" class="dashboard-container blurred">
+        <!-- LEFT PANEL: Controls -->
+        <div class="panel" id="control-panel">
+            <h2>Data Input</h2>
+
+            <div class="mode-selector">
+                <button class="mode-btn active" id="mode-standard">Standard</button>
+                <button class="mode-btn" id="mode-sliding">Sliding Window</button>
+            </div>
+
+            <div class="switch-container">
+                <span class="switch-label">Sensitivity Mode (k)</span>
+                <div class="switch-group">
+                    <button class="switch-btn disabled" data-k="0.5">Sports</button>
+                    <button class="switch-btn active" data-k="1.0">Standard</button>
+                    <button class="switch-btn disabled" data-k="2.0">Finance</button>
+                    <button class="switch-btn disabled" data-k="15.0">Pharma</button>
+                </div>
+                <div id="lock-message" style="display:none; font-size: 0.8em; color: #dc3545; margin-top: 5px;">
+                    Upgrade to Pro to unlock modes.
+                </div>
+            </div>
+
+            <div id="window-size-container" style="display: none; margin-bottom: 15px;">
+                <label for="window-size-input">Window Size (N)</label>
+                <input type="number" id="window-size-input" value="10" min="2">
+                <p style="font-size: 0.8em; color: var(--subtle-text-color); margin-top: 5px;">Calculates score for every N data points.</p>
+            </div>
+
+            <textarea id="scores-input" placeholder="Paste your data here (comma or space separated)..."></textarea>
+
+            <div class="form-group" style="margin-top: 15px;">
+                <label for="target-input">Target (Calibration Check)</label>
+                <input type="number" id="target-input" placeholder="Optional: Enter target value (e.g. 500)">
+            </div>
+
+            <textarea id="notes-input" placeholder="Add notes (optional)..."></textarea>
+
+            <div style="display: flex; gap: 10px;">
+                <button id="calculate-btn" class="btn-primary">Calculate Score</button>
+                <button id="clear-form-btn" class="btn-secondary" style="width: 30%;">Clear</button>
+            </div>
+
+            <div class="upload-section" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                <input type="file" id="file-upload" accept=".csv,.txt" style="font-size: 0.9em;">
+            </div>
+            <div id="preview-area" style="display:none; margin-top: 10px;">
+                <p style="font-size: 0.9em; margin-bottom: 5px;">Select column:</p>
+                <div id="file-preview" style="overflow-x: auto;"></div>
+                <button id="clear-preview-btn" class="btn-secondary" style="margin-top: 5px;">Clear File</button>
+            </div>
+            <div id="error" style="color: #dc3545; margin-top: 10px; display: none;"></div>
+        </div>
+
+        <!-- RIGHT PANEL: Results & History -->
+        <div class="panel" id="results-panel">
+            <!-- Critical Alert Box -->
+            <div id="critical-alert">
+                ⚠️ CRITICAL PROCESS FAILURE ⚠️<br>
+                Machine is Unstable (< 95%) AND Off-Target (> 2%)
+            </div>
+
+            <div id="result-area">
+                <p class="label">Predictability Score</p>
+                <p class="value" id="display-score">--</p>
+                <p id="average-display" style="font-size: 1.1em; color: var(--subtle-text-color); margin-top: -5px; margin-bottom: 10px; display: none;"></p>
+                <p id="deviation-display" style="font-size: 1.2em; color: var(--subtle-text-color); display: none;"></p>
+
+                <!-- Container for comparison results -->
+                <div id="comparison-list" style="display:none; flex-wrap:wrap; justify-content:center; gap:15px; margin-bottom:15px;"></div>
+
+                <div id="save-section" style="display: flex; gap: 5px; margin-top: 15px;">
+                    <input type="text" id="dataset-name" placeholder="Name this analysis...">
+                    <select id="folder-select" style="width: auto;"><option value="">Uncategorized</option></select>
+                    <button id="save-btn" class="btn-primary" style="width: auto;">Save</button>
+                    <button id="update-btn" class="btn-primary" style="width: auto; display: none;">Update</button>
+                    <button id="export-btn" class="btn-secondary" style="width: auto;">Export</button>
+                </div>
+                <p id="save-feedback" style="font-size: 0.9em; margin-top: 5px; color: #198754;"></p>
+            </div>
+
+            <div id="chart-wrapper">
+                <canvas id="scores-chart"></canvas>
+            </div>
+
+            <div id="dashboard-section">
+                <div class="dashboard-header">
+                    <h2>Saved Analyses</h2>
+                    <button id="new-folder-btn" class="btn-secondary" style="width: auto;">+ Folder</button>
+                </div>
+                <div class="dashboard-actions">
+                    <button id="load-btn" class="btn-secondary" style="display:none;">Load</button>
+                    <button id="compare-btn" class="btn-secondary" style="display:none;">Compare</button>
+                    <button id="move-btn" class="btn-secondary" style="display:none;">Move</button>
+                    <button id="delete-selected-btn" class="btn-danger" style="display:none;">Delete</button>
+                </div>
+                <div id="folders-container"></div>
+                <ul id="saved-list"></ul>
+            </div>
+
+            <!-- Developer Settings Section -->
+            <div id="developer-section" style="display:none; margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                <div class="dashboard-header">
+                    <h2>Developer Settings</h2>
+                </div>
+                <div id="api-keys-container">
+                    <p style="font-size: 0.9em; color: var(--subtle-text-color); margin-bottom: 10px;">Your active API Keys for institutional integration:</p>
+                    <div id="api-keys-list"></div>
+                </div>
+                <div style="margin-top: 15px; font-size: 0.85em; text-align: center;">
+                    <a href="/tutorial" style="color: var(--primary-color); text-decoration: none; font-weight: bold;">
+                        View API Integration Guide &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        &copy; 2026 Predictability API. All rights reserved.
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmation-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title">Confirm</h3>
+            <p id="modal-message">Are you sure?</p>
+            <div class="modal-actions">
+                <button id="modal-confirm-btn" class="btn-danger">Yes</button>
+                <button id="modal-cancel-btn" class="btn-secondary">No</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global functions for onclick attributes
+        async function redirectToCheckout(planType = 'pro') {
+            try {
+                const response = await fetch('/api/create-checkout-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ plan: planType })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error.message);
+                window.location.href = data.url;
+            } catch (error) { alert(`Error: ${error.message}`); }
+        }
+
+        async function redirectToPortal() {
+            try {
+                const response = await fetch('/api/create-portal-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error?.message);
+                if (data.url) window.location.href = data.url;
+            } catch (error) { alert(`Error: ${error.message}`); }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            let myChart, savedData = [], parsedData = [];
+            let currentRawScore = null;
+            let user = { id: null, tier: 'Free' };
+            let currentK = 1.0;
+            let folders = [];
+            let currentEditingId = null;
+            let calculationMode = 'standard'; // 'standard' or 'sliding'
+
+            // Global Color Palette (Dark Mode Friendly)
+            const CHART_COLORS = [
+                '#33C3F0', // Cyan
+                '#FF5252', // Salmon
+                '#FFD700', // Gold
+                '#69F0AE', // Neon Green
+                '#E040FB', // Lavender
+                '#FFAB40', // Bright Orange
+                '#18FFFF'  // Electric Blue
+            ];
+
+            Chart.defaults.font.size = 11;
+            Chart.defaults.maintainAspectRatio = false;
+
+            // Elements
+            const loginOverlay = document.getElementById('login-overlay'),
+                  loginBtn = document.getElementById('login-btn'),
+                  registerBtn = document.getElementById('register-btn'),
+                  usernameInput = document.getElementById('username'),
+                  passwordInput = document.getElementById('password'),
+                  authErrorP = document.getElementById('auth-error'),
+                  calculateBtn = document.getElementById('calculate-btn'),
+                  clearFormBtn = document.getElementById('clear-form-btn'),
+                  scoresInput = document.getElementById('scores-input'),
+                  notesInput = document.getElementById('notes-input'),
+                  targetInput = document.getElementById('target-input'),
+                  resultArea = document.getElementById('result-area'),
+                  errorDiv = document.getElementById('error'),
+                  chartCanvas = document.getElementById('scores-chart'),
+                  chartWrapper = document.getElementById('chart-wrapper'),
+                  savedList = document.getElementById('saved-list'),
+                  foldersContainer = document.getElementById('folders-container'),
+                  loadBtn = document.getElementById('load-btn'),
+                  compareBtn = document.getElementById('compare-btn'),
+                  moveBtn = document.getElementById('move-btn'),
+                  deleteSelectedBtn = document.getElementById('delete-selected-btn'),
+                  fileUpload = document.getElementById('file-upload'),
+                  previewArea = document.getElementById('preview-area'),
+                  filePreview = document.getElementById('file-preview'),
+                  clearPreviewBtn = document.getElementById('clear-preview-btn'),
+                  userInfoContainer = document.getElementById('user-info-container'),
+                  switchBtns = document.querySelectorAll('.switch-btn'),
+                  lockMessage = document.getElementById('lock-message'),
+                  newFolderBtn = document.getElementById('new-folder-btn'),
+                  confirmationModal = document.getElementById('confirmation-modal'),
+                  modalMessage = document.getElementById('modal-message'),
+                  modalConfirmBtn = document.getElementById('modal-confirm-btn'),
+                  modalCancelBtn = document.getElementById('modal-cancel-btn'),
+                  modeStandardBtn = document.getElementById('mode-standard'),
+                  modeSlidingBtn = document.getElementById('mode-sliding'),
+                  windowSizeContainer = document.getElementById('window-size-container'),
+                  windowSizeInput = document.getElementById('window-size-input'),
+                  exportBtn = document.getElementById('export-btn'),
+                  criticalAlert = document.getElementById('critical-alert'),
+                  deviationDisplay = document.getElementById('deviation-display'),
+                  averageDisplay = document.getElementById('average-display');
+
+            // --- Modal Logic ---
+            let confirmCallback = null;
+            function showConfirmationModal(message, onConfirm) {
+                modalMessage.textContent = message;
+                confirmCallback = onConfirm;
+                confirmationModal.classList.add('visible');
+            }
+            function hideConfirmationModal() {
+                confirmationModal.classList.remove('visible');
+                confirmCallback = null;
+            }
+            modalConfirmBtn.addEventListener('click', () => { if (confirmCallback) confirmCallback(); hideConfirmationModal(); });
+            modalCancelBtn.addEventListener('click', hideConfirmationModal);
+
+            // --- Auth Logic ---
+            async function handleAuth(endpoint) {
+                const username = usernameInput.value.trim();
+                const password = passwordInput.value.trim();
+                if (!username || !password) { authErrorP.textContent = 'Required.'; return; }
+                try {
+                    const response = await fetch(`/api/${endpoint}`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password }),
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Failed.');
+                    if (endpoint === 'register') {
+                        alert('Registered! Please log in.');
+                        usernameInput.value = ''; passwordInput.value = '';
+                    } else {
+                        user.id = data.user_id; user.tier = data.tier;
+                        await checkSession();
+                    }
+                } catch (err) { authErrorP.textContent = err.message; }
+            }
+            loginBtn.addEventListener('click', () => handleAuth('login'));
+            registerBtn.addEventListener('click', () => handleAuth('register'));
+
+            async function checkSession() {
+                try {
+                    const response = await fetch('/api/session_status');
+                    const data = await response.json();
+                    if (data.logged_in) {
+                        user.tier = data.tier;
+                        updateUIForAuthState(true, data.tier, data.username, data.stripe_customer_id);
+                    } else {
+                        updateUIForAuthState(false);
+                    }
+                } catch (e) { updateUIForAuthState(false); }
+            }
+
+            async function loadAPIKeys() {
+                const list = document.getElementById('api-keys-list');
+                try {
+                    const response = await fetch('/api/user/keys');
+                    const data = await response.json();
+                    if (data.api_keys && data.api_keys.length > 0) {
+                        list.innerHTML = data.api_keys.map(k => `
+                            <div style="background: var(--bg-color); border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; margin-bottom: 10px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                    <strong style="font-size: 0.8em; color: var(--subtle-text-color);">${k.client_name || 'Main Key'}</strong>
+                                    <span style="font-size: 0.7em; padding: 2px 6px; border-radius: 10px; background: ${k.is_active ? '#d1e7dd' : '#f8d7da'}; color: ${k.is_active ? '#0f5132' : '#842029'};">
+                                        ${k.is_active ? 'Active' : 'Inactive'}
+                                    </span>
+                                </div>
+                                <code style="display: block; background: #000; color: #0f0; padding: 8px; border-radius: 4px; font-size: 0.9em; word-break: break-all;">${k.api_key}</code>
+                                <div style="font-size: 0.75em; color: var(--subtle-text-color); margin-top: 5px;">
+                                    Calls: ${k.usage_count} | Created: ${new Date(k.created_at).toLocaleDateString()}
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        list.innerHTML = '<p style="font-size: 0.9em; font-style: italic;">No API keys found. Contact support to generate one.</p>';
+                    }
+                } catch (e) { console.error('Error loading API keys:', e); }
+            }
+
+            function updateUIForAuthState(isLoggedIn, tier = 'Free', username = 'N/A', stripeCustomerId = null) {
+                if (isLoggedIn) {
+                    loginOverlay.style.display = 'none';
+                    document.getElementById('app-section').classList.remove('blurred');
+
+                    let links = `Logged in as <b>${username}</b> (${tier})`;
+                    if (tier === 'Free') links += ` | <a onclick="redirectToCheckout('pro')" style="cursor:pointer; color:var(--primary-color)">Upgrade</a>`;
+                    if (stripeCustomerId) links += ` | <a onclick="redirectToPortal()" style="cursor:pointer; color:var(--primary-color)">Billing</a>`;
+                    links += ` | <a id="logout-btn" style="cursor:pointer; color:var(--primary-color)">Log Out</a>`;
+
+                    userInfoContainer.innerHTML = links;
+                    document.getElementById('logout-btn').addEventListener('click', async () => {
+                        await fetch('/api/logout', { method: 'POST' });
+                        window.location.reload();
+                    });
+
+                    if (tier.includes('API')) {
+                        document.getElementById('developer-section').style.display = 'block';
+                        loadAPIKeys();
+                    } else {
+                        document.getElementById('developer-section').style.display = 'none';
+                    }
+
+                    updateSwitchState();
+                    loadFoldersAndAnalyses();
+                } else {
+                    loginOverlay.style.display = 'flex';
+                    document.getElementById('app-section').classList.add('blurred');
+                }
+            }
+
+            // --- Mode Selection ---
+            modeStandardBtn.addEventListener('click', () => {
+                calculationMode = 'standard';
+                modeStandardBtn.classList.add('active');
+                modeSlidingBtn.classList.remove('active');
+                windowSizeContainer.style.display = 'none';
+            });
+
+            modeSlidingBtn.addEventListener('click', () => {
+                calculationMode = 'sliding';
+                modeSlidingBtn.classList.add('active');
+                modeStandardBtn.classList.remove('active');
+                windowSizeContainer.style.display = 'block';
+            });
+
+            // --- Switch Logic ---
+            switchBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (btn.classList.contains('disabled')) {
+                        lockMessage.style.display = 'block'; return;
+                    }
+                    switchBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentK = parseFloat(btn.dataset.k);
+                    lockMessage.style.display = 'none';
+                });
+            });
+
+            function updateSwitchState(kValue = null) {
+                if (user.tier !== 'Free') {
+                    switchBtns.forEach(btn => btn.classList.remove('disabled'));
+                    lockMessage.style.display = 'none';
+                }
+                if (kValue !== null) {
+                    currentK = kValue;
+                    switchBtns.forEach(btn => {
+                        if (parseFloat(btn.dataset.k) === kValue) btn.classList.add('active');
+                        else btn.classList.remove('active');
+                    });
+                }
+            }
+
+            // --- Calculation & Chart ---
+            calculateBtn.addEventListener('click', () => {
+                const scores = scoresInput.value.split(/[\s,]+/).filter(s => s.trim() !== '').map(Number).filter(n => !isNaN(n));
+                calculateAndDisplay(scores);
+            });
+
+            clearFormBtn.addEventListener('click', () => {
+                scoresInput.value = '';
+                notesInput.value = '';
+                targetInput.value = '';
+                document.getElementById('dataset-name').value = '';
+                currentEditingId = null;
+
+                document.getElementById('save-btn').style.display = 'inline-block';
+                document.getElementById('update-btn').style.display = 'none';
+
+                clearResults();
+            });
+
+            async function calculateAndDisplay(scores) {
+                if (!scores || scores.length < 2) { showError('Need at least 2 numbers.'); return; }
+                clearResults();
+
+                try {
+                    let data;
+                    if (calculationMode === 'standard') {
+                        const targetVal = targetInput.value ? parseFloat(targetInput.value) : null;
+                        const response = await fetch('/api/predictability_score', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ scores: scores, k: currentK, target_value: targetVal }),
+                        });
+                        data = await response.json();
+                        if (!response.ok) throw new Error(data.error || 'API Error');
+                        currentRawScore = data.predictability_score;
+
+                        let deviation = null;
+                        if (data.target_deviation !== undefined) {
+                            deviation = data.target_deviation;
+                            deviationDisplay.textContent = `Deviation: ${deviation > 0 ? '+' : ''}${deviation.toFixed(2)}%`;
+                            deviationDisplay.style.display = 'block';
+
+                            if (currentRawScore < 95 && Math.abs(deviation) > 2) {
+                                criticalAlert.style.display = 'block';
+                            }
+                        }
+
+                        displaySingleResult({ name: 'Current', predictability_score: currentRawScore, scores: scores });
+                    } else {
+                        const windowSize = parseInt(windowSizeInput.value);
+                        const response = await fetch('/api/sliding_window', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ scores: scores, k: currentK, window_size: windowSize }),
+                        });
+                        data = await response.json();
+                        if (!response.ok) throw new Error(data.error || 'API Error');
+                        renderSlidingChart(data.sliding_window_results);
+                    }
+                } catch (err) { showError(err.message); }
+            }
+
+            function displaySingleResult(result) {
+                resultArea.style.display = 'block';
+                document.getElementById('comparison-list').style.display = 'none';
+                document.getElementById('display-score').style.display = 'block';
+                document.getElementById('display-score').textContent = result.predictability_score.toFixed(2) + '%';
+
+                const cleanScores = sanitizeScores(result.scores);
+                const avg = cleanScores.reduce((a,b)=>a+b,0) / cleanScores.length;
+                averageDisplay.textContent = `(Avg: ${avg.toFixed(2)})`;
+                averageDisplay.style.display = 'block';
+
+                renderSingleLineChart({ name: 'Scores', scores: cleanScores });
+            }
+
+            function displayComparisonResults(results) {
+                resultArea.style.display = 'block';
+                document.getElementById('display-score').style.display = 'none';
+                averageDisplay.style.display = 'none';
+
+                const comparisonList = document.getElementById('comparison-list');
+                comparisonList.innerHTML = '';
+                comparisonList.style.display = 'flex';
+
+                results.forEach((res, i) => {
+                    const color = CHART_COLORS[i % CHART_COLORS.length];
+                    const div = document.createElement('div');
+                    div.style.color = color;
+                    div.style.fontWeight = 'bold';
+                    div.style.fontSize = '2em';
+                    div.textContent = `${parseFloat(res.predictability_score).toFixed(2)}%`;
+                    comparisonList.appendChild(div);
+                });
+
+                renderMultiLineChart(results);
+            }
+
+            function renderSlidingChart(results) {
+                if (myChart) myChart.destroy();
+                const labels = results.map(r => `Window ${r.index + 1}`);
+                const dataPoints = results.map(r => r.score);
+                const ctx = chartCanvas.getContext('2d');
+                myChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: `Predictability (Window Size: ${windowSizeInput.value}, k=${currentK})`,
+                            data: dataPoints,
+                            borderColor: '#6610f2',
+                            tension: 0.1,
+                            fill: false
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }
+                });
+            }
+
+            function sanitizeScores(scores) {
+                if (!scores) return [];
+                let cleanScores = [];
+                if (typeof scores === 'string') {
+                    try {
+                        cleanScores = JSON.parse(scores);
+                    } catch (e) {
+                        cleanScores = scores.split(/[\s,]+/).filter(s => s.trim() !== '');
+                    }
+                } else if (Array.isArray(scores)) {
+                    cleanScores = scores;
+                }
+                return cleanScores.map(Number).filter(n => !isNaN(n));
+            }
+
+            function renderSingleLineChart(dataset) {
+                if (myChart) myChart.destroy();
+
+                const cleanScores = sanitizeScores(dataset.scores);
+                const labels = Array.from({length: cleanScores.length}, (_, i) => i + 1);
+                const avg = cleanScores.reduce((a,b)=>a+b,0)/cleanScores.length;
+
+                const ctx = chartCanvas.getContext('2d');
+                myChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: dataset.name,
+                                data: cleanScores,
+                                borderColor: CHART_COLORS[0],
+                                tension: 0.1,
+                                fill: false
+                            },
+                            {
+                                label: '_hidden_',
+                                data: Array(cleanScores.length).fill(avg),
+                                borderColor: CHART_COLORS[0],
+                                borderDash: [5, 5],
+                                pointRadius: 0,
+                                borderWidth: 2
+                            }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { filter: i => !i.text.includes('_hidden_') } } }, scales: { y: { beginAtZero: false } } }
+                });
+            }
+
+            function renderMultiLineChart(datasets) {
+                if (myChart) myChart.destroy();
+
+                let maxLen = 0;
+                const finalDatasets = [];
+
+                datasets.forEach((ds, i) => {
+                    const cleanScores = sanitizeScores(ds.scores);
+                    if (cleanScores.length > maxLen) maxLen = cleanScores.length;
+                    const color = CHART_COLORS[i % CHART_COLORS.length];
+                    const avg = cleanScores.reduce((a, b) => a + b, 0) / cleanScores.length;
+
+                    // Main score line
+                    finalDatasets.push({
+                        label: ds.name,
+                        data: cleanScores,
+                        borderColor: color,
+                        fill: false,
+                        tension: 0.1,
+                        spanGaps: true
+                    });
+
+                    // Average line (dashed, same color)
+                    finalDatasets.push({
+                        label: `_hidden_${ds.name}_avg`,
+                        data: Array(cleanScores.length).fill(avg),
+                        borderColor: color,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        borderWidth: 2,
+                        fill: false,
+                        spanGaps: true
+                    });
+                });
+
+                const labels = Array.from({length: maxLen}, (_, i) => i + 1);
+                const ctx = chartCanvas.getContext('2d');
+                myChart = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: labels, datasets: finalDatasets },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { 
+                            legend: { 
+                                display: true,
+                                labels: { filter: (item) => !item.text.includes('_hidden_') }
+                            } 
+                        }, 
+                        scales: { y: { beginAtZero: false } } 
+                    }
+                });
+            }
+
+            function showError(msg) { errorDiv.textContent = msg; errorDiv.style.display = 'block'; }
+
+            function clearResults() {
+                resultArea.style.display = 'none';
+                errorDiv.style.display = 'none';
+                criticalAlert.style.display = 'none';
+                deviationDisplay.style.display = 'none';
+                averageDisplay.style.display = 'none';
+                document.getElementById('comparison-list').style.display = 'none';
+                document.getElementById('display-score').style.display = 'block';
+                document.getElementById('display-score').textContent = '--';
+
+                if (myChart) {
+                    myChart.destroy();
+                    myChart = null;
+                }
+            }
+
+            // --- Saving & Folders ---
+            async function loadFoldersAndAnalyses(openFolderId = null) {
+                try {
+                    const t = new Date().getTime();
+                    const [fRes, aRes] = await Promise.all([
+                        fetch(`/api/folders?t=${t}`),
+                        fetch(`/api/analyses?t=${t}`)
+                    ]);
+                    const fData = await fRes.json();
+                    const aData = await aRes.json();
+
+                    folders = fData.folders || [];
+                    savedData = aData.saved_analyses || [];
+
+                    renderDashboard(openFolderId);
+                    populateFolderSelect();
+                } catch (e) { console.error(e); }
+            }
+
+            function renderDashboard(openFolderId) {
+                foldersContainer.innerHTML = '';
+                savedList.innerHTML = '';
+
+                // Grouping
+                const grouped = {};
+                folders.forEach(f => grouped[f.id] = []);
+                const uncategorized = [];
+
+                savedData.forEach(item => {
+                    if (item.folder_id && grouped[item.folder_id]) grouped[item.folder_id].push(item);
+                    else uncategorized.push(item);
+                });
+
+                // Render Folders
+                folders.forEach(f => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'folder-wrapper';
+
+                    const card = document.createElement('div');
+                    card.className = 'folder-card';
+                    card.innerHTML = `
+                        <button class="folder-delete-btn" onclick="deleteFolder(${f.id})">✕</button>
+                        <div class="folder-icon">📁</div>
+                        <div class="folder-name">${f.name}</div>
+                        <div class="folder-count">${grouped[f.id].length}</div>
+                    `;
+                    card.onclick = (e) => {
+                        if(e.target.classList.contains('folder-delete-btn')) return;
+                        wrapper.querySelector('.folder-content-list').classList.toggle('open');
+                    };
+                    wrapper.appendChild(card);
+
+                    const list = document.createElement('ul');
+                    list.className = 'folder-content-list';
+                    if (openFolderId == f.id) list.classList.add('open');
+
+                    grouped[f.id].forEach(item => list.appendChild(createItemHTML(item)));
+                    wrapper.appendChild(list);
+                    foldersContainer.appendChild(wrapper);
+                });
+
+                // Render Uncategorized
+                if (uncategorized.length > 0) {
+                    const h = document.createElement('h3');
+                    h.textContent = 'Uncategorized';
+                    h.style.fontSize = '1em';
+                    h.style.marginTop = '15px';
+                    savedList.appendChild(h);
+                    uncategorized.forEach(item => savedList.appendChild(createItemHTML(item)));
+                }
+
+                updateActionButtons();
+            }
+
+            function createItemHTML(item) {
+                const li = document.createElement('li');
+                const kInfo = item.k ? `(k=${item.k})` : '';
+                const noteInfo = item.notes ? `<span class="item-notes">- ${item.notes}</span>` : '';
+                li.innerHTML = `
+                    <div class="item-info">
+                        <input type="checkbox" class="compare-cb" data-id="${item.id}">
+                        <span class="item-details">${item.name} ${kInfo} - ${parseFloat(item.predictability_score).toFixed(2)}% ${noteInfo}</span>
+                    </div>
+                    <div class="actions">
+                        <button class="load-btn" data-id="${item.id}">✏️</button>
+                        <button class="del-btn" data-id="${item.id}" data-fid="${item.folder_id}">🗑️</button>
+                    </div>
+                `;
+                return li;
+            }
+
+            function populateFolderSelect() {
+                const sel = document.getElementById('folder-select');
+                sel.innerHTML = '<option value="">Uncategorized</option>';
+                folders.forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f.id; opt.textContent = f.name;
+                    sel.appendChild(opt);
+                });
+            }
+
+            // --- Move Logic ---
+            moveBtn.addEventListener('click', async () => {
+                const checked = document.querySelectorAll('.compare-cb:checked');
+                if (checked.length === 0) return;
+
+                // Simple prompt for now
+                let folderOptions = "Enter Folder ID:\n0: Uncategorized\n";
+                folders.forEach(f => folderOptions += `${f.id}: ${f.name}\n`);
+
+                const targetId = prompt(folderOptions);
+                if (targetId === null) return; // Cancelled
+
+                const fid = targetId === '0' ? "" : parseInt(targetId);
+                if (isNaN(fid) && targetId !== "") { alert("Invalid ID"); return; }
+
+                for (const cb of checked) {
+                    const id = cb.dataset.id;
+                    // We use the existing update endpoint but only send folder_id
+                    await fetch(`/api/analysis/${id}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ folder_id: fid })
+                    });
+                }
+
+                // Refresh
+                loadFoldersAndAnalyses();
+            });
+
+            // --- Load Logic (New) ---
+            loadBtn.addEventListener('click', () => {
+                const checked = document.querySelectorAll('.compare-cb:checked');
+                if (checked.length !== 1) return;
+
+                const id = parseInt(checked[0].dataset.id);
+
+                fetch(`/api/analysis/${id}`)
+                    .then(res => res.json())
+                    .then(item => {
+                        if(item && !item.error) {
+                            scoresInput.value = item.scores.join(', ');
+                            notesInput.value = item.notes || '';
+                            document.getElementById('dataset-name').value = item.name;
+                            if(document.getElementById('folder-select')) document.getElementById('folder-select').value = item.folder_id || "";
+
+                            currentEditingId = id;
+                            updateSwitchState(item.k);
+                            calculateAndDisplay(item.scores);
+
+                            document.getElementById('save-btn').style.display = 'none';
+                            document.getElementById('update-btn').style.display = 'inline-block';
+                        } else {
+                            showError(item.error || "Failed to load analysis.");
+                        }
+                    });
+            });
+
+            // --- Compare Logic (New) ---
+            compareBtn.addEventListener('click', async () => {
+                const checked = document.querySelectorAll('.compare-cb:checked');
+                if (checked.length < 2) return;
+
+                const promises = Array.from(checked).map(cb => {
+                    const id = parseInt(cb.dataset.id);
+                    return fetch(`/api/analysis/${id}`).then(res => res.json());
+                });
+
+                try {
+                    const items = await Promise.all(promises);
+                    const validItems = items.filter(item => item && !item.error);
+
+                    if (validItems.length < checked.length) {
+                        showError("Could not load all selected analyses.");
+                    }
+                    if (validItems.length > 1) {
+                        displayComparisonResults(validItems);
+                    }
+                } catch (e) {
+                    console.error("Error fetching comparison data:", e);
+                    showError("Failed to load comparison data.");
+                }
+            });
+
+            // --- Actions ---
+            document.getElementById('save-btn').addEventListener('click', async () => {
+                const name = document.getElementById('dataset-name').value.trim();
+                const saveFeedback = document.getElementById('save-feedback');
+                if (!name) return alert('Name required');
+                const fid = document.getElementById('folder-select').value;
+                const notes = notesInput.value.trim();
+                const scores = scoresInput.value.split(/[\s,]+/).filter(s => s.trim() !== '').map(Number).filter(n => !isNaN(n));
+
+                if (scores.length < 2) return alert('At least 2 scores are required.');
+
+                try {
+                    const response = await fetch('/api/analyses', {
+                        method: 'POST', 
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            name, scores,
+                            predictability_score: currentRawScore,
+                            folder_id: fid || "", k: currentK, notes: notes
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Failed to save analysis');
+                    }
+
+                    saveFeedback.textContent = 'Saved successfully!';
+                    saveFeedback.style.color = '#198754';
+                    setTimeout(() => saveFeedback.textContent = '', 3000);
+
+                    document.getElementById('dataset-name').value = '';
+                    notesInput.value = '';
+                    loadFoldersAndAnalyses(fid);
+                } catch (err) {
+                    console.error('Save Error:', err);
+                    saveFeedback.textContent = 'Error: ' + err.message;
+                    saveFeedback.style.color = '#dc3545';
+                }
+            });
+
+            document.getElementById('update-btn').addEventListener('click', async () => {
+                const name = document.getElementById('dataset-name').value.trim();
+                const saveFeedback = document.getElementById('save-feedback');
+                const fid = document.getElementById('folder-select').value;
+                const notes = notesInput.value.trim();
+                const scores = scoresInput.value.split(/[\s,]+/).filter(s => s.trim() !== '').map(Number).filter(n => !isNaN(n));
+
+                if (scores.length < 2) return alert('At least 2 scores are required.');
+
+                try {
+                    const response = await fetch(`/api/analysis/${currentEditingId}`, {
+                        method: 'PUT', 
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            name, scores, predictability_score: currentRawScore,
+                            folder_id: fid || "", k: currentK, notes: notes
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Failed to update analysis');
+                    }
+
+                    saveFeedback.textContent = 'Updated successfully!';
+                    saveFeedback.style.color = '#198754';
+                    setTimeout(() => saveFeedback.textContent = '', 3000);
+
+                    // Reset UI
+                    document.getElementById('dataset-name').value = '';
+                    notesInput.value = '';
+                    currentEditingId = null;
+                    document.getElementById('save-btn').style.display = 'inline-block';
+                    document.getElementById('update-btn').style.display = 'none';
+
+                    loadFoldersAndAnalyses(fid);
+                } catch (err) {
+                    console.error('Update Error:', err);
+                    saveFeedback.textContent = 'Error: ' + err.message;
+                    saveFeedback.style.color = '#dc3545';
+                }
+            });
+
+            newFolderBtn.addEventListener('click', async () => {
+                const name = prompt("Folder Name:");
+                if(name) {
+                    await fetch('/api/folders', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name}) });
+                    loadFoldersAndAnalyses();
+                }
+            });
+
+            // Event Delegation for dynamic list
+            const handleListClick = (e) => {
+                if (e.target.classList.contains('del-btn')) {
+                    const id = e.target.dataset.id;
+                    const fid = e.target.dataset.fid;
+                    showConfirmationModal("Delete this analysis?", async () => {
+                        await fetch(`/api/analysis/${id}`, { method: 'DELETE' });
+                        loadFoldersAndAnalyses(fid);
+                    });
+                } else if (e.target.classList.contains('compare-cb')) {
+                    updateActionButtons();
+                }
+            };
+
+            savedList.addEventListener('click', handleListClick);
+            foldersContainer.addEventListener('click', handleListClick);
+
+            window.deleteFolder = (id) => {
+                showConfirmationModal("Delete folder? Items will move to Uncategorized.", async () => {
+                    await fetch(`/api/folder/${id}`, { method: 'DELETE' });
+                    loadFoldersAndAnalyses();
+                });
+            };
+
+            function updateActionButtons() {
+                const checked = document.querySelectorAll('.compare-cb:checked');
+                const count = checked.length;
+
+                loadBtn.style.display = count === 1 ? 'inline-block' : 'none';
+                compareBtn.style.display = count > 1 ? 'inline-block' : 'none';
+                moveBtn.style.display = count > 0 ? 'inline-block' : 'none';
+                deleteSelectedBtn.style.display = count > 0 ? 'inline-block' : 'none';
+
+                compareBtn.textContent = `Compare (${count})`;
+                deleteSelectedBtn.textContent = `Delete (${count})`;
+
+                if (count < 2) {
+                    // clearResults();
+                }
+            }
+
+            // Bulk Actions
+            deleteSelectedBtn.addEventListener('click', () => {
+                const checked = document.querySelectorAll('.compare-cb:checked');
+                showConfirmationModal(`Delete ${checked.length} items?`, async () => {
+                    for(const cb of checked) {
+                        await fetch(`/api/analysis/${cb.dataset.id}`, { method: 'DELETE' });
+                    }
+                    loadFoldersAndAnalyses();
+                });
+            });
+
+            // --- Interactive Export ---
+            exportBtn.addEventListener('click', () => {
+                const scores = scoresInput.value;
+                const displayScore = document.getElementById('display-score');
+                const comparisonList = document.getElementById('comparison-list');
+
+                let scoreDisplayHTML = '';
+                if (comparisonList && comparisonList.style.display !== 'none' && comparisonList.innerHTML.trim() !== '') {
+                    scoreDisplayHTML = `<div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-top: 10px;">${comparisonList.innerHTML}</div>`;
+                } else {
+                    scoreDisplayHTML = `<div class="score-val">${displayScore.textContent}</div>`;
+                }
+
+                // Get name if available
+                const nameInput = document.getElementById('dataset-name');
+                let reportTitle = "Predictability Analysis Report";
+                if (nameInput && nameInput.value.trim() !== "") {
+                    reportTitle = nameInput.value.trim();
+                } else if (currentEditingId) {
+                    const calc = savedData.find(c => c.id === currentEditingId);
+                    if (calc) reportTitle = calc.name;
+                }
+
+                // Prepare data for the embedded chart and raw data
+                let chartDataForExport;
+                let rawDataHTML = scores;
+
+                if (myChart) {
+                    chartDataForExport = {
+                        labels: myChart.data.labels,
+                        datasets: myChart.data.datasets.map(ds => ({
+                            label: ds.label,
+                            data: ds.data,
+                            borderColor: ds.borderColor,
+                            tension: ds.tension,
+                            fill: ds.fill,
+                            borderDash: ds.borderDash,
+                            pointRadius: ds.pointRadius
+                        }))
+                    };
+
+                    // If we have actual datasets, use them for raw data display
+                    const actualDatasets = myChart.data.datasets.filter(ds => ds.label && ds.label !== '_hidden_');
+                    if (actualDatasets.length > 0) {
+                        rawDataHTML = actualDatasets.map(ds => `
+                            <div style="margin-bottom:15px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                                <strong style="color: ${ds.borderColor}">${ds.label}:</strong><br>
+                                <span style="font-size: 0.9em; color: #444;">[${ds.data.join(', ')}]</span>
+                            </div>
+                        `).join('');
+                    }
+                }
+
+                const htmlContent = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>${reportTitle} - Predictability Score</title>
+                        <script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>
+                        <style>
+                            body { font-family: sans-serif; padding: 40px; max-width: 900px; margin: 0 auto; background: #f8f9fa; }
+                            .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+                            h1 { color: #007bff; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
+                            .score-box { background: #e9ecef; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0; }
+                            .score-val { font-size: 3em; font-weight: bold; color: #007bff; margin: 10px 0; }
+                            .meta { color: #6c757d; margin-bottom: 20px; font-size: 0.9em; }
+
+                            /* Resizable Chart Container */
+                            .chart-container {
+                                position: relative;
+                                height: 400px;
+                                width: 100%;
+                                border: 1px solid #dee2e6;
+                                border-radius: 8px;
+                                padding: 10px;
+                                background: white;
+                                resize: vertical;
+                                overflow: hidden;
+                            }
+
+                            .raw-data { background: #f1f3f5; padding: 15px; border-radius: 8px; font-family: monospace; word-wrap: break-word; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <h1>${reportTitle}</h1>
+                            <div class="meta">Generated on ${new Date().toLocaleString()}</div>
+
+                            <div class="score-box">
+                                <div>Predictability Score (k=${currentK})</div>
+                                ${scoreDisplayHTML}
+                            </div>
+
+                            <h3>Interactive Visualization</h3>
+                            <p style="font-size: 0.8em; color: #666;">Drag the bottom-right corner to resize the chart.</p>
+                            <div class="chart-container">
+                                <canvas id="exportChart"></canvas>
+                            </div>
+
+                            <h3>Raw Data</h3>
+                            <div class="raw-data">${rawDataHTML}</div>
+
+                            <p style="margin-top: 40px; font-size: 0.8em; color: #999; text-align: center;">
+                                Generated by <a href="https://predictability-api.com">Predictability-API.com</a>
+                            </p>
+                        </div>
+
+                        <script>
+                            const ctx = document.getElementById('exportChart');
+                            const chartData = ${JSON.stringify(chartDataForExport)};
+
+                            if (chartData) {
+                                new Chart(ctx, {
+                                    type: 'line',
+                                    data: chartData,
+                                    options: {
+                                        responsive: true,
+                                        maintainAspectRatio: false,
+                                        scales: { y: { beginAtZero: false } }
+                                    }
+                                });
+                            }
+                        <\/script>
+                    </body>
+                    </html>
+                `;
+
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank');
+            });
+
+            // --- Upload Logic ---
+            fileUpload.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                // Clear previous results
+                clearResults();
+
+                if (file.name.endsWith('.txt')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const scores = e.target.result.split(/[\s,]+/).filter(s => s.trim() !== '').map(Number).filter(n => !isNaN(n));
+                        if (scores.length > 0) {
+                            scoresInput.value = scores.join(', ');
+                            calculateAndDisplay(scores);
+                        } else {
+                            showError('The .txt file is empty or has no numbers.');
+                        }
+                    };
+                    reader.readAsText(file);
+                    return;
+                }
+
+                Papa.parse(file, {
+                    header: true, skipEmptyLines: true, dynamicTyping: true,
+                    complete: (results) => {
+                        if (results.data && results.data.length > 0) {
+                            parsedData = results.data;
+                            displayPreview(results.meta.fields, parsedData.slice(0, 3));
+                        } else {
+                            showError('CSV file appears to be empty or could not be parsed.');
+                        }
+                    },
+                    error: (err) => showError(`A fatal error occurred while parsing the CSV file: ${err.message}`)
+                });
+            });
+
+            function displayPreview(headers, dataRows) {
+                let table = '<table><thead><tr>';
+                headers.forEach(header => { table += `<th data-header="${header}" style="cursor:pointer; background:#e9ecef; padding:5px; border:1px solid #dee2e6;">${header}</th>`; });
+                table += '</tr></thead><tbody>';
+                dataRows.forEach(row => {
+                    table += '<tr>';
+                    headers.forEach(header => { table += `<td style="padding:5px; border:1px solid #dee2e6;">${row[header] || ''}</td>`; });
+                    table += '</tr>';
+                });
+                table += '</tbody></table>';
+                filePreview.innerHTML = table;
+                previewArea.style.display = 'block';
+            }
+
+            // Event delegation for preview table click
+            filePreview.addEventListener('click', (event) => {
+                if (event.target.tagName === 'TH') {
+                    const header = event.target.dataset.header;
+                    console.log("Header clicked:", header); // Debugging
+                    const scores = parsedData.map(row => parseFloat(row[header])).filter(n => !isNaN(n));
+                    if (scores.length === 0) { showError(`Column '${header}' has no numbers.`); return; }
+                    scoresInput.value = scores.join(', ');
+                    calculateAndDisplay(scores);
+                }
+            });
+
+            clearPreviewBtn.addEventListener('click', () => {
+                previewArea.style.display = 'none';
+                filePreview.innerHTML = '';
+                parsedData = [];
+                fileUpload.value = '';
+            });
+
+            // Initial Load
+            checkSession();
+        });
+    </script>
+</body>
+</html>

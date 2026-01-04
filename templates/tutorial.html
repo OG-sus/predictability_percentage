@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorial - The Predictability Score</title>
+    <style>
+        :root {
+            --bg-color: #f8f9fa; --container-bg: #ffffff; --text-color: #212529;
+            --subtle-text-color: #6c757d; --border-color: #dee2e6; --primary-color: #007bff;
+            --shadow-color: rgba(0, 0, 0, 0.05);
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #121212; --container-bg: #1e1e1e; --text-color: #e9ecef;
+                --subtle-text-color: #adb5bd; --border-color: #495057; --primary-color: #0d6efd;
+                --shadow-color: rgba(0, 0, 0, 0.2);
+            }
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); }
+        .header { background-color: var(--container-bg); padding: 20px; border-bottom: 1px solid var(--border-color); text-align: center; box-shadow: 0 2px 10px var(--shadow-color); }
+        .title-container { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 10px; }
+        .header .logo { max-height: 50px; width: auto; }
+        .header h1 { margin: 0; font-size: 2em; color: var(--primary-color); font-weight: bold; }
+        .header h1 a { color: inherit; text-decoration: none; }
+        .nav { margin-top: 10px; }
+        .nav a { color: var(--primary-color); text-decoration: none; margin: 0 15px; font-weight: bold; font-size: 1.1em; }
+        .nav a:hover { text-decoration: underline; }
+        .container { max-width: 800px; margin: 40px auto; padding: 30px; background: var(--container-bg); border-radius: 12px; box-shadow: 0 8px 30px var(--shadow-color); }
+        h1, h2 { border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+        a { color: var(--primary-color); }
+        .step { margin-bottom: 40px; }
+        .step-image { max-width: 100%; border: 1px solid var(--border-color); border-radius: 8px; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="title-container">
+            <img src="/static/images/P.logo.png" alt="Logo" class="logo">
+            <h1><a href="/">The Predictability Score</a></h1>
+        </div>
+        <nav class="nav">
+            <a href="/">Home</a>
+            <a href="/calculator">Calculator</a>
+            <a href="/methodology">Methodology</a>
+            <a href="/tutorial">Tutorial</a>
+            <a href="/contact">Contact</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <h1>How to Use the Powerful Engine</h1>
+        <p>This guide will walk you through the core features of the Predictability Score™—from basic data analysis to the institutional-grade Sliding Window temporal engine.</p>
+
+        <div class="step">
+            <h2>Step 1: Enter Your Data</h2>
+            <p>The engine requires a dataset to analyze. You can either type them in manually or upload a raw data file.</p>
+            <ul>
+                <li>Type or paste your numbers into the main text box.</li>
+                <li>Numbers can be separated by commas, spaces, or new lines.</li>
+                <li>A minimum of two data points is required for a valid predictability score.</li>
+            </ul>
+            <p><strong>Example:</strong> <code>10, 12, 15, 11, 13</code></p>
+        </div>
+
+        <div class="step">
+            <h2>Step 2: Tune the K-Factor™</h2>
+            <p>Our proprietary <strong>Volatility Constant (k)</strong> allows you to define the risk tolerance of the calculation. A higher 'k' increases sensitivity to inconsistency.</p>
+            <ul>
+                <li><strong>🏈 Sports (k=0.5):</strong> Optimized for high-variance performance metrics.</li>
+                <li><strong>📊 Standard (k=1.0):</strong> The baseline for balanced business KPIs.</li>
+                <li><strong>📈 Finance (k=2.0):</strong> Higher sensitivity for risk-adjusted asset analysis.</li>
+                <li><strong>💊 Pharma (k=15.0):</strong> Zero-tolerance precision for manufacturing quality control.</li>
+            </ul>
+            <p><em>Note: Advanced K-Factor modes require a Pro or API account.</em></p>
+        </div>
+
+        <div class="step">
+            <h2>Step 3: Sliding Window Analysis (Premium)</h2>
+            <p>For temporal data, use the <strong>Sliding Window</strong> mode to identify 'Data Drift.' This engine calculates a rolling score, allowing you to see exactly when stability starts to break down.</p>
+            <ol>
+                <li>Toggle the mode selector from "Standard" to "Sliding Window."</li>
+                <li>Set your <strong>Window Size (N)</strong>. This determines how many data points are analyzed in each rolling step.</li>
+                <li>The resulting chart will show the stability of your system over time.</li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h2>Step 4: Institutional API Access</h2>
+            <p>Integrate the Predictability Score™ directly into your own software stack. Our API supports both standard and sliding window analysis.</p>
+            <ul>
+                <li><strong>API Basic:</strong> Access the core calculation engine via REST.</li>
+                <li><strong>API Business/Institutional:</strong> High-throughput access including the Sliding Window temporal engine.</li>
+            </ul>
+            <p>Your API Key can be found in your dashboard after upgrading to an API tier.</p>
+        </div>
+
+        <div class="step">
+            <h2>Step 5: Uploading a File (CSV or TXT)</h2>
+            <p>Analyze massive datasets instantly by uploading raw files.</p>
+            <ol>
+                <li>Click the "Upload .CSV or .TXT File" button.</li>
+                <li>Preview the raw data and <strong>click the header of the column</strong> you wish to analyze.</li>
+                <li>The engine will automatically extract the numerical data and run the analysis.</li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h2>Step 6: Saving and Comparing</h2>
+            <p>Build a library of analyses and compare them head-to-head to identify your most reliable assets.</p>
+            <ol>
+                <li>Name your analysis and click "Save" to store it in your dashboard.</li>
+                <li>Organize results into folders for structured reporting.</li>
+                <li>Select multiple saved analyses and click "Compare" to visualize their reliability streams simultaneously.</li>
+            </ol>
+        </div>
+    </div>
+</body>
+</html>
