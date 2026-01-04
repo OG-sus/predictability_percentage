@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Predictability Score - Measure Dataset Volatility</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/P.logo.png') }}" type="image/png">
     <style>
         :root {
             --bg-color: #f8f9fa;
@@ -172,8 +173,10 @@
 
     <header class="header">
         <div class="title-container">
-            <img src="/static/images/P.logo.png" alt="Logo" class="logo">
-            <h1><a href="/">The Predictability Score</a></h1>
+            <a href="/" style="display: flex; align-items: center; text-decoration: none; gap: 20px;">
+                <img src="{{ url_for('static', filename='images/P.logo.png') }}" alt="Logo" class="logo">
+                <h1 style="margin: 0; font-size: 3.5em; color: var(--primary-color); font-weight: bold; letter-spacing: -1px;">The Predictability Score</h1>
+            </a>
         </div>
         <p>The Powerful Engine for Proprietary Analysis.<br>From Fantasy Sports to Pharmaceutical Manufacturing.</p>
         <nav class="nav">
