@@ -1,0 +1,26 @@
+.env
+database.db
+__pycache__/
+*.pyc
+.idea/
+.venv/
+venv/
+.DS_Store
+service_account.json
+*.png
+
+
+# SDK Build Artifacts (Do NOT Commit)
+dist/
+build/
+*.egg-info/
+
+# Allow specific brand assets
+!static/images/brand_logo.png
+!static/png_assets/
+
+
+output.json
+
+.promptfoo/
+

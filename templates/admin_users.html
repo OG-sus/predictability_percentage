@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - User Management</title>
+    <style>
+        body { font-family: sans-serif; background-color: #121212; color: #e9ecef; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: #1e1e1e; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.5); border: 1px solid #333; }
+        h1 { color: #0d6efd; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
+        th { background-color: #252525; font-weight: bold; color: #adb5bd; }
+        tr:hover { background-color: #2c2c2c; }
+
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; color: white; }
+        .badge-free { background-color: #6c757d; }
+        .badge-pro { background-color: #28a745; }
+        .badge-business { background-color: #0d6efd; }
+        .badge-enterprise { background-color: #6610f2; }
+
+        .btn-action { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em; text-decoration: none; display: inline-block; margin-right: 5px; }
+        .btn-gen { background-color: #198754; color: white; }
+        .btn-revoke { background-color: #dc3545; color: white; }
+        .btn-tier { background-color: #0d6efd; color: white; }
+
+        .key-display { font-family: monospace; background: #000; padding: 2px 5px; border-radius: 3px; color: #0d6efd; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>User Management</h1>
+        <p>Total Users: {{ users|length }}</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Tier</th>
+                    <th>API Key</th>
+                    <th>Usage</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>
+                        <span class="badge
+                            {% if user.tier == 'Free' %}badge-free
+                            {% elif user.tier == 'Pro' %}badge-pro
+                            {% elif 'Business' in user.tier %}badge-business
+                            {% else %}badge-enterprise{% endif %}">
+                            {{ user.tier }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if user.api_key %}
+                            <span class="key-display" title="{{ user.api_key }}">{{ user.api_key[:8] }}...</span>
+                        {% else %}
+                            <span style="color: #666;">None</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ user.usage_count or 0 }}</td>
+                    <td>
+                        <!-- Tier Controls -->
+                        <a href="/admin/set_tier/{{ user.username }}/Free" class="btn-action" style="background:#444;">Free</a>
+                        <a href="/admin/set_tier/{{ user.username }}/API_Business" class="btn-action btn-tier">Biz</a>
+
+                        <!-- Key Controls -->
+                        {% if user.api_key %}
+                            <a href="/admin/revoke_key/{{ user.id }}" class="btn-action btn-revoke" onclick="return confirm('Revoke key for {{ user.username }}?')">Revoke</a>
+                        {% else %}
+                            <a href="/admin/generate_key/{{ user.id }}" class="btn-action btn-gen">Generate Key</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div style="margin-top: 20px;">
+            <a href="/calculator" style="text-decoration: none; color: #0d6efd;">&larr; Back to Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>

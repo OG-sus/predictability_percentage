@@ -1,0 +1,238 @@
+{
+  "evalId": "eval-8dP-2026-03-01T04:33:54",
+  "results": {
+    "version": 3,
+    "timestamp": "2026-03-01T04:33:54.940Z",
+    "prompts": [
+      {
+        "id": "9ba237c9a4abe72129ca7b373bbd8866bc68735fd3c46d7b146d38bb956ddc36",
+        "raw": "Summarize the current state of RAG architecture reliability in 2 sentences.",
+        "label": "Summarize the current state of RAG architecture reliability in 2 sentences.",
+        "provider": "deepseek:deepseek-chat",
+        "metrics": {
+          "score": 1,
+          "testPassCount": 1,
+          "testFailCount": 0,
+          "testErrorCount": 0,
+          "assertPassCount": 0,
+          "assertFailCount": 0,
+          "totalLatencyMs": 514,
+          "tokenUsage": {
+            "prompt": 19,
+            "completion": 65,
+            "cached": 0,
+            "total": 84,
+            "numRequests": 1,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0
+            },
+            "assertions": {
+              "total": 0,
+              "prompt": 0,
+              "completion": 0,
+              "cached": 0,
+              "numRequests": 0,
+              "completionDetails": {
+                "reasoning": 0,
+                "acceptedPrediction": 0,
+                "rejectedPrediction": 0
+              }
+            }
+          },
+          "namedScores": {},
+          "namedScoresCount": {},
+          "cost": 0.00003262
+        }
+      }
+    ],
+    "results": [
+      {
+        "cost": 0.00003262,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "No assertions",
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          }
+        },
+        "id": "68d70390-316d-4ed1-8ca7-a759100b510a",
+        "latencyMs": 514,
+        "namedScores": {},
+        "prompt": {
+          "raw": "Summarize the current state of RAG architecture reliability in 2 sentences.",
+          "label": "Summarize the current state of RAG architecture reliability in 2 sentences.",
+          "config": {
+            "repeat": 10
+          }
+        },
+        "promptId": "9ba237c9a4abe72129ca7b373bbd8866bc68735fd3c46d7b146d38bb956ddc36",
+        "promptIdx": 0,
+        "provider": {
+          "id": "deepseek:deepseek-chat",
+          "label": ""
+        },
+        "response": {
+          "output": "Current RAG architectures still struggle with consistent reliability, as they remain prone to generating incorrect or unsupported outputs (\"hallucinations\") when retrieving irrelevant or conflicting source documents. While significant progress has been made in retrieval and re-ranking techniques, ensuring factual accuracy and contextual faithfulness in the final generation remains a core, unsolved challenge.",
+          "tokenUsage": {
+            "total": 84,
+            "prompt": 19,
+            "completion": 65,
+            "numRequests": 1
+          },
+          "cached": false,
+          "latencyMs": 514,
+          "finishReason": "stop",
+          "cost": 0.00003262,
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "access-control-allow-credentials": "true",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Sun, 01 Mar 2026 04:34:17 GMT",
+                "server": "elb",
+                "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+                "transfer-encoding": "chunked",
+                "vary": "origin, access-control-request-method, access-control-request-headers",
+                "via": "1.1 fda672f0d6e472cdf596c05a64c6184e.cloudfront.net (CloudFront)",
+                "x-amz-cf-id": "Aw8WpVufBf6LRbnvoADL4GktJPeUBWIUna0EACJm_xMrhGE5TNndxg==",
+                "x-amz-cf-pop": "DEN53-P2",
+                "x-cache": "Miss from cloudfront",
+                "x-content-type-options": "nosniff",
+                "x-ds-trace-id": "639c02d52c45e6a5733a8bbab8c95f8b"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "vars": {
+            "name": "RAG Stability"
+          },
+          "options": {
+            "repeat": 10
+          },
+          "assert": [],
+          "metadata": {}
+        },
+        "testIdx": 0,
+        "vars": {
+          "name": "RAG Stability"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "access-control-allow-credentials": "true",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Sun, 01 Mar 2026 04:34:17 GMT",
+              "server": "elb",
+              "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+              "transfer-encoding": "chunked",
+              "vary": "origin, access-control-request-method, access-control-request-headers",
+              "via": "1.1 fda672f0d6e472cdf596c05a64c6184e.cloudfront.net (CloudFront)",
+              "x-amz-cf-id": "Aw8WpVufBf6LRbnvoADL4GktJPeUBWIUna0EACJm_xMrhGE5TNndxg==",
+              "x-amz-cf-pop": "DEN53-P2",
+              "x-cache": "Miss from cloudfront",
+              "x-content-type-options": "nosniff",
+              "x-ds-trace-id": "639c02d52c45e6a5733a8bbab8c95f8b"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      }
+    ],
+    "stats": {
+      "successes": 1,
+      "failures": 0,
+      "errors": 0,
+      "tokenUsage": {
+        "prompt": 19,
+        "completion": 65,
+        "cached": 0,
+        "total": 84,
+        "numRequests": 1,
+        "completionDetails": {
+          "reasoning": 0,
+          "acceptedPrediction": 0,
+          "rejectedPrediction": 0
+        },
+        "assertions": {
+          "total": 0,
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "numRequests": 0,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0
+          }
+        }
+      },
+      "durationMs": 3273,
+      "evaluationDurationMs": 3273
+    }
+  },
+  "config": {
+    "tags": {},
+    "prompts": [
+      "Summarize the current state of RAG architecture reliability in 2 sentences."
+    ],
+    "providers": [
+      {
+        "id": "deepseek:deepseek-chat",
+        "config": {
+          "apiKey": "sk-320af1b3c15d47178b61ca439b69c55b",
+          "temperature": 0.9
+        }
+      }
+    ],
+    "tests": [
+      {
+        "vars": {
+          "name": "RAG Stability"
+        },
+        "options": {
+          "repeat": 10
+        }
+      }
+    ],
+    "scenarios": [],
+    "env": {},
+    "outputPath": [
+      "battle_results.json"
+    ],
+    "extensions": [],
+    "metadata": {},
+    "evaluateOptions": {}
+  },
+  "shareableUrl": "https://www.promptfoo.app/eval/eval-8dP-2026-03-01T04:33:54",
+  "metadata": {
+    "promptfooVersion": "0.120.25",
+    "nodeVersion": "v24.14.0",
+    "platform": "win32",
+    "arch": "x64",
+    "exportedAt": "2026-03-01T04:33:58.678Z",
+    "evaluationCreatedAt": "2026-03-01T04:33:54.940Z",
+    "author": "predictabilitycalculator@gmail.com"
+  }
+}

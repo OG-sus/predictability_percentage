@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stability Ticker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- Preconnect to Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: transparent; /* Default, can be overridden */
+        }
+        .ticker-container {
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            /* Dimensions set by JS */
+        }
+        .ticker-wrap {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+        }
+        .ticker-move {
+            display: inline-block;
+            white-space: nowrap;
+            padding-right: 100%;
+            animation: ticker-scroll 20s linear infinite;
+        }
+        .ticker-item {
+            display: inline-block;
+            padding: 0 2rem;
+            font-weight: bold;
+            /* Font size set by JS relative to height */
+        }
+        @keyframes ticker-scroll {
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-100%, 0, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="ticker-container" id="ticker-box">
+        <div class="ticker-wrap">
+            <div class="ticker-move" id="ticker-content">
+                <div class="ticker-item" style="opacity: 0.7; font-style: italic;">📡 Stability Module: Connecting to Sheet...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+
+        // --- Apply Custom Styles ---
+        const bgColor = params.get('bg') || '#000000';
+        const bgImage = params.get('bgImage') || '';
+        const textColor = params.get('color') || '#ffffff';
+        const fontName = params.get('font') || 'Segoe UI';
+        const speed = params.get('speed') || 20;
+        const height = params.get('height') || '60'; // Default 60px
+        const width = params.get('width') || '100%'; // Default 100%
+        const radius = params.get('radius') || '0'; // Default 0px
+
+        const box = document.getElementById('ticker-box');
+
+        // Dimensions & Shape
+        box.style.height = height + 'px';
+        box.style.width = width.includes('%') ? width : width + 'px';
+        box.style.borderRadius = radius + 'px';
+
+        // Background (Color + Image)
+        if (bgImage) {
+            box.style.backgroundImage = `url('${bgImage}')`;
+            box.style.backgroundSize = 'cover';
+            box.style.backgroundPosition = 'center';
+        } else {
+            box.style.backgroundColor = bgColor;
+        }
+
+        // Text Styles
+        box.style.color = textColor;
+
+        // Font Size (Auto-scale based on height, approx 60% of container)
+        const fontSize = Math.max(12, parseInt(height) * 0.6);
+
+        // Apply Font Size to Items
+        const styleSheet = document.createElement("style");
+        styleSheet.innerText = `.ticker-item { font-size: ${fontSize}px; }`;
+        document.head.appendChild(styleSheet);
+
+        // Apply Speed
+        document.getElementById('ticker-content').style.animationDuration = speed + 's';
+
+        // Load and Apply Font
+        if (fontName !== 'Segoe UI' && fontName !== 'Arial' && fontName !== 'Courier New' && fontName !== 'Times New Roman') {
+            const link = document.createElement('link');
+            link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/ /g, '+')}&display=swap`;
+            link.rel = 'stylesheet';
+            document.head.appendChild(link);
+            box.style.fontFamily = `'${fontName}', sans-serif`;
+        } else {
+            box.style.fontFamily = fontName;
+        }
+
+        // --- Data Fetching ---
+        const sheetId = params.get('sheet');
+
+        // If no sheet ID, show placeholder
+        if (!sheetId) {
+             document.getElementById('ticker-content').innerHTML = `
+                <div class="ticker-item">Stability Ticker Ready</div>
+                <div class="ticker-item">Configure in Generator</div>
+                <div class="ticker-item">Waiting for Data...</div>
+            `;
+        }
+
+        const sheetUrl = `https://docs.google.com/spreadsheets/d/e/${sheetId}/pub?gid=0&single=true&output=csv`;
+
+        function fetchData() {
+           // This builds the special CSV link Google Sheets needs
+           const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+
+           Papa.parse(csvUrl, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    const rows = results.data;
+            
+                    // FILTER: Only show rows where Is_Live is TRUE (matches your Product Bible)
+                    const activeRows = rows.filter(row => 
+                        row.Is_Live && row.Is_Live.toString().toUpperCase() === 'TRUE'
+                    );
+
+                    if (activeRows.length === 0) {
+                        document.getElementById('ticker-content').innerHTML = 
+                            '<div class="ticker-item">⚠️ No Active Data (Check Is_Live column)</div>';
+                        return;
+                    }
+
+                    let tickerHTML = '';
+                    activeRows.forEach(row => {
+                        const symbol = row.Symbol || '';
+                        const price = row.Price || '';
+                        const change = row.Change || '';
+                        // Logic for arrows
+                        const trendIcon = row.Trend === 'UP' ? '⬆️' : (row.Trend === 'DOWN' ? '⬇️' : '');
+
+                        tickerHTML += `<div class="ticker-item">${symbol} ${price} <span style="font-size: 0.8em; opacity: 0.8;">${change}</span> ${trendIcon}</div>`;
+                    });
+
+                    const tickerContent = document.getElementById('ticker-content');
+                    // Duplicate the HTML twice to create the infinite loop effect and only update if changed
+                    if (tickerHTML && tickerContent.innerHTML !== (tickerHTML + tickerHTML)) {
+                        tickerContent.innerHTML = tickerHTML + tickerHTML;
+                    }
+                },
+                error: function(err) {
+                    console.error("Error fetching sheet:", err);
+                    document.getElementById('ticker-content').innerHTML = '<div class="ticker-item">ERROR: Could not load Google Sheet. Is it public?</div>';
+                }
+            });
+        }
+
+        // Fetch data on load and then every 5 seconds
+        if (sheetId) {
+            fetchData();
+            setInterval(fetchData, 5000);
+        }
+    </script>
+</body>
+</html>

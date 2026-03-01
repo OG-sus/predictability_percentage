@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stability Ticker - Generator</title>
+    <!-- Preconnect to Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Audiowide&family=Bebas+Neue&family=Exo+2&family=Indie+Flower&family=Lato&family=Lora&family=Merriweather&family=Montserrat&family=Open+Sans&family=Orbitron&family=Oswald&family=Pacifico&family=Permanent+Marker&family=Playfair+Display&family=Poppins&family=Rajdhani&family=Roboto&family=Russo+One&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #007bff;
+            --bg: #1a1a1a;
+            --panel: #2d2d2d;
+            --text: #ffffff;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        h1 { margin-bottom: 10px; }
+        .subtitle { color: #aaa; margin-bottom: 30px; }
+
+        /* PREVIEW AREA */
+        .preview-wrapper {
+            width: 100%;
+            max-width: 1000px;
+            height: 250px; /* Fixed height for preview area */
+            background: #000; /* Checkerboard pattern for transparency */
+            background-image: linear-gradient(45deg, #111 25%, transparent 25%), linear-gradient(-45deg, #111 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #111 75%), linear-gradient(-45deg, transparent 75%, #111 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            border: 2px solid #444;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .ticker-container {
+            width: 100%; /* Default */
+            height: 60px; /* Default */
+            background: #000;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .ticker-wrap {
+            width: 100%;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .ticker-move {
+            display: inline-block;
+            white-space: nowrap;
+            padding-right: 100%;
+            animation: ticker-scroll 20s linear infinite;
+        }
+
+        .ticker-item {
+            display: inline-block;
+            padding: 0 2rem;
+            font-size: 2rem; /* Will be dynamic */
+        }
+
+        @keyframes ticker-scroll {
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-100%, 0, 0); }
+        }
+
+        /* CONTROLS */
+        .controls {
+            background: var(--panel);
+            padding: 30px;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 800px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .presets {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #444;
+        }
+        .preset-btn {
+            flex: 1;
+            padding: 10px;
+            background: #444;
+            border: 1px solid #555;
+            color: #ccc;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .preset-btn:hover { background: #555; color: #fff; }
+
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #ccc; font-size: 0.9rem; }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            background: #444;
+            border: 1px solid #555;
+            color: #fff;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        input[type="color"] { height: 40px; padding: 2px; }
+        input[type="range"] { padding: 0; }
+
+        .row { display: flex; gap: 20px; flex-wrap: wrap; }
+        .col { flex: 1; min-width: 200px; }
+
+        button.generate-btn {
+            width: 100%;
+            padding: 15px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+            margin-top: 20px;
+        }
+        button.generate-btn:hover { background: #0056b3; }
+
+        .output-area {
+            margin-top: 20px;
+            padding: 15px;
+            background: #000;
+            border: 1px dashed #555;
+            border-radius: 5px;
+            word-break: break-all;
+            display: none;
+        }
+        .output-area h3 { margin-top: 0; color: var(--primary); }
+
+    </style>
+</head>
+<body>
+
+    <h1>Stability Ticker™</h1>
+    <div class="subtitle">Turn your Google Sheet into a professional live stream ticker.</div>
+
+    <!-- LIVE PREVIEW -->
+    <div class="preview-wrapper">
+        <div class="ticker-container" id="preview-box">
+            <div class="ticker-wrap">
+                <div class="ticker-move" id="ticker-content">
+                    <!-- Placeholder Items -->
+                    <div class="ticker-item">BTC: $98,500 ⬆️</div>
+                    <div class="ticker-item">ETH: $2,800 ⬇️</div>
+                    <div class="ticker-item">TSLA: $350 🚀</div>
+                    <div class="ticker-item">YOUR DATA HERE</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONFIGURATION -->
+    <div class="controls">
+        <label>Quick Presets:</label>
+        <div class="presets">
+            <button class="preset-btn" onclick="applyPreset('classic')">Classic Bar</button>
+            <button class="preset-btn" onclick="applyPreset('pill')">Corner Pill</button>
+            <button class="preset-btn" onclick="applyPreset('header')">Header Strip</button>
+            <button class="preset-btn" onclick="applyPreset('box')">Spotlight Box</button>
+        </div>
+
+        <!-- ROW 1: Appearance -->
+        <div class="row">
+            <div class="col">
+                <div class="form-group">
+                    <label>Background Color</label>
+                    <input type="color" id="bg-color" value="#000000">
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                    <label>Text Color</label>
+                    <input type="color" id="text-color" value="#ffffff">
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                    <label>Font Family</label>
+                    <select id="font-family">
+                        <optgroup label="Modern & Clean">
+                            <option value="Roboto">Roboto</option>
+                            <option value="Open Sans">Open Sans</option>
+                            <option value="Montserrat">Montserrat</option>
+                            <option value="Lato">Lato</option>
+                            <option value="Poppins">Poppins</option>
+                        </optgroup>
+                        <optgroup label="Tech & Sci-Fi">
+                            <option value="Orbitron">Orbitron</option>
+                            <option value="Exo 2">Exo 2</option>
+                            <option value="Rajdhani">Rajdhani</option>
+                            <option value="Audiowide">Audiowide</option>
+                        </optgroup>
+                        <optgroup label="Sports & Bold">
+                            <option value="Oswald">Oswald</option>
+                            <option value="Anton">Anton</option>
+                            <option value="Russo One">Russo One</option>
+                            <option value="Bebas Neue">Bebas Neue</option>
+                        </optgroup>
+                        <optgroup label="Elegant & Serif">
+                            <option value="Playfair Display">Playfair Display</option>
+                            <option value="Merriweather">Merriweather</option>
+                            <option value="Lora">Lora</option>
+                        </optgroup>
+                        <optgroup label="Handwritten & Fun">
+                            <option value="Pacifico">Pacifico</option>
+                            <option value="Permanent Marker">Permanent Marker</option>
+                            <option value="Indie Flower">Indie Flower</option>
+                        </optgroup>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- ROW 2: Dimensions & Speed -->
+        <div class="row">
+            <div class="col">
+                <div class="form-group">
+                    <label>Height: <span id="height-val">60px</span></label>
+                    <input type="range" id="height" min="30" max="150" value="60">
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                    <label>Width: <span id="width-val">100%</span></label>
+                    <input type="range" id="width" min="10" max="100" value="100">
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                    <label>Corner Radius: <span id="radius-val">0px</span></label>
+                    <input type="range" id="radius" min="0" max="50" value="0">
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+             <div class="col">
+                <div class="form-group">
+                    <label>Scroll Speed (sec)</label>
+                    <input type="number" id="speed" value="20" min="5" max="100">
+                </div>
+            </div>
+        </div>
+
+        <!-- ROW 3: Advanced Background -->
+        <div class="form-group">
+            <label>Background Image URL (Optional)</label>
+            <input type="text" id="bg-image" placeholder="https://example.com/my-texture.png">
+            <small style="color: #888;">Overrides background color. Use a seamless texture or banner image.</small>
+        </div>
+
+        <div class="form-group">
+            <label>Google Sheet ID (Public)</label>
+            <input type="text" id="sheet-id" placeholder="e.g., 1F3V-nmqchQE2-pauoRCVWDdZKLUIOLbSt1qeXvcUz6o">
+            <small style="color: #888;">Make sure your sheet is "Published to Web" or "Anyone with link can view"</small>
+        </div>
+
+        <button class="generate-btn" onclick="generateLink()">Generate OBS Link</button>
+
+        <div class="output-area" id="output">
+            <h3>🚀 Your Ticker URL:</h3>
+            <p id="generated-url" style="color: #0f0; font-family: monospace;"></p>
+            <button onclick="copyLink()" style="margin-top: 10px; background: #444; border: none; color: white; padding: 10px; border-radius: 5px; cursor: pointer;">Copy to Clipboard</button>
+        </div>
+    </div>
+
+    <script>
+        // --- LIVE PREVIEW LOGIC ---
+        const inputs = ['bg-color', 'text-color', 'font-family', 'speed', 'height', 'width', 'radius', 'bg-image'];
+
+        inputs.forEach(id => {
+            document.getElementById(id).addEventListener('input', updatePreview);
+        });
+
+        function applyPreset(type) {
+            if (type === 'classic') {
+                // Standard News Crawl: Full width, thin, sharp corners
+                setValues(60, 100, 0, 20); 
+            } else if (type === 'pill') {
+                // The Stability "Pill": Compact, rounded, slower for readability
+                setValues(80, 35, 40, 25); 
+            } else if (type === 'header') {
+                // Top of screen strip: Very thin, fast
+                setValues(35, 100, 0, 15);
+            } else if (type === 'box') {
+                // Spotlight: Tall, square-ish, very slow or static
+                setValues(150, 25, 12, 40);
+            }
+            updatePreview();
+}
+
+        function setValues(h, w, r, s) {
+            document.getElementById('height').value = h;
+            document.getElementById('width').value = w;
+            document.getElementById('radius').value = r;
+            document.getElementById('speed').value = s; // Added speed to presets!
+        }
+
+        function updatePreview() {
+    // 1. First, we define the variables so the logic knows what they are
+    const bg = document.getElementById('bg-color').value;
+    const text = document.getElementById('text-color').value;
+    const font = document.getElementById('font-family').value;
+    const speed = document.getElementById('speed').value;
+    const height = document.getElementById('height').value;
+    const width = document.getElementById('width').value;
+    const radius = document.getElementById('radius').value;
+    const bgImage = document.getElementById('bg-image').value;
+
+    const container = document.getElementById('preview-box');
+    const content = document.getElementById('ticker-content');
+    const items = document.querySelectorAll('.ticker-item');
+
+    // 2. FONT LOADER: Now that 'font' is defined, we can fetch it from Google
+    if (font !== 'Segoe UI') {
+        const fontId = 'font-load-' + font.replace(/\s+/g, '-');
+        if (!document.getElementById(fontId)) {
+            const link = document.createElement('link');
+            link.id = fontId;
+            link.rel = 'stylesheet';
+            link.href = `https://fonts.googleapis.com/css2?family=${font.replace(/\s+/g, '+')}&display=swap`;
+            document.head.appendChild(link);
+        }
+    }
+
+    // 3. Update the text labels in the controls
+    document.getElementById('height-val').innerText = height + 'px';
+    document.getElementById('width-val').innerText = width + '%';
+    document.getElementById('radius-val').innerText = radius + 'px';
+
+    // 4. Apply the visual styles to the preview box
+    container.style.height = height + 'px';
+    container.style.width = width + '%';
+    container.style.borderRadius = radius + 'px';
+    container.style.color = text;
+    container.style.fontFamily = `'${font}', sans-serif`;
+
+    if (bgImage) {
+        container.style.backgroundImage = `url('${bgImage}')`;
+        container.style.backgroundSize = 'cover';
+        container.style.backgroundPosition = 'center';
+    } else {
+        container.style.backgroundImage = 'none';
+        container.style.backgroundColor = bg;
+    }
+
+    // 5. Auto-scale font size (approx 60% of height)
+    const fontSize = Math.max(12, parseInt(height) * 0.6);
+    items.forEach(item => item.style.fontSize = fontSize + 'px');
+
+    // 6. Update animation speed
+    content.style.animationDuration = speed + 's';
+}
+
+        function generateLink() {
+            // We remove window.location.origin to make it a local relative path
+            const baseUrl = 'ticker_render.html';
+
+            const params = new URLSearchParams({
+                bg: document.getElementById('bg-color').value,
+                color: document.getElementById('text-color').value,
+                font: document.getElementById('font-family').value,
+                speed: document.getElementById('speed').value,
+                height: document.getElementById('height').value,
+                width: document.getElementById('width').value + '%',
+                radius: document.getElementById('radius').value,
+                bgImage: document.getElementById('bg-image').value,
+                sheet: document.getElementById('sheet-id').value
+    });
+
+            // This creates: ticker_render.html?sheet=ID&bg=%23000000...
+            const finalUrl = `${baseUrl}?${params.toString()}`;
+
+            document.getElementById('generated-url').innerText = finalUrl;
+            document.getElementById('output').style.display = 'block';
+        }
+        function copyLink() {
+            const urlText = document.getElementById('generated-url').innerText;
+            navigator.clipboard.writeText(urlText).then(() => {
+                alert("Copied to clipboard! Paste this into OBS Browser Source.");
+            });
+        }
+
+        // Initialize
+        updatePreview();
+    </script>
+</body>
+</html>

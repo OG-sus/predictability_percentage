@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Stability Network - Live Feed</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" crossorigin="anonymous"></script>
+    <style>
+        body {
+            background-color: #111; /* Dark grey instead of black to see the background */
+            color: #fff;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #js-error-console {
+            position: fixed;
+            bottom: 65px;
+            left: 5px;
+            right: 5px;
+            background: rgba(255, 0, 0, 0.2);
+            color: #ffcccc;
+            font-size: 12px;
+            max-height: 100px;
+            overflow-y: auto;
+            z-index: 3000;
+            padding: 5px;
+            border: 1px solid red;
+            display: none;
+        }
+
+        /* --- DEBUG OVERLAY --- */
+        #debug-info {
+            position: fixed;
+            top: 5px;
+            left: 5px;
+            font-size: 10px;
+            color: #444;
+            z-index: 1000;
+            background: rgba(0,0,0,0.5);
+            padding: 2px;
+            pointer-events: none;
+        }
+
+        #status-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2em;
+            color: #ff0000;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border: 2px solid #ff0000;
+            display: none;
+            z-index: 2000;
+            text-align: center;
+        }
+
+        /* --- TICKERS --- */
+        .ticker-band {
+            width: 100%;
+            background: rgba(15, 15, 20, 0.95);
+            border-top: 2px solid #333;
+            border-bottom: 2px solid #333;
+            padding: 8px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            position: relative;
+            z-index: 10;
+            height: 60px;
+            display: flex;
+            align-items: center;
+        }
+        .marquee {
+            display: inline-block;
+            padding-left: 100%;
+            animation: scroll 150s linear infinite;
+            will-change: transform;
+        }
+        #bottom-marquee {
+            animation-duration: 130s; /* Faster than the top now as requested */
+        }
+        @keyframes scroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+        }
+        .item {
+            display: inline-flex;
+            align-items: center;
+            margin-right: 70px;
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+        #top-ticker { border-bottom: 3px solid #0170C1; }
+        #bottom-ticker { border-top: 3px solid #ff0000; margin-top: auto; }
+
+        /* --- MAIN STAGE --- */
+        .main-stage {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            background: radial-gradient(circle at center, #111 0%, #000 100%);
+            padding: 20px;
+            overflow: hidden;
+        }
+        .main-stage h1 {
+            font-size: 3.5em;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(1, 112, 193, 0.5);
+            min-height: 1.2em;
+        }
+        .dynamic-title {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            color: #ccc;
+            min-height: 1.2em;
+        }
+
+        /* CHART CONTAINER */
+        .chart-container {
+            width: 90%;
+            height: 500px;
+            background: rgba(20, 20, 20, 0.8);
+            border: 1px solid #444;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 0 40px rgba(1, 112, 193, 0.15);
+            position: relative;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* --- OVERLAYS --- */
+        .branding { position: absolute; bottom: 90px; right: 30px; text-align: right; font-size: 1.5em; color: #666; text-transform: uppercase; letter-spacing: 2px; }
+        .branding span { color: #0170C1; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="js-error-console"></div>
+    <div id="debug-info">V1.5 - Status: <span id="debug-status">Initializing...</span> <span id="live-dot" style="color: red; opacity: 0;">●</span></div>
+    <div id="status-message"></div>
+    <div class="ticker-band" id="top-ticker"><div class="marquee" id="top-marquee">Loading Ticker...</div></div>
+
+    <div class="main-stage">
+        <h1 id="main-title"></h1>
+        <h2 class="dynamic-title" id="dynamic-chart-title"></h2>
+
+        <div class="chart-container">
+            <canvas id="ai-stability-chart"></canvas>
+        </div>
+    </div>
+
+    <div class="branding">Powered by <span>Predictability API</span></div>
+    <div class="ticker-band" id="bottom-ticker"><div class="marquee" id="bottom-marquee">Loading Alerts...</div></div>
+
+    <script>
+        // GLOBAL ERROR HANDLER
+        window.onerror = function(message, source, lineno, colno, error) {
+            const consoleEl = document.getElementById('js-error-console');
+            if (consoleEl) {
+                consoleEl.style.display = 'block';
+                consoleEl.innerHTML += `<div>Error: ${message} (${lineno}:${colno})</div>`;
+            }
+            return false;
+        };
+
+        const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT76OLQ-oBF5Jrxqi-6ZcdapCQfTBYZ3icuKV_E7_flohmqwJj0IQnY6s5-1Lnb2lJKgQ93Q_JEHsFo/pub?gid=0&single=true&output=csv";
+
+        let currentLiveIndex = 0;
+        let lastRotationTime = 0;
+        const ROTATION_INTERVAL = 15000; // Rotate every 15 seconds
+
+        console.log("Overlay script loaded. Starting up...");
+
+        // FALLBACK DATA (In case Google Sheet fetch fails)
+        const FALLBACK_DATA = [
+            ["Row 0 Header", "Score", "Avg", "Type", "Is_Live", "Featured", "Top", "Bottom", "FTitle", "FSubtitle", "Real_Data", "Target", "Drift", "Status"],
+            ["SYSTEM FALLBACK", "99.9", "10", "PTS", "TRUE", "TRUE", "System is Online", "Check Google Sheet Connection", "SYSTEM_READY", "STABLE", "10,12,11,13,10,12", "10", "0", "✅ ONLINE"]
+        ];
+        const MAX_GRAPH_POINTS = 60;
+
+        let aiChart;
+        let chartData = {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Real Data',
+                    data: [],
+                    borderColor: '#0170C1', // Brand Blue
+                    backgroundColor: 'rgba(1, 112, 193, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0
+                },
+                {
+                    label: 'Target',
+                    data: [],
+                    borderColor: '#ffcc00', // Yellow/Gold for Target
+                    borderWidth: 2,
+                    borderDash: [5, 5], // Dashed line
+                    fill: false,
+                    pointRadius: 0
+                }
+            ]
+        };
+
+        function setStatus(msg, isError = false) {
+            console.log("Status:", msg);
+            const debugEl = document.getElementById('debug-status');
+            if (debugEl) debugEl.innerText = msg;
+            
+            const msgEl = document.getElementById('status-message');
+            if (isError) {
+                msgEl.innerText = msg;
+                msgEl.style.display = 'block';
+            } else {
+                msgEl.style.display = 'none';
+            }
+        }
+
+        function initializeChart() {
+            try {
+                if (typeof Chart === 'undefined') {
+                    // EMERGENCY FALLBACK if Chart.js fails to load
+                    const script = document.createElement('script');
+                    script.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js";
+                    script.onerror = () => { setStatus("CRITICAL: Failed to load Chart.js library.", true); };
+                    script.onload = () => { console.log("Chart.js reloaded"); initializeChart(); };
+                    document.head.appendChild(script);
+                    throw new Error("Chart.js missing. Retrying...");
+                }
+                const canvas = document.getElementById('ai-stability-chart');
+                if (!canvas) throw new Error("Canvas element missing");
+                
+                const ctx = canvas.getContext('2d');
+                aiChart = new Chart(ctx, {
+                    type: 'line',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        plugins: { legend: { display: true, labels: { color: '#ccc' } } },
+                        scales: {
+                            y: {
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                ticks: { color: '#888' }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { display: true, color: '#888', maxTicksLimit: 10 }
+                            }
+                        }
+                    }
+                });
+                setStatus("Chart Initialized");
+            } catch (e) {
+                setStatus(e.message, true);
+                console.error(e);
+            }
+        }
+
+        function fetchData() {
+            try {
+                if (typeof Papa === 'undefined') {
+                    // EMERGENCY FALLBACK if PapaParse fails to load
+                    const script = document.createElement('script');
+                    script.src = "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js";
+                    script.onload = () => { console.log("Papa reloaded"); fetchData(); };
+                    document.head.appendChild(script);
+                    throw new Error("PapaParse missing. Retrying...");
+                }
+                const url = SHEET_URL + '&cache_bust=' + new Date().getTime();
+                setStatus("Fetching Data...");
+                Papa.parse(url, {
+                    download: true,
+                    header: false,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        const data = results.data;
+                        if (!data || data.length === 0) {
+                            setStatus("No data returned from Sheet", true);
+                            return;
+                        }
+                        setStatus("Data Received (" + data.length + " rows)");
+                        
+                        // Blink the live dot
+                        const dot = document.getElementById('live-dot');
+                        if (dot) {
+                            dot.style.opacity = 1;
+                            setTimeout(() => dot.style.opacity = 0, 500);
+                        }
+                        
+                        updateOverlay(data);
+                    },
+                    error: function(err) {
+                        setStatus("CSV Parse Error: " + err + ". Using fallback data.", false);
+                        updateOverlay(FALLBACK_DATA);
+                    }
+                });
+            } catch (e) {
+                setStatus(e.message, true);
+                console.error("Failed to fetch data:", e);
+            }
+        }
+
+        function parseRealValue(val) {
+            if (!val) return NaN;
+            // Handle comma separated strings (e.g. from copy-pasting raw stats)
+            if (typeof val === 'string' && val.includes(',')) {
+                const parts = val.split(',').map(s => s.trim()).filter(s => s !== "");
+                return parseFloat(parts[parts.length - 1]); // Take the last value
+            }
+            return parseFloat(val);
+        }
+
+        function updateOverlay(data) {
+            if (!data || data.length === 0) return;
+
+            // STRICT FILTERING FOR MAIN STAGE:
+            // 1. Column E (Index 4) MUST be 'TRUE' (Is_Live)
+            // 2. Column F (Index 5) MUST be 'TRUE' (Featured)
+            // 3. Column A (Index 0) MUST NOT be empty (Player Name)
+            const liveRows = data.filter(r => {
+                const isLive = r[4] && r[4].toString().trim().toUpperCase() === 'TRUE';
+                const isFeatured = r[5] && r[5].toString().trim().toUpperCase() === 'TRUE';
+                const hasName = r[0] && r[0].toString().trim() !== "";
+                return isLive && isFeatured && hasName;
+            });
+
+            if (liveRows.length === 0) {
+                setStatus("No 'FEATURED' rows found. (Is_Live=TRUE & Featured=TRUE)", true);
+                // Clear the chart if no one is featured
+                if (aiChart) {
+                    chartData.labels = [];
+                    chartData.datasets[0].data = [];
+                    chartData.datasets[1].data = [];
+                    aiChart.update();
+                }
+                document.getElementById('main-title').innerText = "WAITING FOR FEATURED DATA...";
+                document.getElementById('dynamic-chart-title').innerText = "";
+
+                // Still update tickers even if main stage is empty
+                updateTickers(data);
+                return;
+            }
+
+            // ROTATION LOGIC (Only rotates if multiple rows are strictly marked FEATURED)
+            const now = Date.now();
+            if (now - lastRotationTime > ROTATION_INTERVAL) {
+                currentLiveIndex = (currentLiveIndex + 1) % liveRows.length;
+                lastRotationTime = now;
+                console.log(`Rotating to player ${currentLiveIndex + 1} of ${liveRows.length}`);
+                
+                // Reset chart data when switching players to avoid mixing graphs
+                chartData.labels = [];
+                chartData.datasets[0].data = [];
+                chartData.datasets[1].data = [];
+            }
+
+            // Safety check for index out of bounds
+            if (currentLiveIndex >= liveRows.length) {
+                currentLiveIndex = 0;
+            }
+
+            const targetRow = liveRows[currentLiveIndex];
+            const liveCount = liveRows.length;
+            renderRow(targetRow, liveCount);
+            
+            // Update Tickers (always show all live data in tickers)
+            updateTickers(data);
+        }
+
+        function renderRow(targetRow, liveCount) {
+            // --- RENDER TITLES ---
+            const name = targetRow[0] || "No Name";
+            const statType = targetRow[3] || "PTS";
+            
+            // AI Audit uses columns M, N, P (indices 12, 13, 15)
+            // NBA uses columns B, K, L (indices 1, 10, 11)
+            // Let's check if the row looks like an AI Audit row (M is not empty)
+            const isAIAudit = targetRow[12] && targetRow[12].trim() !== "";
+            
+            const currentVal = isAIAudit ? parseRealValue(targetRow[15]) : parseRealValue(targetRow[10]);
+            const targetVal = isAIAudit ? 0 : (parseFloat(targetRow[11]) || 0);
+            const score = isAIAudit ? (parseFloat(targetRow[12]) || 0) : (parseFloat(targetRow[1]) || 0);
+            const statusStr = isAIAudit ? (targetRow[13] || "") : (targetRow[13] || ""); // Both use Index 13 (N)
+            
+            console.log("Updating UI with:", {name, statType, currentVal, targetVal, score, statusStr, isAIAudit});
+
+            // Priority: Featured_TItle (Index 8) -> Name (Index 0) -> Blank
+            const mainTitle = targetRow[8] || targetRow[0] || "";
+
+            // Priority: Featured_Subtitle (Index 9) -> "Predictability Score: [Score]" -> Blank
+            let subTitle = targetRow[9];
+
+            if (!subTitle) {
+                if (!isNaN(score)) {
+                    // Restoring the percentage format the user requested (xx%)
+                    subTitle = `${statType} Stability: ${score.toFixed(1)}% | ${statusStr}`;
+                } else {
+                    subTitle = "";
+                }
+            } else {
+                // If there is a featured subtitle, check if it needs the score injected (optional refinement)
+                // For now, just ensure it handles the score display if the user wants it.
+                if (subTitle.includes("{score}")) {
+                    subTitle = subTitle.replace("{score}", score.toFixed(1) + "%");
+                }
+            }
+
+            const mainTitleEl = document.getElementById('main-title');
+            const dynamicTitleEl = document.getElementById('dynamic-chart-title');
+            
+            if (mainTitleEl) mainTitleEl.innerText = mainTitle;
+            if (dynamicTitleEl) dynamicTitleEl.innerText = subTitle;
+
+            // --- UPDATE CHART ---
+            if (!aiChart) {
+                setStatus("Chart object missing during update", true);
+                return;
+            }
+
+            // If we have a comma-separated list in Column K (or P for AI), we can plot the whole thing
+            let realDataPoints = [];
+            const rawK = isAIAudit ? targetRow[15] : targetRow[10];
+            if (rawK && typeof rawK === 'string' && rawK.includes(',')) {
+                // Remove square brackets if present (sometimes scripts add them)
+                const cleanK = rawK.replace(/[\[\]]/g, '');
+                realDataPoints = cleanK.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n));
+            } else if (!isNaN(currentVal)) {
+                realDataPoints = [currentVal];
+            }
+
+            if (realDataPoints.length === 0) {
+                 setStatus("Row found but Column K (Real_Data) is empty", false);
+            }
+
+            // Update Chart
+            chartData.labels = realDataPoints.map((_, i) => i + 1);
+            chartData.datasets[0].data = realDataPoints;
+            chartData.datasets[1].data = realDataPoints.map(() => targetVal);
+
+            aiChart.update();
+            setStatus(`Displaying ${currentLiveIndex + 1}/${liveCount}: ${name}`);
+        }
+
+        function updateTickers(data) {
+            // Tickers show anyone who is LIVE, regardless of whether they are FEATURED
+            const liveRows = data.filter(r => r[4] && r[4].toString().toUpperCase() === 'TRUE');
+            let topHTML = "";
+            let bottomHTML = "";
+
+            liveRows.forEach(row => {
+                if (row[6] && row[6].trim()) topHTML += `<span class="item">${row[6]}</span>`;
+                if (row[7] && row[7].trim()) bottomHTML += `<span class="item">${row[7]}</span>`;
+            });
+
+            const topEl = document.getElementById('top-marquee');
+            const botEl = document.getElementById('bottom-marquee');
+
+            if (topHTML && topEl.innerHTML !== topHTML.repeat(2)) topEl.innerHTML = topHTML.repeat(2);
+            if (bottomHTML && botEl.innerHTML !== bottomHTML.repeat(2)) botEl.innerHTML = bottomHTML.repeat(2);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeChart();
+            fetchData();
+            setInterval(fetchData, 5000);
+        });
+    </script>
+</body>
+</html>

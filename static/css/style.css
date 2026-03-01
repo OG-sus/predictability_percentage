@@ -1,0 +1,377 @@
+
+        :root {
+            /* Force Dark Mode by Default */
+            --bg-color: #121212;
+            --container-bg: #1e1e1e;
+            --text-color: #e9ecef;
+            --subtle-text-color: #adb5bd;
+            --border-color: #495057;
+
+            /* BRAND COLORS - UNIFIED */
+            --primary-color: #0170C1; /* Logo Match (Lowe's Blue) */
+            --cta-color: #0170C1;     /* UNIFIED: Use primary color for all CTAs */
+
+            --result-bg: #343a40;
+            --shadow-color: rgba(0, 0, 0, 0.5);
+            --alert-color: #dc3545;
+            --secondary-color: #6c757d;
+            --primary-hover: #0056b3;
+            --accent-color: #0170C1; /* Match primary */
+        }
+
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color); color: var(--text-color); margin: 0;
+            transition: background-color 0.3s, color 0.3s;
+            display: flex; flex-direction: column; min-height: 100vh;
+        }
+        .header {
+            background-color: var(--container-bg);
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px var(--shadow-color);
+        }
+        .title-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .header .logo {
+            max-height: 40px;
+            width: auto;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 1.5em;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+        .header h1 a {
+            color: inherit;
+            text-decoration: none;
+        }
+        .nav a {
+            color: var(--primary-color);
+            text-decoration: none;
+            margin-left: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+            cursor: pointer;
+        }
+        .nav a:hover {
+            text-decoration: underline;
+        }
+
+        /* Dashboard Layout */
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+            transition: filter 0.3s;
+            flex: 1;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .blurred {
+            filter: blur(5px);
+            pointer-events: none;
+            user-select: none;
+        }
+
+        @media (min-width: 992px) {
+            .dashboard-container {
+                grid-template-columns: 350px 1fr; /* Fixed sidebar, flexible main content */
+                align-items: start;
+            }
+        }
+
+        .panel {
+            background: var(--container-bg);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px var(--shadow-color);
+            border: 1px solid var(--border-color);
+            /* Ensure panel doesn't overflow */
+            min-width: 0;
+        }
+
+        h2 { font-size: 1.2em; margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px; }
+
+        /* Input Styles */
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
+        textarea, input[type="text"], input[type="number"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-family: inherit;
+        }
+        #scores-input { height: 120px; resize: vertical; }
+        #notes-input { height: 80px; resize: vertical; }
+
+        /* Button Styles */
+        button {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1em;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+
+        /* UPDATED: Use CTA Color for Primary Buttons */
+        .btn-primary { background-color: var(--cta-color); color: white; }
+
+        .btn-secondary { background-color: transparent; border: 1px solid var(--primary-color); color: var(--primary-color); }
+        .btn-danger { background-color: #dc3545; color: white; }
+
+        /* New Clear Button Style */
+        .btn-clear {
+            background-color: transparent;
+            border: 1px solid var(--subtle-text-color);
+            color: var(--subtle-text-color);
+        }
+        .btn-clear:hover {
+            border-color: #dc3545; /* Red on hover */
+            color: #dc3545;
+        }
+
+        /* Switch Styles */
+        .switch-container { margin-bottom: 20px; }
+        .switch-label { font-weight: bold; margin-bottom: 8px; display: block; font-size: 0.9em; }
+        .switch-group { display: flex; gap: 5px; }
+        .switch-btn {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-color);
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: bold;
+            color: var(--subtle-text-color);
+            font-size: 0.85em;
+        }
+        .switch-btn.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
+        .switch-btn.disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Mode Selector */
+        .mode-selector { display: flex; gap: 10px; margin-bottom: 15px; }
+        .mode-btn { flex: 1; padding: 8px; border: 1px solid var(--border-color); background: var(--bg-color); cursor: pointer; border-radius: 6px; font-weight: bold; font-size: 0.9em; }
+        .mode-btn.active { background-color: #6610f2; color: white; border-color: #6610f2; }
+
+        /* Result Area */
+        #result-area {
+            text-align: center;
+            padding: 20px;
+            background-color: var(--result-bg);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        #result-area .label { font-size: 1em; color: var(--subtle-text-color); margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+        #result-area .value { font-size: 3.5em; font-weight: bold; color: var(--primary-color); margin: 5px 0; line-height: 1; }
+
+        /* Critical Alert Box */
+        #critical-alert {
+            display: none;
+            background-color: #ffe6e6;
+            border: 2px solid #dc3545;
+            color: #dc3545;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+
+        /* Chart */
+        #chart-wrapper {
+            position: relative;
+            height: 350px; /* Reset to original height */
+            width: 100%;
+            max-width: 100%; /* Strict max-width */
+            margin-bottom: 20px;
+            resize: vertical;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            box-sizing: border-box; /* Include padding in width */
+        }
+
+        #scores-chart {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* Saved Analyses List */
+        #dashboard-section { margin-top: 0; }
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .dashboard-actions { display: flex; gap: 10px; margin-bottom: 10px; }
+        .dashboard-actions button { width: auto; padding: 5px 10px; font-size: 0.85em; }
+
+        /* Folder Layout Fix */
+        .folder-wrapper {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            margin-bottom: 15px;
+        }
+        #folders-container {
+            column-count: 3;
+            column-gap: 15px;
+        }
+        @media (max-width: 992px) { #folders-container { column-count: 2; } }
+        @media (max-width: 768px) { #folders-container { column-count: 1; } }
+
+        .folder-card {
+            background-color: var(--result-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            position: relative;
+            font-size: 0.9em;
+        }
+        .folder-card:hover { border-color: var(--primary-color); }
+        .folder-delete-btn { position: absolute; top: 2px; right: 2px; background: transparent; border: none; font-size: 0.8em; width: auto; padding: 0; color: var(--subtle-text-color); }
+        .folder-delete-btn:hover { color: #dc3545; }
+
+        .folder-content-list {
+            list-style: none;
+            padding: 5px;
+            margin: 0;
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            display: none; /* Hide by default */
+        }
+        .folder-content-list.open {
+            display: block; /* Show when open */
+        }
+
+        #saved-list li, .folder-content-list li {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            margin-bottom: 5px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9em;
+        }
+        .item-info { display: flex; align-items: center; overflow: hidden; }
+        .item-info input { width: auto; margin-right: 8px; }
+        .item-details {
+            /* Fix: Allow text to wrap */
+            white-space: normal;
+            overflow: visible;
+            text-align: left;
+        }
+        .item-notes { font-size: 0.85em; color: var(--subtle-text-color); margin-left: 8px; font-style: italic; }
+        .actions button { padding: 2px 5px; font-size: 1em; width: auto; background: transparent; }
+
+        /* --- Unified Login Modal --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 2000;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; visibility: hidden; transition: 0.2s;
+            backdrop-filter: blur(5px);
+        }
+        .modal-overlay.visible { opacity: 1; visibility: visible; }
+        .auth-box {
+            background: var(--container-bg);
+            padding: 30px;
+            border-radius: 16px;
+            width: 90%; max-width: 380px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        .auth-tabs { display: flex; margin-bottom: 25px; border-bottom: 1px solid var(--border-color); }
+        .auth-tab {
+            flex: 1; text-align: center; padding: 15px; cursor: pointer;
+            color: var(--secondary-color); font-weight: bold; transition: color 0.2s;
+        }
+        .auth-tab:hover { color: white; }
+        .auth-tab.active { color: var(--primary-color); border-bottom: 2px solid var(--primary-color); }
+
+        .auth-form { display: none; }
+        .auth-form.active { display: block; }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group input {
+            width: 100%; padding: 12px; border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: #252525; color: white;
+            box-sizing: border-box;
+            font-size: 1em;
+        }
+        .form-group input:focus { outline: none; border-color: var(--primary-color); }
+
+        .btn-auth {
+            width: 100%; padding: 12px; border: none; border-radius: 8px;
+            background: var(--primary-color); color: white;
+            font-weight: bold; cursor: pointer; font-size: 1.1em;
+            transition: background 0.2s;
+        }
+        .btn-auth:hover { background-color: var(--primary-hover); }
+
+        .close-modal {
+            position: absolute; top: 15px; right: 20px;
+            color: var(--secondary-color); cursor: pointer; font-size: 1.5em;
+            line-height: 1;
+        }
+        .close-modal:hover { color: white; }
+
+        .error-msg { color: #ff6b6b; font-size: 0.9em; margin-top: 15px; text-align: center; }
+        .forgot-link {
+            display: block; text-align: center; margin-top: 15px;
+            color: var(--secondary-color); font-size: 0.9em; text-decoration: none;
+            cursor: pointer;
+        }
+        .forgot-link:hover { color: var(--primary-color); }
+
+        /* Recovery Key Display */
+        #recovery-display {
+            background: #2c2c2c; padding: 15px; border-radius: 6px;
+            border: 1px solid var(--accent-color); color: var(--accent-color);
+            font-family: monospace; font-size: 1.1em; text-align: center;
+            margin-bottom: 15px; word-break: break-all;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--subtle-text-color);
+            font-size: 0.9em;
+            border-top: 1px solid var(--border-color);
+            background: var(--container-bg);
+            margin-top: auto;
+            grid-column: 1 / -1;
+        }
+        .footer a { color: var(--subtle-text-color); text-decoration: none; margin: 0 10px; transition: color 0.2s; }
+        .footer a:hover { color: var(--primary-color); }

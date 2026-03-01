@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /wp-admin/
+Disallow: /static/private/
+Disallow: /.git/
+
+Sitemap: https://www.predictability-api.com/sitemap.xml

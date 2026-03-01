@@ -1,0 +1,17 @@
+Flask
+gunicorn
+stripe>=5.0.0
+werkzeug
+psycopg2-binary
+pandas
+Flask-CORS
+python-dotenv
+Flask-Migrate
+Flask-SQLAlchemy
+numba
+numpy
+flasgger
+requests
+beautifulsoup4
+unidecode
+matplotlib

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industrial IoT Demo - Predictability API</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --container-bg: #1e1e1e;
+            --text-color: #e9ecef;
+            --accent-color: #007bff;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --success-color: #28a745;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        .dashboard { display: grid; grid-template-columns: 1fr 300px; gap: 20px; width: 100%; max-width: 1200px; margin-top: 20px; }
+        .card { background: var(--container-bg); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border: 1px solid #333; }
+        h1 { margin-bottom: 10px; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
+        button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; transition: transform 0.1s; }
+        button:active { transform: scale(0.98); }
+        .btn-stable { background-color: var(--success-color); }
+        .btn-drift { background-color: var(--warning-color); color: black; }
+        .btn-chaos { background-color: var(--danger-color); }
+
+        .gauge-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
+        .score-display { font-size: 4em; font-weight: bold; margin: 10px 0; }
+        .status-label { font-size: 1.2em; text-transform: uppercase; letter-spacing: 1px; }
+
+        .log-console { grid-column: 1 / -1; background: #000; font-family: monospace; padding: 15px; border-radius: 8px; height: 150px; overflow-y: auto; font-size: 0.9em; color: #0f0; border: 1px solid #333; }
+
+        .footer-link { margin-top: 40px; color: #666; text-decoration: none; font-size: 0.9em; border-bottom: 1px dotted #666; transition: color 0.2s; }
+        .footer-link:hover { color: var(--accent-color); border-bottom-color: var(--accent-color); }
+
+        @media (max-width: 800px) { .dashboard { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+    <h1>🏭 Industrial Sensor Monitor (Digital Twin)</h1>
+    <p>Simulating real-time vibration data from a conveyor belt motor.</p>
+
+    <div class="controls">
+        <button class="btn-stable" onclick="setMode('stable')">✅ Normal Operation</button>
+        <button class="btn-drift" onclick="setMode('drift')">⚠️ Loose Bolt (Drift)</button>
+        <button class="btn-chaos" onclick="setMode('chaos')">🚨 Critical Failure</button>
+    </div>
+
+    <div class="dashboard">
+        <!-- Chart Section -->
+        <div class="card">
+            <canvas id="sensorChart"></canvas>
+        </div>
+
+        <!-- Gauge Section -->
+        <div class="card gauge-container">
+            <div class="status-label" id="statusLabel">CALCULATING...</div>
+            <div class="score-display" id="scoreDisplay">--</div>
+            <div style="text-align: center; color: #888;">Predictability Score™</div>
+        </div>
+
+        <!-- Log Console -->
+        <div class="log-console" id="console">
+            <div>[SYSTEM] Connecting to Sensor Gateway...</div>
+            <div>[SYSTEM] Initializing Predictability Engine...</div>
+        </div>
+    </div>
+
+    <a href="/" class="footer-link">Powered by Predictability API</a>
+
+    <script>
+        // --- Configuration ---
+        const WINDOW_SIZE = 30; // Number of points to keep
+        let dataBuffer = new Array(WINDOW_SIZE).fill(100); // Start with flat line
+        let currentMode = 'stable';
+        let chart;
+
+        // --- Simulation Logic ---
+        function generateDataPoint() {
+            const base = 100;
+            let noise = 0;
+
+            if (currentMode === 'stable') {
+                // Tiny noise: +/- 0.5
+                noise = (Math.random() - 0.5) * 1.0;
+            } else if (currentMode === 'drift') {
+                // Moderate noise: +/- 5.0
+                noise = (Math.random() - 0.5) * 10.0;
+            } else if (currentMode === 'chaos') {
+                // Massive noise: +/- 30.0
+                noise = (Math.random() - 0.5) * 60.0;
+            }
+
+            return base + noise;
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            log(`[USER] Switched mode to: ${mode.toUpperCase()}`);
+        }
+
+        function log(msg) {
+            const consoleDiv = document.getElementById('console');
+            const line = document.createElement('div');
+            line.textContent = `> ${msg}`;
+            consoleDiv.appendChild(line);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        // --- Chart Setup ---
+        function initChart() {
+            const ctx = document.getElementById('sensorChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: new Array(WINDOW_SIZE).fill(''),
+                    datasets: [{
+                        label: 'Motor Vibration (Hz)',
+                        data: dataBuffer,
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false, // Disable animation for real-time feel
+                    scales: {
+                        y: { min: 50, max: 150, grid: { color: '#333' } },
+                        x: { display: false }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // --- API Call ---
+        async function updateScore() {
+            try {
+                // Call YOUR API
+                const response = await fetch('/api/v1/calculate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer DEMO_KEY' }, // We'll bypass auth for this internal route if needed, or use a public key
+                    body: JSON.stringify({
+                        scores: dataBuffer,
+                        k: 2.0 // Use Finance/Industrial sensitivity
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    const score = result.predictability_score;
+                    updateGauge(score);
+                }
+            } catch (e) {
+                console.error("API Error:", e);
+            }
+        }
+
+        function updateGauge(score) {
+            const display = document.getElementById('scoreDisplay');
+            const label = document.getElementById('statusLabel');
+
+            display.textContent = score.toFixed(1);
+
+            if (score > 90) {
+                display.style.color = 'var(--success-color)';
+                label.textContent = "OPTIMAL";
+                label.style.color = 'var(--success-color)';
+            } else if (score > 60) {
+                display.style.color = 'var(--warning-color)';
+                label.textContent = "WARNING";
+                label.style.color = 'var(--warning-color)';
+            } else {
+                display.style.color = 'var(--danger-color)';
+                label.textContent = "CRITICAL";
+                label.style.color = 'var(--danger-color)';
+                log(`[ALERT] Stability dropped to ${score.toFixed(1)}%`);
+            }
+        }
+
+        // --- Main Loop ---
+        function tick() {
+            // 1. Generate new data
+            const newVal = generateDataPoint();
+            dataBuffer.shift(); // Remove oldest
+            dataBuffer.push(newVal); // Add newest
+
+            // 2. Update Chart
+            chart.update();
+
+            // 3. Calculate Score (Every tick or every few ticks)
+            updateScore();
+        }
+
+        // --- Start ---
+        window.onload = function() {
+            initChart();
+            setInterval(tick, 1000); // Run every 1 second
+            log("[SYSTEM] Monitoring started.");
+        };
+    </script>
+</body>
+</html>

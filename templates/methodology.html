@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Our Methodology - The Predictability Score</title>
+    <style>
+        :root {
+            --bg-color: #f8f9fa; --container-bg: #ffffff; --text-color: #212529;
+            --subtle-text-color: #6c757d; --border-color: #dee2e6; --primary-color: #007bff;
+            --shadow-color: rgba(0, 0, 0, 0.05);
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #121212; --container-bg: #1e1e1e; --text-color: #e9ecef;
+                --subtle-text-color: #adb5bd; --border-color: #495057; --primary-color: #007bff;
+                --shadow-color: rgba(0, 0, 0, 0.2);
+            }
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); display: flex; flex-direction: column; min-height: 100vh; }
+        .header { background-color: var(--container-bg); padding: 20px; border-bottom: 1px solid var(--border-color); text-align: center; box-shadow: 0 2px 10px var(--shadow-color); }
+        .title-container { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 10px; }
+        .header .logo { max-height: 50px; width: auto; }
+        .header h1 { margin: 0; font-size: 2em; color: var(--primary-color); font-weight: bold; }
+        .header h1 a { color: inherit; text-decoration: none; }
+        .nav { margin-top: 10px; }
+        .nav a { color: var(--primary-color); text-decoration: none; margin: 0 15px; font-weight: bold; font-size: 1.1em; }
+        .nav a:hover { text-decoration: underline; }
+        .container { max-width: 800px; margin: 40px auto; padding: 30px; background: var(--container-bg); border-radius: 12px; box-shadow: 0 8px 30px var(--shadow-color); flex: 1; }
+        h1, h2 { border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+        a { color: var(--primary-color); }
+
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--subtle-text-color);
+            font-size: 0.9em;
+            border-top: 1px solid var(--border-color);
+            background: var(--container-bg);
+            margin-top: auto;
+        }
+        .footer a { color: var(--subtle-text-color); text-decoration: none; margin: 0 10px; transition: color 0.2s; }
+        .footer a:hover { color: var(--primary-color); }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="title-container">
+            <img src="{{ url_for('static', filename='images/brand_logo.png') }}" alt="Logo" class="logo">
+            <h1><a href="/">The Predictability Score</a></h1>
+        </div>
+        <nav class="nav">
+            <a href="/">Home</a>
+            <a href="/calculator">Calculator</a>
+            <a href="/tutorial">Tutorial</a>
+            <a href="/methodology">Methodology</a>
+            <a href="/technical-validation">Technical Validation</a>
+            <a href="/contact">Contact</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <h1>Our Methodology</h1>
+        <p>The Predictability Score is not just a random number; it's a robust statistical measure designed to quantify the consistency and reliability of any data series. This page provides a high-level overview of the principles behind our calculation.</p>
+
+        <h2>Core Concept: Signal vs. Noise</h2>
+        <p>At its heart, every predictive system or data set contains two components:</p>
+        <ul>
+            <li><strong>The Signal:</strong> The underlying trend or average performance. This is the value you are trying to capture.</li>
+            <li><strong>The Noise:</strong> The random, unpredictable fluctuations around the signal. This is the volatility or error.</li>
+        </ul>
+        <p>A system is "predictable" when the signal is strong and the noise is low. Our score measures this relationship by calculating the size of the "noise" relative to the "signal."</p>
+
+        <h2>The "K" Factor: Industry-Specific Sensitivity</h2>
+        <p>Different industries have different tolerances for volatility. A "noisy" stock portfolio might be acceptable, but a "noisy" pharmaceutical batch is not. Our Pro and API tiers allow you to adjust the sensitivity of the calculation using the "k-factor" to match your specific domain, from the leniency needed for sports analytics to the strict precision required for medical manufacturing.</p>
+
+        <h2>A Transparent, Defensible Metric</h2>
+        <p>Our algorithm is based on a standard statistical model (the Coefficient of Variation combined with an exponential decay function) to ensure the score is both reliable and defensible. We believe in transparent math, not "black box" solutions. You can see the full formula and an explanation of the "k-factor" directly on our calculator page.</p>
+    </div>
+
+    <div class="footer">
+        &copy; 2026 Predictability API. All rights reserved.<br>
+        <div style="margin-top: 10px;">
+            <a href="#" target="_blank">Twitter/X</a>
+            <a href="#" target="_blank">LinkedIn</a>
+        </div>
+    </div>
+</body>
+</html>

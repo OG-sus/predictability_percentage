@@ -1,0 +1,309 @@
+<!-- v1.0.24 - Optimized Load Times -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-NGD93W8N');</script>
+    <!-- End Google Tag Manager -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predictability Score Calculator v1.0.24</title>
+    <!-- PWA: Point to root routes for correct scope -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <!-- Defer non-critical scripts to unblock rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js" defer></script>
+    <script src="https://js.stripe.com/v3/" defer></script>
+
+    <!-- Microsoft Clarity -->
+    <script type="text/javascript">
+        (function(c,l,a,r,i,t,y){
+            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        })(window, document, "clarity", "script", "v4304d7tlt");
+    </script>
+</head>
+<body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NGD93W8N"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+
+    <header class="header">
+        <div class="title-container">
+            <img src="{{ url_for('static', filename='images/brand_logo.png') }}" alt="Logo" class="logo">
+            <h1><a href="/">The Predictability Score</a></h1>
+        </div>
+        <nav class="nav">
+            <a href="/">Home</a>
+            <a href="/HUB">Store</a>
+            <a href="/tutorial">Tutorial</a>
+            <a href="/methodology">Methodology</a>
+            <a href="/technical-validation">Technical Validation</a>
+            <a href="/contact">Contact</a>
+            <span id="user-info-container" style="margin-left: 20px; font-size: 0.9em;"></span>
+        </nav>
+    </header>
+
+    <!-- Added id="app-section" to the main dashboard container -->
+    <div id="app-section" class="dashboard-container">
+        <!-- LEFT PANEL: Controls -->
+        <div class="panel" id="control-panel">
+            <h2>Data Input</h2>
+
+            <div class="mode-selector">
+                <button class="mode-btn active" id="mode-standard">Standard</button>
+                <button class="mode-btn" id="mode-sliding" style="display: none;">Sliding Window</button>
+            </div>
+
+            <div class="switch-container">
+                <span class="switch-label">Sensitivity Mode (k)</span>
+                <div class="switch-group">
+                    <button class="switch-btn disabled" data-k="0.5">Sports</button>
+                    <button class="switch-btn active" data-k="1.0">Standard</button>
+                    <button class="switch-btn disabled" data-k="2.0">Finance</button>
+                    <button class="switch-btn disabled" data-k="15.0">Pharma</button>
+                </div>
+                <div id="lock-message" style="display:none; font-size: 0.8em; color: #dc3545; margin-top: 5px;">
+                    Upgrade to Pro to unlock modes.
+                </div>
+            </div>
+
+            <div id="window-size-container" style="display: none; margin-bottom: 15px;">
+                <label for="window-size-input">Window Size (N)</label>
+                <input type="number" id="window-size-input" value="10" min="2">
+                <p style="font-size: 0.8em; color: var(--subtle-text-color); margin-top: 5px;">Calculates score for every N data points.</p>
+            </div>
+
+            <textarea id="scores-input" placeholder="Paste your data here (comma or space separated)..."></textarea>
+
+            <div class="form-group" style="margin-top: 15px;">
+                <label for="target-input">Target (Calibration Check)</label>
+                <input type="number" id="target-input" placeholder="Optional: Enter target value (e.g. 500)">
+            </div>
+
+            <textarea id="notes-input" placeholder="Add notes (optional)..."></textarea>
+
+            <div style="display: flex; gap: 10px;">
+                <button id="calculate-btn" class="btn-primary">Calculate Score</button>
+                <button id="clear-form-btn" class="btn-clear" style="width: 30%;">Clear</button>
+            </div>
+
+            <div class="upload-section" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                <input type="file" id="file-upload" accept=".csv,.txt" style="font-size: 0.9em;">
+            </div>
+            <div id="preview-area" style="display:none; margin-top: 10px;">
+                <p style="font-size: 0.9em; margin-bottom: 5px;">Select column:</p>
+                <div id="file-preview" style="overflow-x: auto;"></div>
+                <button id="clear-preview-btn" class="btn-secondary" style="margin-top: 5px;">Clear File</button>
+            </div>
+            <div id="error" style="color: #dc3545; margin-top: 10px; display: none;"></div>
+
+            <!-- Developer Settings (Hidden by default) -->
+            <div id="dev-settings" style="display: none; margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                <h3 style="font-size: 1em; margin-bottom: 10px;">Developer API</h3>
+                <div class="form-group">
+                    <label>Your API Key</label>
+                    <input type="text" id="api-key-display" readonly style="font-family: monospace; font-size: 0.85em; background: #e9ecef; color: #333;">
+                </div>
+                <button id="generate-key-btn" class="btn-secondary" style="font-size: 0.85em;">Generate New Key</button>
+
+                <!-- New Quick Start Guide -->
+                <div style="margin-top: 15px; font-size: 0.85em; color: var(--subtle-text-color);">
+                    <p style="font-weight: bold; margin-bottom: 5px;">Quick Start:</p>
+                    <code style="display: block; background: #2c2c2c; color: #e9ecef; padding: 10px; border-radius: 6px; white-space: pre-wrap;">curl -X POST https://predictability-api.com/api/v1/calculate \
+-H "Authorization: Bearer YOUR_KEY" \
+-H "Content-Type: application/json" \
+-d '{"scores": [10, 12, 10, 12]}'</code>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT PANEL: Results & History -->
+        <div class="panel" id="results-panel">
+            <!-- Critical Alert Box -->
+            <div id="critical-alert">
+                ⚠️ CRITICAL PROCESS FAILURE ⚠️<br>
+                Machine is Unstable (< 95%) AND Off-Target (> 2%)
+            </div>
+
+            <div id="result-area">
+                <p class="label">Predictability Score</p>
+                <p class="value" id="display-score">--</p>
+                <p id="average-display" style="font-size: 1.1em; color: var(--subtle-text-color); margin-top: -5px; margin-bottom: 10px; display: none;"></p>
+                <p id="deviation-display" style="font-size: 1.2em; color: var(--subtle-text-color); display: none;"></p>
+
+                <!-- Container for comparison results -->
+                <div id="comparison-list" style="display:none; flex-wrap:wrap; justify-content:center; gap:15px; margin-bottom:15px;"></div>
+
+                <div id="save-section" style="display: flex; gap: 5px; margin-top: 15px;">
+                    <input type="text" id="dataset-name" placeholder="Name this analysis...">
+                    <select id="folder-select" style="width: auto;"><option value="">Uncategorized</option></select>
+                    <button id="save-btn" class="btn-primary" style="width: auto;">Save</button>
+                    <button id="update-btn" class="btn-primary" style="width: auto; display: none;">Update</button>
+                    <button id="export-btn" class="btn-secondary" style="width: auto;">Export</button>
+                    <button id="share-btn" class="btn-secondary" style="width: auto;">Share 📷</button>
+                </div>
+                <p id="save-feedback" style="font-size: 0.9em; margin-top: 5px; color: #198754;"></p>
+            </div>
+
+            <div id="chart-wrapper">
+                <canvas id="scores-chart"></canvas>
+            </div>
+
+            <div id="dashboard-section">
+                <div class="dashboard-header">
+                    <h2>Saved Analyses</h2>
+                    <button id="new-folder-btn" class="btn-secondary" style="width: auto;">+ Folder</button>
+                </div>
+                <div class="dashboard-actions">
+                    <button id="load-btn" class="btn-secondary" style="display:none;">Load</button>
+                    <button id="compare-btn" class="btn-secondary" style="display:none;">Compare</button>
+                    <button id="move-btn" class="btn-secondary" style="display:none;">Move</button>
+                    <button id="delete-selected-btn" class="btn-danger" style="display:none;">Delete</button>
+                </div>
+                <div id="folders-container"></div>
+                <ul id="saved-list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        &copy; 2026 Predictability API. All rights reserved.<br>
+        <div style="margin-top: 10px;">
+            <a href="https://x.com/PredictabilityC" target="_blank">Twitter/X</a>
+            <a href="https://www.linkedin.com/in/predictabilityapi/" target="_blank">LinkedIn</a>
+            <a href="https://www.twitch.tv/stabilitynetwork" target="_blank" style="color: #00ccff; font-weight: bold; margin-left: 15px;">Support the 24/7 Stream</a>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmation-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title">Confirm</h3>
+            <p id="modal-message">Are you sure?</p>
+            <div class="modal-actions">
+                <button id="modal-confirm-btn" class="btn-danger">Yes</button>
+                <button id="modal-cancel-btn" class="btn-secondary">No</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drill-Down Modal -->
+    <div id="drilldown-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <h3>Window Details</h3>
+            <div id="drilldown-content" style="text-align: left; max-height: 300px; overflow-y: auto; margin: 15px 0; font-family: monospace; background: var(--result-bg); padding: 10px; border-radius: 6px;"></div>
+            <div class="modal-actions">
+                <button onclick="document.getElementById('drilldown-modal').classList.remove('visible')" class="btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Account Settings</h3>
+            <div class="form-group">
+                <label>Change Password</label>
+                <input type="password" id="old-password" placeholder="Current Password">
+            </div>
+            <div class="form-group">
+                <input type="password" id="new-password" placeholder="New Password">
+            </div>
+            <button id="change-password-btn" class="btn-primary">Update Password</button>
+            <p id="settings-feedback" style="margin-top: 10px; font-size: 0.9em;"></p>
+            <div class="modal-actions">
+                <button id="close-settings-btn" class="btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unified Auth Modal (Copied from landing.html) -->
+    <div id="auth-modal" class="modal-overlay">
+        <div class="auth-box">
+            <span class="close-modal" onclick="closeAuthModal()">×</span>
+            <div class="auth-tabs">
+                <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Login</div>
+                <div class="auth-tab" id="tab-register" onclick="switchTab('register')">Register</div>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form active">
+                <div class="form-group">
+                    <input type="text" name="username" placeholder="Username" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <input type="password" name="password" placeholder="Password" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn-auth">Log In</button>
+                <div class="error-msg" id="login-error"></div>
+                <a class="forgot-link" onclick="switchTab('reset')">Forgot Password?</a>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" class="auth-form">
+                <div class="form-group">
+                    <input type="text" name="username" placeholder="Choose Username" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <input type="password" name="password" placeholder="Choose Password" required autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn-auth">Create Account</button>
+                <div class="error-msg" id="register-error"></div>
+            </form>
+
+            <!-- Reset Password Form -->
+            <form id="reset-form" class="auth-form">
+                <h3 style="text-align: center; margin-top: 0; color: var(--text-color);">Reset Password</h3>
+                <div class="form-group">
+                    <input type="text" name="username" placeholder="Username" required>
+                </div>
+                <div class="form-group">
+                    <input type="text" name="recovery_key" placeholder="Recovery Key" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" name="new_password" placeholder="New Password" required>
+                </div>
+                <button type="submit" class="btn-auth">Reset Password</button>
+                <div class="error-msg" id="reset_password-error"></div>
+                <a class="forgot-link" onclick="switchTab('login')">Back to Login</a>
+            </form>
+
+            <!-- Success Message (Hidden by default) -->
+            <div id="auth-success" class="auth-form" style="text-align: center;">
+                <h3 style="color: var(--accent-color); font-size: 1.8em; margin-bottom: 10px;">Success!</h3>
+                <p id="success-msg" style="font-size: 1.1em;">Account created.</p>
+                <div id="recovery-section" style="display: none;">
+                    <p style="font-size: 0.9em; color: var(--secondary-color); margin-bottom: 10px;">SAVE THIS KEY. It is the ONLY way to recover your account.</p>
+                    <div id="recovery-display"></div>
+                    <button class="btn-auth" onclick="switchTab('login')">I Saved It - Log In</button>
+                </div>
+                <div id="reset-success-btn" style="display: none;">
+                    <button class="btn-auth" onclick="switchTab('login')">Log In Now</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+    <script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(reg => console.log('Service Worker registered!', reg))
+        .catch(err => console.log('Service Worker registration failed:', err));
+    });
+  }
+</script>
+</body>
+</html>

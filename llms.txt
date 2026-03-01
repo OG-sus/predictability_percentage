@@ -1,0 +1,46 @@
+# Predictability API - Project Context
+
+## Project Overview
+This is a Flask-based web application and API that calculates a "Predictability Score" (0-100) for time-series data. It uses Numba for high-performance calculation.
+Hosted on Render. Database is PostgreSQL (external).
+
+## Tech Stack
+- **Backend:** Python 3.11, Flask, SQLAlchemy, Numba
+- **Database:** PostgreSQL (Production), SQLite (Local Dev)
+- **Frontend:** HTML, CSS (Dark Mode), Vanilla JS, Chart.js
+- **Payments:** Stripe (Checkout & Customer Portal)
+- **Docs:** Flasgger (Swagger UI)
+
+## Key Files
+- `api.py`: Main Flask application. Contains all routes, database models, and API logic.
+- `fsr.py`: Core calculation engine (Numba-optimized). Contains `calculate_predictability` and `calculate_deviation`.
+- `sliding_window.py`: Advanced analysis for drift detection.
+- `templates/`: HTML files (`index.html` is the calculator, `tutorial.html` is the guide).
+- `static/`: CSS, JS, and images (`brand_logo.png`).
+
+## Database Schema (PostgreSQL)
+- **users**: `id`, `username`, `password` (hashed), `tier` (Free, Pro, API_Basic, API_Business), `stripe_customer_id`, `recovery_key_hash`
+- **analyses**: `id`, `user_id`, `name`, `scores` (JSON), `predictability_score`, `folder_id`, `k` (sensitivity), `notes`
+- **folders**: `id`, `user_id`, `name`
+- **api_keys**: `id`, `user_id`, `api_key`, `usage_count`, `is_active`
+
+## Core Logic (The Math)
+The score is based on the **Coefficient of Variation (CV)**.
+1.  Calculate CV = (Standard Deviation) / (Mean).
+2.  Apply Exponential Decay: Score = 100 * e^(-k * CV).
+3.  `k` is the sensitivity factor (default 1.0).
+
+## API Endpoints
+- `POST /api/v1/calculate`: Accepts `{"scores": [1,2,3], "k": 1.0}`. Returns `{"predictability_score": 95.2}`.
+- `POST /api/v1/sliding_window`: Accepts `{"scores": [...], "window_size": 10}`. Returns array of scores.
+
+## Deployment (Render)
+- Build Command: `./build.sh`
+- Start Command: `gunicorn api:app`
+- Static Files: Served from `static/` folder.
+- SEO: `robots.txt`, `sitemap.xml`, `apple-touch-icon.png` are served from root.
+
+## Recent Updates
+- Added `apple-touch-icon.png` route.
+- Added CTA button to `tutorial.html`.
+- Updated Swagger docs description.

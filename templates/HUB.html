@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Stability Hub | Powered by Predictability-API</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body { background: #0f0f0f; color: white; font-family: 'Inter', sans-serif; text-align: center; padding: 0; margin: 0; }
+        
+        /* Branding Header */
+        .header {
+            background-color: #1a1a1a;
+            padding: 20px;
+            border-bottom: 2px solid #0170C1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-align: left;
+        }
+        .brand-box h1 { margin: 0; font-size: 1.8em; color: #fff; letter-spacing: 1px; }
+        .brand-box span { color: #0170C1; font-weight: bold; font-size: 0.8em; text-transform: uppercase; }
+
+        .container { max-width: 1100px; margin: 50px auto; padding: 20px; }
+        
+        /* Hero Section */
+        .hero { margin-bottom: 60px; }
+        .hero h2 { font-size: 2.5em; margin-bottom: 10px; }
+        .hero p { color: #adb5bd; font-size: 1.2em; max-width: 700px; margin: 0 auto; }
+
+        /* Two-Pillar Layout */
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 40px; }
+        
+        .card {
+            background: #1e1e1e;
+            padding: 40px;
+            border-radius: 15px;
+            border: 1px solid #333;
+            transition: transform 0.3s ease, border-color 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            text-align: left;
+        }
+        .card:hover { transform: translateY(-5px); border-color: #0170C1; }
+        
+        .card h3 { font-size: 1.6em; margin-top: 0; color: #0170C1; }
+        .card p { color: #ced4da; line-height: 1.6; }
+        
+        .btn {
+            display: inline-block;
+            background: #0170C1;
+            color: white;
+            padding: 12px 25px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .btn-outline { background: transparent; border: 2px solid #0170C1; }
+
+        .badge {
+            background: #2b2b2b;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.7em;
+            vertical-align: middle;
+            margin-left: 10px;
+            color: #00ff88;
+        }
+
+        footer { margin-top: 100px; padding: 40px; color: #666; font-size: 0.9em; border-top: 1px solid #222; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="brand-box">
+            <h1>STABILITY<span>NETWORK</span></h1>
+            <span>Data Integrity Command Center</span>
+        </div>
+        <nav>
+            <a href="/calculator" style="color: #adb5bd; text-decoration: none; margin-left: 20px;">Launch Calculator</a>
+            <a href="/contact" style="color: #adb5bd; text-decoration: none; margin-left: 20px;">Contact</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div class="hero">
+            <h2>One Engine. Two Worlds.</h2>
+            <p>Whether you are auditing live sports props on stream or deploying sub-millisecond logic guards for industrial AI, the Predictability-API provides the pulse.</p>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div>
+                    <h3>Stability Network <span class="badge">LIVE TOOLS</span></h3>
+                    <p>Access the official broadcast suite for Twitch and YouTube. Custom tickers, real-time overlays, and the Google Sheets "Smart Template" integration.</p>
+                    <ul>
+                        <li>OBS Browser Source Generators</li>
+                        <li>Live Prop Auditor (Sports Mode)</li>
+                        <li>Community Data Tickers</li>
+                    </ul>
+                </div>
+                <a href="/ticker-generator" class="btn">Open Ticker Studio</a>
+            </div>
+
+            <div class="card">
+                <div>
+                    <h3>Predictability-API <span class="badge" style="color:#00d0ff;">DEVELOPER</span></h3>
+                    <p>The core mathematical engine. Integrate Euler-decay stability scoring directly into your apps, trading bots, or manufacturing dashboards via REST API or local SDK.</p>
+                    <ul>
+                        <li>RESTful Endpoint Access</li>
+                        <li>Numba-Accelerated SDK (Enterprise)</li>
+                        <li>Sliding Window Drift Detection</li>
+                    </ul>
+                </div>
+                <a href="/calculator" class="btn btn-outline">Developer Dashboard</a>
+            </div>
+        </div>
+
+        <div style="margin-top: 40px;">
+            <div class="card" style="flex-direction: row; align-items: center; justify-content: space-between;">
+                <div style="max-width: 60%;">
+                    <h3 style="color: #ffc107;">Enterprise SDK Access</h3>
+                    <p>Running high-frequency operations? Get the offline Python SDK for zero-latency local processing. No API calls required.</p>
+                </div>
+                <a href="/contact" class="btn" style="background: #444;">Request SDK Quote</a>
+            </div>
+        </div>
+
+        <footer>
+            &copy; 2026 Stability Network & Predictability-API. All rights reserved.<br>
+            <span style="font-size: 0.8em; opacity: 0.5;">Mathematical Verification via Euler-Decay Algorithm v1.70</span>
+        </footer>
+    </div>
+
+</body>
+</html>

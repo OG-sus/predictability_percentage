@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Sports Prop Auditor - Predictability API</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent-color: #3b82f6;
+            --danger-color: #ef4444;
+            --success-color: #22c55e;
+            --warning-color: #eab308;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 1.8em; color: var(--success-color); text-transform: uppercase; letter-spacing: 2px; }
+        .header p { color: #94a3b8; margin-top: 5px; }
+
+        .dashboard { display: grid; grid-template-columns: 1fr 350px; gap: 20px; width: 100%; max-width: 1200px; }
+        .card { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #334155; }
+
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; }
+        button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; transition: transform 0.1s; text-transform: uppercase; font-size: 0.8em; }
+        button:active { transform: scale(0.98); }
+        .btn-zone { background-color: var(--success-color); }
+        .btn-tilt { background-color: var(--warning-color); color: black; }
+        .btn-choke { background-color: var(--danger-color); }
+
+        .stat-box { text-align: center; margin-bottom: 20px; }
+        .stat-value { font-size: 3.5em; font-weight: 800; }
+        .stat-label { color: #94a3b8; font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px; }
+
+        .odds-box { background: #000; padding: 15px; border-radius: 8px; margin-top: 20px; border: 1px solid #333; }
+        .odds-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-family: monospace; font-size: 1.1em; }
+        .odds-value { color: var(--success-color); }
+        .odds-drift { color: var(--danger-color); font-size: 0.8em; }
+
+        .footer-link { margin-top: 40px; color: #64748b; text-decoration: none; font-size: 0.9em; border-bottom: 1px dotted #64748b; transition: color 0.2s; }
+        .footer-link:hover { color: var(--accent-color); border-bottom-color: var(--accent-color); }
+
+        @media (max-width: 800px) { .dashboard { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🎾 Live Prop Auditor</h1>
+        <p>Monitoring: <strong>C. Alcaraz (Serve Clock)</strong></p>
+    </div>
+
+    <div class="controls">
+        <button class="btn-zone" onclick="setMode('zone')">In The Zone (Stable)</button>
+        <button class="btn-tilt" onclick="setMode('tilt')">Rushing (Tilt)</button>
+        <button class="btn-choke" onclick="setMode('choke')">Stalling (Fatigue)</button>
+    </div>
+
+    <div class="dashboard">
+        <!-- Chart Section -->
+        <div class="card">
+            <canvas id="sensorChart"></canvas>
+        </div>
+
+        <!-- Stats Section -->
+        <div class="card">
+            <div class="stat-box">
+                <div class="stat-label">Predictability Score™</div>
+                <div class="stat-value" id="scoreDisplay">--</div>
+                <div id="statusLabel" style="font-weight: bold; margin-top: 5px;">CALCULATING...</div>
+            </div>
+
+            <div class="odds-box">
+                <div style="color: #94a3b8; font-size: 0.8em; margin-bottom: 10px;">LIVE ODDS (IMPLIED)</div>
+                <div class="odds-row">
+                    <span>Win Set 4</span>
+                    <span class="odds-value" id="oddsWin">-150</span>
+                </div>
+                <div class="odds-row">
+                    <span>To Be Broken</span>
+                    <span class="odds-value" id="oddsBreak">+220</span>
+                </div>
+                <div id="betSignal" style="text-align: center; margin-top: 15px; font-weight: bold; color: var(--warning-color); display: none;">
+                    ⚠️ DETECTED VALUE EDGE
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <a href="/" class="footer-link">Powered by Predictability API</a>
+
+    <script>
+        // --- Configuration ---
+        const WINDOW_SIZE = 20;
+        let dataBuffer = new Array(WINDOW_SIZE).fill(20); // Start with 20s serve clock
+        let currentMode = 'zone';
+        let chart;
+
+        // --- Simulation Logic ---
+        function generateDataPoint() {
+            let base = 20; // Standard 20s between points
+            let noise = 0;
+
+            if (currentMode === 'zone') {
+                // Consistent routine: 18-22s
+                noise = (Math.random() - 0.5) * 4.0;
+            } else if (currentMode === 'tilt') {
+                // Rushing: 10-15s (Angry)
+                base = 12;
+                noise = (Math.random() - 0.5) * 6.0;
+            } else if (currentMode === 'choke') {
+                // Stalling: 25-35s (Tired/Nervous)
+                base = 30;
+                noise = (Math.random() - 0.5) * 15.0; // Highly erratic
+            }
+
+            return Math.max(5, base + noise);
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+        }
+
+        // --- Chart Setup ---
+        function initChart() {
+            const ctx = document.getElementById('sensorChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: new Array(WINDOW_SIZE).fill(''),
+                    datasets: [{
+                        label: 'Time Between Points (Seconds)',
+                        data: dataBuffer,
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        pointRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    scales: {
+                        y: { min: 0, max: 40, grid: { color: '#334155' } },
+                        x: { display: false }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // --- API Call ---
+        async function updateScore() {
+            try {
+                // Call YOUR API
+                const response = await fetch('/api/v1/calculate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer DEMO_KEY' },
+                    body: JSON.stringify({
+                        scores: dataBuffer,
+                        k: 1.0
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    const score = result.predictability_score;
+                    updateUI(score);
+                }
+            } catch (e) {
+                console.error("API Error:", e);
+            }
+        }
+
+        function updateUI(score) {
+            const display = document.getElementById('scoreDisplay');
+            const label = document.getElementById('statusLabel');
+            const signal = document.getElementById('betSignal');
+            const oddsWin = document.getElementById('oddsWin');
+            const oddsBreak = document.getElementById('oddsBreak');
+
+            display.textContent = score.toFixed(0);
+
+            if (score > 85) {
+                display.style.color = 'var(--success-color)';
+                label.textContent = "LOCKED IN";
+                label.style.color = 'var(--success-color)';
+                signal.style.display = 'none';
+                oddsWin.textContent = "-150";
+                oddsBreak.textContent = "+220";
+            } else if (score > 60) {
+                display.style.color = 'var(--warning-color)';
+                label.textContent = "DRIFTING";
+                label.style.color = 'var(--warning-color)';
+                signal.style.display = 'none';
+                oddsWin.textContent = "-110";
+                oddsBreak.textContent = "+180";
+            } else {
+                display.style.color = 'var(--danger-color)';
+                label.textContent = "UNSTABLE";
+                label.style.color = 'var(--danger-color)';
+                signal.style.display = 'block';
+                signal.textContent = "⚠️ FADE SIGNAL: BET BREAK";
+                oddsWin.textContent = "+120"; // Odds shift against him
+                oddsBreak.textContent = "-110"; // Break becomes likely
+            }
+        }
+
+        // --- Main Loop ---
+        function tick() {
+            const newVal = generateDataPoint();
+            dataBuffer.shift();
+            dataBuffer.push(newVal);
+            chart.update();
+            updateScore();
+        }
+
+        // --- Start ---
+        window.onload = function() {
+            initChart();
+            setInterval(tick, 1000);
+        };
+    </script>
+</body>
+</html>

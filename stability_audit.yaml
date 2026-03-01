@@ -1,0 +1,14 @@
+prompts:
+  - "Summarize the current state of RAG architecture reliability in 2 sentences."
+
+providers:
+  - id: deepseek:deepseek-chat
+    config:
+      apiKey: 'sk-320af1b3c15d47178b61ca439b69c55b'
+      temperature: 0.9
+
+tests:
+  - vars:
+      name: "RAG Stability"
+    options:
+      repeat: 10 # Statistics for the "Whale" Report

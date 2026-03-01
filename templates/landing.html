@@ -1,0 +1,698 @@
+<!-- v1.63 - Add SDK to Enterprise Tier -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-NGD93W8N');</script>
+    <!-- End Google Tag Manager -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Predictability Score - The FICO Score for Data</title>
+    <!-- PWA: Point to root routes for correct scope -->
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://www.predictability-api.com/">
+    <meta property="og:title" content="The Predictability Score™">
+    <meta property="og:description" content="The FICO Score for Data Reliability. Stop gambling on volatility. Identify the floor so you can build on solid ground.">
+    <meta property="og:image" content="{{ url_for('static', filename='images/brand_logo.png', _external=True) }}">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://www.predictability-api.com/">
+    <meta property="twitter:title" content="The Predictability Score™">
+    <meta property="twitter:description" content="The FICO Score for Data Reliability. Stop gambling on volatility. Identify the floor so you can build on solid ground.">
+    <meta property="twitter:image" content="{{ url_for('static', filename='images/brand_logo.png', _external=True) }}">
+
+    <style>
+        :root {
+            /* BRAND COLORS - Synced with style.css */
+            --primary-color: #0170C1; /* Lowe's Blue (Logo Match) */
+            --cta-color: #000dff;     /* Deep Pop Blue (Buttons) */
+
+            --primary-hover: #0056b3;
+            --secondary-color: #adb5bd;
+            --bg-color: #121212;
+            --container-bg: #1e1e1e;
+            --text-color: #e9ecef;
+            --border-color: #495057;
+            --accent-color: #0170C1;   /* Match primary */
+            --card-hover-bg: #252525;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            overflow-x: hidden;
+            display: flex; flex-direction: column; min-height: 100vh;
+        }
+        .header {
+            background-color: var(--container-bg);
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            position: sticky; top: 0; z-index: 1000;
+        }
+        .title-container { display: flex; align-items: center; gap: 15px; }
+        .header .logo { max-height: 40px; width: auto; }
+        .header h1 { margin: 0; font-size: 1.5em; color: var(--primary-color); font-weight: bold; }
+        .header h1 a { color: inherit; text-decoration: none; }
+        .nav a { color: var(--primary-color); text-decoration: none; margin-left: 20px; font-weight: bold; font-size: 0.9em; cursor: pointer; }
+        .nav a:hover { text-decoration: underline; }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Hero Section */
+        .hero {
+            text-align: center;
+            padding: 100px 20px;
+            background:
+                linear-gradient(180deg, rgba(18,18,18,0.8) 0%, rgba(18,18,18,1) 100%),
+                url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23333333' fill-opacity='0.2'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            border-bottom: 1px solid var(--border-color);
+        }
+        .hero h1 {
+            font-size: 3.5em;
+            margin-bottom: 15px;
+            color: white;
+            letter-spacing: -1px;
+            font-weight: 800;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        .hero h1 span {
+            color: var(--primary-color);
+        }
+        .hero .tagline {
+            font-size: 1.6em;
+            color: var(--secondary-color);
+            margin-bottom: 40px;
+            font-weight: 300;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .hero .cta-button {
+            display: inline-block;
+            background-color: var(--cta-color); /* UPDATED: Use Pop Blue */
+            color: white;
+            padding: 16px 36px;
+            font-size: 1.2em;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0,13,255,0.4); /* Updated shadow color */
+            cursor: pointer;
+            border: none;
+        }
+        .hero .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,13,255,0.6); /* Updated shadow color */
+            background-color: var(--primary-hover);
+        }
+
+        /* Pulse SVG Animation */
+        .pulse-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 30px 0;
+            min-height: 100px;
+        }
+        .pulse-svg {
+            width: 280px;
+            height: 100px;
+            filter: drop-shadow(0 0 8px rgba(0,0,0,0.5));
+        }
+        .pulse-svg .line {
+            stroke-width: 3;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+        }
+        .pulse-svg .unstable {
+            stroke: #dc3545; /* Red */
+            animation: pulse-unstable 4s infinite ease-in-out;
+            opacity: 0.7;
+        }
+        .pulse-svg .stable {
+            stroke: #28a745; /* Green */
+            animation: pulse-stable 4s infinite ease-in-out;
+            stroke-width: 4;
+        }
+        @keyframes pulse-unstable {
+            0%, 100% { d: path("M 0 50 L 30 80 L 60 20 L 90 90 L 120 10 L 150 70 L 180 40 L 210 85 L 240 50"); }
+            50% { d: path("M 0 50 L 30 50 L 60 50 L 90 50 L 120 50 L 150 50 L 180 50 L 210 50 L 240 50"); }
+        }
+        @keyframes pulse-stable {
+            0%, 100% { d: path("M 0 50 L 240 50"); }
+            50% { d: path("M 0 50 L 30 45 L 60 55 L 90 50 L 120 48 L 150 52 L 180 50 L 210 47 L 240 50"); }
+        }
+
+        /* Social Proof */
+        .social-proof {
+            text-align: center;
+            padding: 20px;
+            background-color: #181818;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--secondary-color);
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .social-proof span {
+            margin: 0 15px;
+            opacity: 0.7;
+        }
+
+        /* Value Props */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            padding: 80px 20px;
+        }
+        .feature-card {
+            background: var(--container-bg);
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border: 1px solid var(--border-color);
+            transition: transform 0.3s, border-color 0.3s;
+        }
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary-color);
+        }
+        .feature-card h3 {
+            color: white;
+            margin-top: 0;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+        }
+        .feature-card p {
+            color: var(--secondary-color);
+            font-size: 1.05em;
+        }
+        .feature-icon {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        /* Pricing Section */
+        .pricing-section {
+            padding: 80px 20px;
+            background-color: #151515;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+        }
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin-top: 50px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .price-card {
+            background: var(--container-bg);
+            padding: 40px 30px;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            transition: transform 0.3s;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        .price-card.featured {
+            background: #1e2228;
+            border: 2px solid var(--primary-color);
+            transform: scale(1.05);
+            box-shadow: 0 10px 40px rgba(0,123,255,0.15); /* Reverted shadow color */
+            z-index: 1;
+        }
+        @media (max-width: 900px) {
+            .price-card.featured { transform: none; }
+        }
+        .price-card h3 { margin-top: 0; font-size: 1.5em; color: #fff; }
+        .price { font-size: 3em; font-weight: bold; color: #fff; margin: 20px 0; }
+        .price span { font-size: 0.4em; color: var(--secondary-color); font-weight: normal; }
+        .features-list { list-style: none; padding: 0; margin-bottom: 30px; text-align: left; color: var(--text-color); flex-grow: 1; }
+        .features-list li { padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; }
+        .features-list li:last-child { border-bottom: none; }
+        .features-list li::before { content: "✓"; margin-right: 10px; color: var(--primary-color); font-weight: bold; }
+        .features-list li.missing { color: var(--secondary-color); opacity: 0.6; }
+        .features-list li.missing::before { content: "×"; color: var(--secondary-color); }
+
+        .btn-price {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: auto;
+            cursor: pointer;
+            transition: background 0.2s;
+            border: none;
+            font-size: 1em;
+        }
+        .btn-outline { border: 2px solid var(--primary-color); color: var(--primary-color); background: transparent; }
+        .btn-outline:hover { background-color: var(--primary-color); color: white; }
+        .btn-solid { background: var(--cta-color); color: white; }
+        .btn-solid:hover { background-color: var(--primary-hover); }
+        .btn-dark { background: #343a40; color: white; border: 1px solid var(--border-color); }
+        .btn-dark:hover { background: #495057; }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--secondary-color);
+            font-size: 0.9em;
+            border-top: 1px solid var(--border-color);
+            background: #101010;
+            margin-top: auto;
+        }
+        .footer a { color: var(--secondary-color); text-decoration: none; margin: 0 15px; transition: color 0.2s; }
+        .footer a:hover { color: var(--primary-color); }
+
+        /* --- Unified Login Modal --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 2000;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; visibility: hidden; transition: 0.2s;
+            backdrop-filter: blur(5px);
+        }
+        .modal-overlay.visible { opacity: 1; visibility: visible; }
+        .auth-box {
+            background: var(--container-bg);
+            padding: 30px;
+            border-radius: 16px;
+            width: 90%; max-width: 380px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        .auth-tabs { display: flex; margin-bottom: 25px; border-bottom: 1px solid var(--border-color); }
+        .auth-tab {
+            flex: 1; text-align: center; padding: 15px; cursor: pointer;
+            color: var(--secondary-color); font-weight: bold; transition: color 0.2s;
+        }
+        .auth-tab:hover { color: white; }
+        .auth-tab.active { color: var(--primary-color); border-bottom: 2px solid var(--primary-color); }
+
+        .auth-form { display: none; }
+        .auth-form.active { display: block; }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group input {
+            width: 100%; padding: 12px; border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: #252525; color: white;
+            box-sizing: border-box;
+            font-size: 1em;
+        }
+        .form-group input:focus { outline: none; border-color: var(--primary-color); }
+
+        .btn-auth {
+            width: 100%; padding: 12px; border: none; border-radius: 8px;
+            background: var(--cta-color); /* UPDATED: Use Pop Blue */
+            color: white;
+            font-weight: bold; cursor: pointer; font-size: 1.1em;
+            transition: background 0.2s;
+        }
+        .btn-auth:hover { background-color: var(--primary-hover); }
+
+        .close-modal {
+            position: absolute; top: 15px; right: 20px;
+            color: var(--secondary-color); cursor: pointer; font-size: 1.5em;
+            line-height: 1;
+        }
+        .close-modal:hover { color: white; }
+
+        .error-msg { color: #ff6b6b; font-size: 0.9em; margin-top: 15px; text-align: center; }
+        .forgot-link {
+            display: block; text-align: center; margin-top: 15px;
+            color: var(--secondary-color); font-size: 0.9em; text-decoration: none;
+            cursor: pointer;
+        }
+        .forgot-link:hover { color: var(--primary-color); }
+
+        /* Recovery Key Display */
+        #recovery-display {
+            background: #2c2c2c; padding: 15px; border-radius: 6px;
+            border: 1px solid var(--accent-color); color: var(--accent-color);
+            font-family: monospace; font-size: 1.1em; text-align: center;
+            margin-bottom: 15px; word-break: break-all;
+        }
+
+    </style>
+</head>
+<body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NGD93W8N"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+
+    <header class="header">
+        <div class="title-container">
+            <img src="{{ url_for('static', filename='images/brand_logo.png') }}" alt="Logo" class="logo">
+            <h1><a href="/">The Predictability Score</a></h1>
+        </div>
+        <nav class="nav">
+            <a href="/">Home</a>
+            <a href="/calculator">Calculator</a>
+            <a href="/HUB">Store</a>
+            <a href="/tutorial">Tutorial</a>
+            <a href="/methodology">Methodology</a>
+            <a href="/technical-validation">Technical Validation</a>
+            <a href="/contact">Contact</a>
+            <a id="auth-button" href="/calculator">Login</a>
+        </nav>
+    </header>
+
+    <div class="hero">
+        <div class="container">
+            <img src="{{ url_for('static', filename='images/brand_logo.png') }}" alt="Logo" style="max-height: 80px; margin-bottom: 20px;">
+
+            <h1>The <span>Predictability</span> Score™</h1>
+
+            <div class="pulse-container">
+                <svg class="pulse-svg" viewBox="0 0 240 100">
+                    <path class="line unstable" d="M 0 50 L 30 80 L 60 20 L 90 90 L 120 10 L 150 70 L 180 40 L 210 85 L 240 50" />
+                    <path class="line stable" d="M 0 50 L 240 50" />
+                </svg>
+            </div>
+
+            <p class="tagline">The FICO Score for Data Reliability.</p>
+            <p style="max-width: 700px; margin: 0 auto 40px auto; color: var(--secondary-color); font-size: 1.1em;">
+                Stop gambling on volatility. Our engine calculates the <strong>K-Factor™</strong> of any dataset,
+                giving you a deterministic reliability index. Just like FICO scores creditworthiness, we score data consistency.
+            </p>
+            <!-- CHANGED: Direct link to calculator instead of modal -->
+            <a href="/calculator" class="cta-button">Access the Engine</a>
+        </div>
+    </div>
+
+    <div class="social-proof">
+        <span>Trusted By Data Analysts In:</span>
+        <span>🏈 Fantasy Sports</span>
+        <span>💊 Pharma Tech</span>
+        <span>📈 Financial Services</span>
+    </div>
+
+    <div class="container">
+        <div class="features">
+            <div class="feature-card">
+                <span class="feature-icon">📊</span>
+                <h3>Risk-Adjusted Alpha</h3>
+                <p>Identify the "Reliable Floor" in any dataset. Don't just chase the ceiling; secure your baseline with mathematical certainty.</p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-icon">🎛️</span>
+                <h3>The K-Factor™</h3>
+                <p>Our proprietary algorithm tunes sensitivity to your specific domain—from the high variance of Sports to the zero-tolerance of Pharma.</p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-icon">⏱️</span>
+                <h3>Temporal Analysis</h3>
+                <p>Go beyond static snapshots. Our <strong>Sliding Window</strong> technology detects drift and instability in real-time streams.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="pricing-section">
+        <div class="container">
+            <h2 style="font-size: 2.5em; margin-bottom: 10px; color: white;">Choose Your Tier</h2>
+            <p style="color: var(--secondary-color); margin-bottom: 40px;">From individual power users to mission-critical enterprise monitoring.</p>
+
+            <div class="pricing-grid">
+                <!-- Pro Tier -->
+                <div class="price-card">
+                    <h3>Pro</h3>
+                    <div class="price">$19.99<span>/mo</span></div>
+                    <ul class="features-list">
+                        <li><strong>Unlimited</strong> Saves & Folders</li>
+                        <li>Full <strong>K-Factor™</strong> Access</li>
+                        <li>CSV & Text Upload</li>
+                        <li><strong>Multi-Line Comparison</strong> (Up to 3)</li>
+                        <li class="missing">API Access</li>
+                    </ul>
+                    <a href="https://buy.stripe.com/eVq00i5M9aaz36m2a37ok02" class="btn-price btn-outline" style="text-align: center; display: block;">Start Analyzing</a>
+                </div>
+                <!-- Business Tier -->
+                <div class="price-card featured">
+                    <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--primary-color); color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.8em; font-weight: bold; box-shadow: 0 4px 10px rgba(0,123,255,0.15); /* Reverted shadow color */">MOST POPULAR</div>
+                    <h3>Business</h3>
+                    <div class="price">$129.99<span>/mo</span></div>
+                    <ul class="features-list">
+                        <li><strong>Everything in Pro</strong></li>
+                        <li><strong>Unlimited Comparison</strong></li>
+                        <li><strong>Sliding Window</strong> UI</li>
+                        <li><strong>Basic API</strong> Access</li>
+                        <li>Priority Support</li>
+                    </ul>
+                    <a href="https://buy.stripe.com/3cIbJ07Uh3MbdL05mf7ok01" class="btn-price btn-solid" style="text-align: center; display: block;">Get the Edge</a>
+                </div>
+
+                <!-- Enterprise Tier -->
+                <div class="price-card">
+                    <h3>Enterprise / SDK</h3>
+                    <div class="price">Custom</div>
+                    <ul class="features-list">
+                        <li><strong>Everything in Business</strong></li>
+                        <li><strong>High-Volume API</strong></li>
+                        <li><strong>SLA</strong> Guarantees</li>
+                        <li><strong>Offline Python SDK</strong></li>
+                        <li>Custom Model Tuning</li>
+                    </ul>
+                    <a href="/contact" class="btn-price btn-dark">Contact Sales</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>&copy; 2026 Predictability API. All rights reserved.</p>
+        <p style="margin-top: 20px;">
+            <a href="#" onclick="openAuthModal('login')">Login</a>
+            <a href="/contact">Contact</a>
+            <a href="/methodology">Methodology</a>
+            <a href="/technical-validation">Technical Validation</a>
+            <a href="/apidocs">API Docs</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
+        </p>
+        <p style="margin-top: 10px;">
+            <a href="https://x.com/PredictabilityC" target="_blank">Twitter/X</a>
+            <a href="https://www.linkedin.com/in/predictabilityapi/" target="_blank">LinkedIn</a>
+        </p>
+    </div>
+
+    <!-- Unified Auth Modal -->
+    <div id="auth-modal" class="modal-overlay">
+        <div class="auth-box">
+            <span class="close-modal" onclick="closeAuthModal()">×</span>
+            <div class="auth-tabs">
+                <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Login</div>
+                <div class="auth-tab" id="tab-register" onclick="switchTab('register')">Register</div>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form active" onsubmit="handleAuth(event, 'login')">
+                <div class="form-group">
+                    <input type="text" name="username" placeholder="Username" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <input type="password" name="password" placeholder="Password" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn-auth">Log In</button>
+                <div class="error-msg" id="login-error"></div>
+                <a class="forgot-link" onclick="switchTab('reset')">Forgot Password?</a>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" class="auth-form" onsubmit="handleAuth(event, 'register')">
+                <div class="form-group">
+                    <input type="text" name="username" placeholder="Choose Username" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <input type="password" name="password" placeholder="Choose Password" required autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn-auth">Create Account</button>
+                <div class="error-msg" id="register-error"></div>
+            </form>
+
+            <!-- Reset Password Form -->
+            <form id="reset-form" class="auth-form" onsubmit="handleAuth(event, 'reset_password')">
+                <h3 style="text-align: center; margin-top: 0; color: var(--text-color);">Reset Password</h3>
+                <div class="form-group">
+                    <input type="text" name="username" placeholder="Username" required>
+                </div>
+                <div class="form-group">
+                    <input type="text" name="recovery_key" placeholder="Recovery Key" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" name="new_password" placeholder="New Password" required>
+                </div>
+                <button type="submit" class="btn-auth">Reset Password</button>
+                <div class="error-msg" id="reset_password-error"></div>
+                <a class="forgot-link" onclick="switchTab('login')">Back to Login</a>
+            </form>
+
+            <!-- Success Message (Hidden by default) -->
+            <div id="auth-success" class="auth-form" style="text-align: center;">
+                <h3 style="color: var(--accent-color); font-size: 1.8em; margin-bottom: 10px;">Success!</h3>
+                <p id="success-msg" style="font-size: 1.1em;">Account created.</p>
+                <div id="recovery-section" style="display: none;">
+                    <p style="font-size: 0.9em; color: var(--secondary-color); margin-bottom: 10px;">SAVE THIS KEY. It is the ONLY way to recover your account.</p>
+                    <div id="recovery-display"></div>
+                    <button class="btn-auth" onclick="switchTab('login')">I Saved It - Log In</button>
+                </div>
+                <div id="reset-success-btn" style="display: none;">
+                    <button class="btn-auth" onclick="switchTab('login')">Log In Now</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("/service-worker.js").then(registration => {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }, err => {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const authButton = document.getElementById('auth-button');
+
+            fetch('/api/session_status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.logged_in) {
+                        authButton.textContent = 'Logout';
+                        authButton.href = '#';
+                        authButton.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            fetch('/api/logout', { method: 'POST' })
+                                .then(() => window.location.href = '/');
+                        });
+                    }
+                });
+        });
+
+        function openAuthModal(mode) {
+            document.getElementById('auth-modal').classList.add('visible');
+            switchTab(mode);
+        }
+
+        function closeAuthModal() {
+            document.getElementById('auth-modal').classList.remove('visible');
+        }
+
+        function switchTab(mode) {
+            // Hide all forms
+            document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+
+            // Reset tabs
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+
+            if (mode === 'login' || mode === 'register') {
+                document.getElementById(`tab-${mode}`).classList.add('active');
+                document.getElementById(`${mode}-form`).classList.add('active');
+                document.querySelector('.auth-tabs').style.display = 'flex'; // Show tabs
+            } else if (mode === 'reset') {
+                document.getElementById('reset-form').classList.add('active');
+                document.querySelector('.auth-tabs').style.display = 'none'; // Hide tabs for reset
+            } else if (mode === 'success') {
+                document.getElementById('auth-success').classList.add('active');
+                document.querySelector('.auth-tabs').style.display = 'none';
+            }
+
+            // Clear errors
+            document.querySelectorAll('.error-msg').forEach(e => e.textContent = '');
+        }
+
+        async function handleAuth(event, endpoint) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            const errorDiv = document.getElementById(`${endpoint}-error`);
+
+            try {
+                const response = await fetch(`/api/${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    if (endpoint === 'register') {
+                        // Show Recovery Key
+                        document.getElementById('success-msg').textContent = 'Account created successfully.';
+                        document.getElementById('recovery-display').textContent = result.recovery_key;
+                        document.getElementById('recovery-section').style.display = 'block';
+                        document.getElementById('reset-success-btn').style.display = 'none';
+                        switchTab('success');
+                    } else if (endpoint === 'reset_password') {
+                        // Show Success and Link to Login
+                        document.getElementById('success-msg').textContent = 'Password reset successfully.';
+                        document.getElementById('recovery-section').style.display = 'none';
+                        document.getElementById('reset-success-btn').style.display = 'block';
+                        switchTab('success');
+                    } else {
+                        // Login success -> Redirect to Calculator
+                        window.location.href = '/calculator';
+                    }
+                } else {
+                    errorDiv.textContent = result.error || 'Authentication failed.';
+                }
+            } catch (err) {
+                errorDiv.textContent = 'Server error. Please try again.';
+            }
+        }
+
+        // Close modal on outside click
+        document.getElementById('auth-modal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('auth-modal')) closeAuthModal();
+        });
+    </script>
+    <script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(reg => console.log('Service Worker registered!', reg))
+        .catch(err => console.log('Service Worker registration failed:', err));
+    });
+  }
+</script>
+
+</body>
+</html>

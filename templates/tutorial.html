@@ -1,0 +1,204 @@
+<!-- v1.1.2 - Themed Tutorial Fixed Color -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorial - The Predictability Score</title>
+    <link rel="manifest" href="/manifest.json">
+    <style>
+        :root {
+            --bg-color: #121212;
+            --container-bg: #1e1e1e;
+            --text-color: #e9ecef;
+            --subtle-text-color: #adb5bd;
+            --border-color: #495057;
+            --primary-color: #007bff; /* Fixed to match other pages */
+            --shadow-color: rgba(0, 0, 0, 0.2);
+            --code-bg: #343a40;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.7; margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); display: flex; flex-direction: column; min-height: 100vh; }
+        .header { background-color: var(--container-bg); padding: 20px; border-bottom: 1px solid var(--border-color); text-align: center; box-shadow: 0 2px 10px var(--shadow-color); }
+        .title-container { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 10px; }
+        .header .logo { max-height: 50px; width: auto; }
+        .header h1 { margin: 0; font-size: 2em; color: var(--primary-color); font-weight: bold; }
+        .header h1 a { color: inherit; text-decoration: none; }
+        .nav { margin-top: 10px; }
+        .nav a { color: var(--primary-color); text-decoration: none; margin: 0 15px; font-weight: bold; font-size: 1.1em; }
+        .nav a:hover { text-decoration: underline; }
+        .container { max-width: 900px; margin: 40px auto; padding: 40px; background: var(--container-bg); border-radius: 12px; box-shadow: 0 8px 30px var(--shadow-color); border: 1px solid var(--border-color); flex: 1; }
+        h1, h2, h3 { border-bottom: 1px solid var(--border-color); padding-bottom: 10px; color: white; }
+        h1 { font-size: 2.2em; }
+        h2 { font-size: 1.8em; margin-top: 40px; }
+        h3 { font-size: 1.4em; margin-top: 30px; border-bottom: none; }
+        p, li { color: var(--subtle-text-color); }
+        a { color: var(--primary-color); }
+        .step { margin-bottom: 40px; }
+        code { background-color: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-family: "SF Mono", "Fira Code", "Consolas", monospace; color: var(--text-color); }
+        .use-case { background-color: var(--bg-color); border: 1px solid var(--border-color); border-left: 5px solid var(--primary-color); padding: 20px; border-radius: 8px; margin-top: 20px; }
+        .use-case-title { font-weight: bold; font-size: 1.2em; margin-top: 0; color: white; }
+
+        .cta-container {
+            text-align: center;
+            margin-top: 60px;
+            padding: 40px;
+            background-color: var(--bg-color);
+            border-radius: 12px;
+            border: 1px solid var(--primary-color);
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            font-weight: bold;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: background-color 0.2s, transform 0.2s;
+            margin-top: 20px;
+        }
+        .cta-button:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+            text-decoration: none;
+            color: white;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--subtle-text-color);
+            font-size: 0.9em;
+            border-top: 1px solid var(--border-color);
+            background: var(--container-bg);
+            margin-top: auto;
+        }
+        .footer a { color: var(--subtle-text-color); text-decoration: none; margin: 0 10px; transition: color 0.2s; }
+        .footer a:hover { color: var(--primary-color); }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="title-container">
+            <img src="{{ url_for('static', filename='images/brand_logo.png') }}" alt="Logo" class="logo">
+            <h1><a href="/">The Predictability Score</a></h1>
+        </div>
+        <nav class="nav">
+            <a href="/">Home</a>
+            <a href="/calculator">Calculator</a>
+            <a href="/tutorial">Tutorial</a>
+            <a href="/methodology">Methodology</a>
+            <a href="/technical-validation">Technical Validation</a>
+            <a href="/contact">Contact</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <h1>Complete User Guide</h1>
+        <p>Welcome! This guide explains what the Predictability Score is, how to use the calculator's features, and how to apply it to real-world problems.</p>
+
+        <!-- Section 1: Core Concept -->
+        <div class="step">
+            <h2>What is the Predictability Score?</h2>
+            <p>The Predictability Score is a number from 0% to 100% that measures the **consistency** of a process, not just its average or spread.</p>
+            <ul>
+                <li>A **high score (e.g., 95%)** means the data points are stable and behave as expected. The process is "in control."</li>
+                <li>A **low score (e.g., 40%)** means the data is chaotic and unpredictable. The process is "drifting" or "out of control."</li>
+            </ul>
+            <p><strong>Key Idea:</strong> Standard deviation tells you how wide the data is. We tell you how well-behaved it is. A stock that goes up exactly $1 every day is perfectly predictable (100%), even though its price is changing.</p>
+        </div>
+
+        <!-- Section 2: Basic Usage -->
+        <div class="step">
+            <h2>Getting Your First Score</h2>
+            <ol>
+                <li><strong>Enter Data:</strong> Paste a list of numbers into the main text box. They can be separated by commas, spaces, or new lines. Example: <code>10, 12, 15, 11, 13</code></li>
+                <li><strong>Calculate:</strong> Click the "Calculate Score" button.</li>
+                <li><strong>View Results:</strong> You'll instantly see the score, a chart of your data, and a dashed line representing the average.</li>
+            </ol>
+        </div>
+
+        <!-- Section 3: Advanced Features -->
+        <div class="step">
+            <h2>Advanced Analysis Tools</h2>
+
+            <h3>The K-Factor: Tuning Sensitivity</h3>
+            <p>The "Sensitivity Mode (k)" is your most powerful tuning knob. It tells the algorithm how much to punish inconsistency.</p>
+            <ul>
+                <li><code>Sports (k=0.5)</code>: Forgiving. Good for player stats where a single bad game shouldn't tank the score.</li>
+                <li><code>Standard (k=1.0)</code>: Balanced. The default for most use cases.</li>
+                <li><code>Finance (k=2.0)</code>: Strict. Penalizes stock or crypto volatility more heavily.</li>
+                <li><code>Pharma (k=15.0)</code>: Extremely strict. For high-precision industrial processes where tiny deviations matter.</li>
+            </ul>
+
+            <h3>Target Calibration: Stability vs. Accuracy</h3>
+            <p>If your process has a specific goal (e.g., a machine must produce parts at <code>500g</code>), enter it in the "Target" box. The tool will calculate two things:</p>
+            <ol>
+                <li><strong>Predictability Score:</strong> Is your process stable?</li>
+                <li><strong>Target Deviation:</strong> Is your stable process accurate, or is it consistently missing the target?</li>
+            </ol>
+
+            <h3>Sliding Window Mode: Finding *When* Things Broke</h3>
+            <p>This is our most advanced feature. Instead of one score for the whole dataset, it calculates a score for a moving "window" of data. The resulting chart shows you the **evolution of predictability over time.**</p>
+            <ul>
+                <li><strong>Purple Line:</strong> High predictability. The process is stable and "in control."</li>
+                <li><strong>Yellow Line:</strong> Moderate drift. The process is becoming less stable.</li>
+                <li><strong>Red Line:</strong> Critical drift. The process is chaotic and unpredictable.</li>
+            </ul>
+        </div>
+
+        <!-- Section 4: Data Workflow -->
+        <div class="step">
+            <h2>The Full Data Workflow: CSV Import & Export</h2>
+            <p>You can analyze large datasets without ever leaving the dashboard. This is the ultimate workflow for professionals.</p>
+            <ol>
+                <li><strong>Import:</strong> Click "Choose File" and select a <code>.csv</code> or <code>.txt</code> file. A preview of your data will appear.</li>
+                <li><strong>Select:</strong> Click on the header of the column you want to analyze. The data is instantly loaded into the calculator.</li>
+                <li><strong>Analyze:</strong> Run your desired analysis (Standard, Sliding Window, etc.).</li>
+                <li><strong>Save & Name:</strong> Give your analysis a descriptive name (e.g., "NVDA - 90 Day Stability") and click "Save".</li>
+                <li><strong>Export:</strong> Click the "Export" button to download the current analysis (data, score, and notes) as a clean <code>.csv</code> file for your records or for use in other tools like Excel or Google Sheets.</li>
+                <li><strong>Share:</strong> Click the "Share 📷" button to download a clean, white-background PNG of your chart, perfect for reports, presentations, or social media posts.</li>
+            </ol>
+        </div>
+
+        <!-- Section 5: Use Cases -->
+        <div class="step">
+            <h2>Real-World Use Cases</h2>
+
+            <div class="use-case">
+                <p class="use-case-title">For Financial Traders & Crypto Investors</p>
+                <p>Compare the stability of different assets. A high Predictability Score in a consolidating asset can signal a more trustworthy breakout. Use the Sliding Window to see if a stock's volatility is increasing or decreasing before earnings.</p>
+                <p><strong>Example:</strong> Compare <code>BTC-USD</code> vs. <code>ETH-USD</code> vs. <code>GLD</code> (Gold) to see which is the most stable store of value *right now*.</p>
+            </div>
+
+            <div class="use-case">
+                <p class="use-case-title">For Sports Bettors & Fantasy Players</p>
+                <p>Stop adding volatile players to your parlays. Use the score to find players who consistently hit their numbers. A player with a high score for "Shots on Goal" is a much safer bet than a player with a low score, even if their average is the same.</p>
+                <p><strong>Example:</strong> Compare the <code>shots</code> data for three NHL players to see who is the most reliable for your prop bets.</p>
+            </div>
+
+            <div class="use-case">
+                <p class="use-case-title">For Industrial Engineers & Supply Chain Analysts</p>
+                <p>Monitor the health of your manufacturing processes. Upload sensor data from your machines to get a real-time stability score. Use the "Target Calibration" and "Sliding Window" features to detect when a machine starts to drift from its specifications *before* it causes a critical failure.</p>
+                <p><strong>Example:</strong> Analyze the stability of the AI supply chain by comparing the 90-day price action of <code>NVDA</code> (Design), <code>TSM</code> (Manufacturing), and <code>ASML</code> (Equipment).</p>
+            </div>
+        </div>
+
+        <!-- CTA Section -->
+        <div class="cta-container">
+            <h2>Ready to see it in action?</h2>
+            <p>Try the calculator now with your own data. No sign-up required for basic analysis.</p>
+            <a href="/calculator" class="cta-button">Launch Calculator 🚀</a>
+        </div>
+    </div>
+
+    <div class="footer">
+        &copy; 2026 Predictability API. All rights reserved.<br>
+        <div style="margin-top: 10px;">
+            <a href="https://x.com/PredictabilityC" target="_blank">Twitter/X</a>
+            <a href="https://www.linkedin.com/in/predictabilityapi/" target="_blank">LinkedIn</a>
+        </div>
+    </div>
+</body>
+</html>
