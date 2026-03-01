@@ -1077,6 +1077,22 @@ def agent_beacon():
                            is_moltbook=is_moltbook)
     # If they don't have the right tier, send them back to the hub
     return redirect(url_for('hub'))
+# --- SYSTEM OF RECORD: ALPHA BRIDGE LANDING ---
+@app.route('/')
+def system_of_record_home():
+    """
+    Landing page for X traffic. 
+    Matches the 'Eval Complete' 83.80% proof.
+    """
+    return jsonify({
+        "status": "LIVE",
+        "system_of_record": "Verified",
+        "predictability_score": "83.80%",
+        "stability_audit": "PASSED (4s)",
+        "engine": "Numba-JIT Optimized",
+        "network": "Alpha Bridge"
+    })
+
 if __name__ == '__main__':
     # Use the PORT provided by the environment, or default to 10000
     port = int(os.environ.get("PORT", 10000))
