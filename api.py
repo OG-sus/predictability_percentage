@@ -21,6 +21,7 @@ import time
 from datetime import datetime
 from sqlalchemy import inspect, text
 import requests # Added for Moltbook verification
+import subprocess
 
 # --- Logging Configuration ---
 logging.basicConfig(level=logging.INFO)
@@ -29,22 +30,23 @@ logging.basicConfig(level=logging.INFO)
 load_dotenv()
 import threading
 from collections import deque
+import subprocess
+from fsr import calculate_predictability # THE SOURCE OF TRUTH
 
 # --- Network Stability State for Ticker/HUB ---
 class NetworkState:
     def __init__(self):
-        self.latency_history = deque(maxlen=100)
+        self.latency_history = deque(maxlen=60) # Last 60 seconds
         self.last_ping = 0.0
-        self.p_score = 100.0  # We'll use 0-100 to match your branding
+        self.p_score = 0.0
 
 network_status = NetworkState()
 
 def ping_worker():
-    """Background thread to ping Google and update state."""
+    """Background thread using your ACTUAL Predictability Engine."""
     while True:
         try:
-            # High-performance ping extraction
-            # -n 1 for Windows (VS), use -c 1 if you move to Linux/Render
+            # High-performance ping capture (Windows format)
             output = subprocess.check_output(["ping", "-n", "1", "8.8.8.8"]).decode()
             match = re.search(r"time[=<]\s*([\d.]+)\s*ms", output)
             
@@ -53,19 +55,18 @@ def ping_worker():
                 network_status.latency_history.append(current_ms)
                 network_status.last_ping = current_ms
                 
-                # Calculate Stability (P-Score) using Coefficient of Variation
-                if len(network_status.latency_history) > 5:
-                    import numpy as np
-                    cv = np.std(network_status.latency_history) / np.mean(network_status.latency_history)
-                    # Convert to a 0-100 score: Higher CV = Lower Score
-                    network_status.p_score = max(0, min(100, (1 - cv) * 100))
+                # RELEVANT MATH: Passing the raw ping list to your Numba engine
+                if len(network_status.latency_history) >= 2:
+                    pings = list(network_status.latency_history)
+                    # k=1.0 is your default stability constant
+                    network_status.p_score = calculate_predictability(pings, k=1.0)
             
-            time.sleep(1) # Ping every second for the 24/7 ticker
+            time.sleep(1) # Frequency: 1Hz
         except Exception as e:
-            logging.error(f"Ping Worker Error: {e}")
+            logging.error(f"Stability Engine Error: {e}")
             time.sleep(5)
 
-# Start the background thread immediately
+# Start the heartbeat immediately
 threading.Thread(target=ping_worker, daemon=True).start()
 # --- App & Security Configuration ---
 app = Flask(__name__, static_folder='static', template_folder='templates')
@@ -450,13 +451,12 @@ def sdk_redirect():
 @app.route('/api/v1/network/stability', methods=['GET'])
 def get_network_stability():
     """
-    Endpoint for the Twitch Dashboard and HUB to pull live network consistency.
+    Endpoint for the Twitch Dashboard to pull LIVE institutional stability.
     """
     return jsonify({
         "ticker": "STABILITY-NET",
         "latency_ms": network_status.last_ping,
         "p_score": round(network_status.p_score, 2),
-        "history_count": len(network_status.latency_history),
         "status": "Institutional" if network_status.p_score > 85 else "Volatility Detected"
     })
 

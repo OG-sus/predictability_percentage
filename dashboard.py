@@ -5,25 +5,26 @@ import pandas as pd
 
 st.title("Predictability-API // Stability Hub")
 
-# Create live-updating placeholders
-metric_col1, metric_col2 = st.columns(2)
-chart_place = st.empty()
+# 1. Create permanent 'Placeholders' so the page doesn't grow/scroll
+metric_row = st.columns(2)
+latency_display = metric_row[0].empty()
+pscore_display = metric_row[1].empty()
+chart_display = st.empty()
 
-ping_buffer = []
-
+# 2. The Logic Loop
 while True:
     try:
-        # Pings your updated api.py
-        data = requests.get("http://localhost:10000/api/v1/network/stability").json()
+        # Pull from your locally running api.py
+        response = requests.get("http://localhost:10000/api/v1/network/stability").json()
         
-        metric_col1.metric("Latency", f"{data['latency_ms']} ms")
-        metric_col2.metric("P-Score", f"{data['p_score']}%")
+        # 3. OVERWRITE the placeholders (This stops the scrolling)
+        latency_display.metric("Latency", f"{response['latency_ms']} ms")
+        pscore_display.metric("P-Score", f"{response['p_score']}%")
         
-        ping_buffer.append(data['latency_ms'])
-        if len(ping_buffer) > 50: ping_buffer.pop(0)
+        # Update your rolling chart here
+        # chart_display.line_chart(your_data_list)
         
-        chart_place.line_chart(ping_buffer)
-    except:
-        st.warning("Waiting for API connection...")
-        
+    except Exception as e:
+        st.error(f"Sync Lost: {e}")
+    
     time.sleep(1)
