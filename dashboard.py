@@ -14,7 +14,7 @@ st.markdown("""
     header {visibility: hidden;}
     .block-container {padding-top: 1rem;}
     </style>
-""", unsafe_content_html=True)
+""", unsafe_allow_html=True) 
 
 st.title("Predictability-API // Stability Hub")
 
