@@ -27,7 +27,46 @@ logging.basicConfig(level=logging.INFO)
 
 # Load environment variables from .env file
 load_dotenv()
+import threading
+from collections import deque
 
+# --- Network Stability State for Ticker/HUB ---
+class NetworkState:
+    def __init__(self):
+        self.latency_history = deque(maxlen=100)
+        self.last_ping = 0.0
+        self.p_score = 100.0  # We'll use 0-100 to match your branding
+
+network_status = NetworkState()
+
+def ping_worker():
+    """Background thread to ping Google and update state."""
+    while True:
+        try:
+            # High-performance ping extraction
+            # -n 1 for Windows (VS), use -c 1 if you move to Linux/Render
+            output = subprocess.check_output(["ping", "-n", "1", "8.8.8.8"]).decode()
+            match = re.search(r"time[=<]\s*([\d.]+)\s*ms", output)
+            
+            if match:
+                current_ms = float(match.group(1))
+                network_status.latency_history.append(current_ms)
+                network_status.last_ping = current_ms
+                
+                # Calculate Stability (P-Score) using Coefficient of Variation
+                if len(network_status.latency_history) > 5:
+                    import numpy as np
+                    cv = np.std(network_status.latency_history) / np.mean(network_status.latency_history)
+                    # Convert to a 0-100 score: Higher CV = Lower Score
+                    network_status.p_score = max(0, min(100, (1 - cv) * 100))
+            
+            time.sleep(1) # Ping every second for the 24/7 ticker
+        except Exception as e:
+            logging.error(f"Ping Worker Error: {e}")
+            time.sleep(5)
+
+# Start the background thread immediately
+threading.Thread(target=ping_worker, daemon=True).start()
 # --- App & Security Configuration ---
 app = Flask(__name__, static_folder='static', template_folder='templates')
 SECRET_KEY = os.environ.get('FLASK_SECRET_KEY')
@@ -408,6 +447,19 @@ def sdk_redirect():
     return redirect('/contact')
 
 # --- Admin Routes ---
+@app.route('/api/v1/network/stability', methods=['GET'])
+def get_network_stability():
+    """
+    Endpoint for the Twitch Dashboard and HUB to pull live network consistency.
+    """
+    return jsonify({
+        "ticker": "STABILITY-NET",
+        "latency_ms": network_status.last_ping,
+        "p_score": round(network_status.p_score, 2),
+        "history_count": len(network_status.latency_history),
+        "status": "Institutional" if network_status.p_score > 85 else "Volatility Detected"
+    })
+
 @app.route('/admin/users')
 @login_required
 def admin_users():
