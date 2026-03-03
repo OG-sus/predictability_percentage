@@ -5,26 +5,36 @@ import pandas as pd
 
 st.title("Predictability-API // Stability Hub")
 
-# 1. Create permanent 'Placeholders' so the page doesn't grow/scroll
-metric_row = st.columns(2)
-latency_display = metric_row[0].empty()
-pscore_display = metric_row[1].empty()
-chart_display = st.empty()
+# --- THE HUD LAYOUT ---
+# 1. Permanent Memory
+if 'ping_history' not in st.session_state:
+    st.session_state.ping_history = []
 
-# 2. The Logic Loop
+# 2. Static Containers
+col1, col2 = st.columns(2)
+lat_box = col1.empty()
+pscore_box = col2.empty()
+chart_box = st.empty() # THIS IS WHERE THE GRAPH LIVES
+
 while True:
     try:
-        # Pull from your locally running api.py
-        response = requests.get("http://localhost:10000/api/v1/network/stability").json()
+        r = requests.get("http://localhost:10000/api/v1/network/stability").json()
         
-        # 3. OVERWRITE the placeholders (This stops the scrolling)
-        latency_display.metric("Latency", f"{response['latency_ms']} ms")
-        pscore_display.metric("P-Score", f"{response['p_score']}%")
+        # 3. Update the history
+        st.session_state.ping_history.append(r['latency_ms'])
         
-        # Update your rolling chart here
-        # chart_display.line_chart(your_data_list)
+        # Keep the window to 60 seconds (1 minute of history)
+        if len(st.session_state.ping_history) > 60:
+            st.session_state.ping_history.pop(0)
+            
+        # 4. Overwrite the UI (No Scrolling)
+        lat_box.metric("LATENCY", f"{r['latency_ms']} ms")
+        pscore_box.metric("P-SCORE", f"{r['p_score']}%")
+        
+        # 5. RENDER THE GRAPH
+        # We pass the whole list so it draws the line
+        chart_box.line_chart(st.session_state.ping_history)
         
     except Exception as e:
-        st.error(f"Sync Lost: {e}")
-    
+        st.warning("Awaiting Engine Heartbeat...")
     time.sleep(1)
