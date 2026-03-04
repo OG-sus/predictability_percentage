@@ -4,7 +4,7 @@ import json
 import os
 import uuid
 from functools import wraps
-from flask import Flask, request, jsonify, render_template, g, session, redirect, url_for, Response, stream_with_context, send_from_directory, make_response
+from flask import Flask, request, jsonify, render_template, g, session, redirect, url_for, Response, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
 import stripe
 import psycopg2
@@ -14,13 +14,11 @@ from dotenv import load_dotenv
 import logging
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-import io
 import re
 from flasgger import Swagger
 import time
 from datetime import datetime
-from sqlalchemy import inspect, text
-import requests # Added for Moltbook verification
+import requests
 import subprocess
 
 # --- Logging Configuration ---
@@ -30,7 +28,6 @@ logging.basicConfig(level=logging.INFO)
 load_dotenv()
 import threading
 from collections import deque
-import subprocess
 from fsr import calculate_predictability # THE SOURCE OF TRUTH
 
 # --- Network Stability State for Ticker/HUB ---
@@ -68,23 +65,36 @@ def ping_worker():
 
 # Start the heartbeat immediately
 threading.Thread(target=ping_worker, daemon=True).start()
+
 # --- App & Security Configuration ---
 app = Flask(__name__)
-swagger = Swagger(app, config={
-    "headers": [],
-    "specs": [
-        {
-            "endpoint": 'apispec_1',
-            "route": '/apispec_1.json',
-            "rule_filter": lambda rule: True,
-            "model_filter": lambda tag: True,
-        }
-    ],
-    "static_url_path": "/flasgger_static",
-    "swagger_ui": True,
-    "specs_route": "/apidocs/" # This is the internal Flasgger route
-})
-# --- ADD THIS BLOCK END ---
+
+# --- SWAGGER CONFIGURATION (Single Instance) ---
+swagger_template = {
+    "swagger": "2.0",
+    "info": {
+        "title": "Predictability API",
+        "description": "System of Record for High-Entropy Network Telemetry",
+        "version": "1.0.4"
+    },
+    "basePath": "/",
+    "schemes": ["http", "https"]
+}
+
+swagger = Swagger(app, template=swagger_template)
+
+# Replace with simple JSON docs:
+@app.route('/api/docs')
+def api_documentation():
+    return jsonify({
+        "api_version": "1.0.4",
+        "endpoints": [
+            {"path": "/api/predictability_score", "method": "POST"},
+            {"path": "/api/sliding_window", "method": "POST"},
+            {"path": "/api/v1/calculate", "method": "POST"}
+        ]
+    })
+
 SECRET_KEY = os.environ.get('FLASK_SECRET_KEY')
 if not SECRET_KEY:
     logging.warning("WARNING: FLASK_SECRET_KEY not set. Sessions will not be persistent across server restarts.")
@@ -97,60 +107,6 @@ CORS(app)
 # --- Constants ---
 MAX_API_SCORES_LENGTH = 5000
 MAX_API_WINDOW_SIZE = 1000
-
-# --- Swagger Configuration ---
-swagger_template = {
-    "swagger": "2.0",
-    "info": {
-        "title": "Predictability API",
-        "description": f"""
-# The FICO Score for Data Reliability
-Stop gambling on volatility. This API quantifies the **consistency** and **stability** of any time-series dataset using the **Predictability Score™** (0-100).
-
-**Need an API Key?** Get one instantly at [predictability-api.com/calculator](https://predictability-api.com/calculator) (requires Business tier).
-
-## 🚀 Changelog
-*   **v1.2 (Current):** Added **Moltbook Identity** support for AI Agents.
-*   **v1.1:** Added `Sliding Window` endpoint for drift detection.
-*   **v1.0:** Initial Launch. Core Predictability Score and Target Deviation.
-
-## 🤖 For AI Agents (Moltbook)
-If you are an autonomous agent, you can authenticate using your Moltbook Identity Token.
-1. Get your token from Moltbook.
-2. Send it in the `X-Moltbook-Identity` header.
-3. No API key required for verified agents (Rate limits apply).
-
-## ⚠️ Limits
-*   **Max Data Points:** {MAX_API_SCORES_LENGTH}
-*   **Max Sliding Window Size:** {MAX_API_WINDOW_SIZE}
-        """,
-        "version": "1.2.0",
-        "contact": {
-            "email": "support@predictability-api.com",
-            "url": "https://predictability-api.com"
-        }
-    },
-    "schemes": [
-        "https",
-        "http"
-    ],
-    "securityDefinitions": {
-        "Bearer": {
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header",
-            "description": "Enter your API Key as: Bearer <YOUR_API_KEY>"
-        },
-        "Moltbook": {
-            "type": "apiKey",
-            "name": "X-Moltbook-Identity",
-            "in": "header",
-            "description": "Moltbook Identity Token"
-        }
-    }
-}
-
-swagger = Swagger(app, template=swagger_template)
 
 # Database Configuration
 DATABASE_URL = os.environ.get('DATABASE_URL')
@@ -251,14 +207,9 @@ def query_db(query, args=(), one=False):
 
         return (rv[0] if rv else None) if one else rv
     except Exception as e:
-        logging.error(f"Mapping Error: {e}")
-        db_conn.rollback()
-        return None
-    except Exception as e:
-        logging.error(f"DATABASE QUERY FAILED: {e}")
+        logging.error(f"Database Error: {e}")
         db_conn.rollback()
         raise
-
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -667,7 +618,7 @@ def get_api_key():
 
 # --- Main App API ---
 @app.route('/api/predictability_score', methods=['POST'])
-def get_predictability_score():
+def predictability_score():
     """
     This is the public-facing endpoint for the main calculator page.
     It is hardened against common user input errors.
@@ -1188,8 +1139,8 @@ def agent_beacon():
     # If they don't have the right tier, send them back to the hub
     return redirect(url_for('hub'))
 # --- SYSTEM OF RECORD: ALPHA BRIDGE LANDING ---
-@app.route('/')
-def system_of_record_home():
+@app.route('/system-beacon')
+def system_of_record_beacon():
     """
     Landing page for X traffic. 
     Matches the 'Eval Complete' 83.80% proof.
