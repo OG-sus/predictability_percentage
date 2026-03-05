@@ -40,31 +40,35 @@ class NetworkState:
 network_status = NetworkState()
 
 def ping_worker():
-    """Background thread using your ACTUAL Predictability Engine."""
+    """Background thread using Native Sockets to feed the Predictability Engine."""
+    import socket
     while True:
         try:
-            # High-performance ping capture (Windows format)
-            output = subprocess.check_output(["ping", "-n", "1", "8.8.8.8"]).decode()
-            match = re.search(r"time[=<]\s*([\d.]+)\s*ms", output)
+            # Native TCP handshake to Google DNS (Port 53)
+            start_time = time.time()
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1.0) # 1 second timeout
             
-            if match:
-                current_ms = float(match.group(1))
+            # Connect is a lighter "ping" than shelling out to CMD
+            result = sock.connect_ex(('8.8.8.8', 53))
+            end_time = time.time()
+            sock.close()
+
+            if result == 0: # Success
+                current_ms = (end_time - start_time) * 1000
                 network_status.latency_history.append(current_ms)
                 network_status.last_ping = current_ms
                 
-                # RELEVANT MATH: Passing the raw ping list to your Numba engine
+                # RELEVANT MATH: Feed Numba engine
                 if len(network_status.latency_history) >= 2:
                     pings = list(network_status.latency_history)
-                    # k=1.0 is your default stability constant
                     network_status.p_score = calculate_predictability(pings, k=1.0)
             
-            time.sleep(1) # Frequency: 1Hz
+            time.sleep(1) # 1Hz Frequency
         except Exception as e:
-            logging.error(f"Stability Engine Error: {e}")
+            # No more [Errno 2]!
+            logging.error(f"Stability Engine Heartbeat Failed: {e}")
             time.sleep(5)
-
-# Start the heartbeat immediately
-threading.Thread(target=ping_worker, daemon=True).start()
 
 # --- App & Security Configuration ---
 app = Flask(__name__)
@@ -1157,6 +1161,9 @@ def system_of_record_beacon():
 if __name__ == '__main__':
     # Use the PORT provided by the environment, or default to 10000
     port = int(os.environ.get("PORT", 10000))
+    
+    # Check if we are in a dev environment to enable debug
+    is_dev = os.environ.get('FLASK_ENV') == 'development'
+    
     # Must bind to 0.0.0.0 to be visible to the outside world
-    app.run(host='0.0.0.0', port=port)
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=port, debug=is_dev)
