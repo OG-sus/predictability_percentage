@@ -98,7 +98,9 @@ curl -X POST https://predictability-api.com/api/v1/calculate \
 *   `sliding_window.py`: Numba-optimized windowing functions.
 *   `templates/`: HTML frontend files.
 *   `static/`: CSS, Images, and JS assets.
-*   `nba_data_gen.py`: Internal tool for generating sports marketing content.
+*   `nba_data_gen.py`: Internal tool for generating NBA player stat content.
+*   `mlb_data_gen.py`: Similar scraper that pulls batting/pitching game logs from Baseball-Reference.
+*   `cbb_data_gen.py`: College basketball equivalent, scraping Sports-Reference CBB pages.
 
 ---
 
