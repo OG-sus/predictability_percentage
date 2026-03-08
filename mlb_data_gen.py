@@ -10,49 +10,72 @@ import matplotlib.pyplot as plt
 from fsr import calculate_predictability
 from sliding_window import calculate_sliding_window
 
-def get_headers():
+def get_headers(referer='https://www.baseball-reference.com/'):
     """
-    Returns a random set of headers to mimic a real browser and avoid 403 errors.
+    Returns browser-like headers for baseball-reference.com requests.
+    Keeps only the headers that a real browser sends to reduce bot-detection
+    false positives.  Accept-Encoding is omitted so requests handles
+    decompression automatically (avoids brotli decode errors).
+    Sec-Fetch-* headers are omitted because they are browser-internal and
+    inconsistently set values trigger some WAF rules.
     """
     user_agents = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15'
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0',
     ]
-    
+
     return {
         'User-Agent': random.choice(user_agents),
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Referer': 'https://www.google.com/',
+        'Referer': referer,
         'Connection': 'keep-alive',
         'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'cross-site',
-        'Sec-Fetch-User': '?1',
-        'Cache-Control': 'max-age=0',
     }
 
-def get_player_url(player_name):
+def _fetch_with_retry(session, url, referer, max_retries=3):
+    """
+    Makes a GET request via the provided session, retrying on 429 / 503.
+    """
+    for attempt in range(max_retries):
+        try:
+            response = session.get(url, headers=get_headers(referer), timeout=15)
+            if response.status_code == 429:
+                wait = 15 * (attempt + 1)
+                print(f"  Rate limited (429). Waiting {wait}s before retry {attempt + 1}/{max_retries}...")
+                time.sleep(wait)
+                continue
+            if response.status_code == 503:
+                wait = 10 * (attempt + 1)
+                print(f"  Service unavailable (503). Waiting {wait}s before retry {attempt + 1}/{max_retries}...")
+                time.sleep(wait)
+                continue
+            return response
+        except requests.exceptions.Timeout:
+            print(f"  Request timed out (attempt {attempt + 1}/{max_retries}). Retrying...")
+            time.sleep(5)
+    # Final attempt
+    return session.get(url, headers=get_headers(referer), timeout=15)
+
+
+def get_player_url(player_name, session):
     """
     Searches for a player on Baseball-Reference.com and returns their page URL.
     """
     search_name = unidecode.unidecode(player_name).lower()
-    search_url = f"https://www.baseball-reference.com/search/search.fcgi?search={search_name.replace(' ', '+')}"
-    
-    headers = get_headers()
+    search_url = (
+        "https://www.baseball-reference.com/search/search.fcgi"
+        f"?search={search_name.replace(' ', '+')}"
+    )
+
     print(f"Searching for {player_name}...")
-    
+
     try:
-        response = requests.get(search_url, headers=headers, timeout=10)
-        
-        if response.status_code == 429:
-            print("Rate limited (429). Waiting 10 seconds...")
-            time.sleep(10)
-            response = requests.get(search_url, headers=headers, timeout=10)
+        response = _fetch_with_retry(
+            session, search_url,
+            referer='https://www.baseball-reference.com/'
+        )
 
         if response.status_code != 200:
             print(f"Error: Could not access Baseball-Reference search (Status: {response.status_code})")
@@ -62,9 +85,9 @@ def get_player_url(player_name):
         if "players" in response.url and "/search/" not in response.url:
             return response.url
 
-        # Otherwise, we need to parse the search results page.
+        # Otherwise, parse the search results page.
         soup = BeautifulSoup(response.content, 'html.parser')
-        
+
         # Find the "Players" section in search results
         players_section = soup.find('div', id='players')
         if not players_section:
@@ -73,11 +96,11 @@ def get_player_url(player_name):
             if search_items:
                 link = search_items[0].find('a')
                 if link and link.get('href'):
-                     return f"https://www.baseball-reference.com{link['href']}"
-            
+                    return f"https://www.baseball-reference.com{link['href']}"
+
             print(f"No players found for '{player_name}' in search results.")
             return None
-            
+
         first_result = players_section.find('div', class_='search-item')
         if not first_result:
             print(f"No player items found for '{player_name}'.")
@@ -87,10 +110,10 @@ def get_player_url(player_name):
         if not link or not link.get('href'):
             print("Could not find a valid player link in search results.")
             return None
-            
+
         player_url = f"https://www.baseball-reference.com{link['href']}"
         return player_url
-        
+
     except Exception as e:
         print(f"Connection error: {e}")
         return None
@@ -98,10 +121,15 @@ def get_player_url(player_name):
 def get_mlb_player_stats(player_name, stat_type, num_games=20, year=2026):
     """
     Fetches game-by-game stats for a given MLB player by scraping Baseball-Reference.com.
+    Note: the MLB regular season typically begins in late March/April; if you request a
+    year before the season has started you will receive no data.
     """
     print(f"\n--- Fetching {stat_type} data for {player_name} (last {num_games} games of {year}) ---")
 
-    player_url = get_player_url(player_name)
+    # Use a session so cookies are shared across requests, which reduces bot-detection blocks.
+    session = requests.Session()
+
+    player_url = get_player_url(player_name, session)
     if not player_url:
         return
 
@@ -124,10 +152,9 @@ def get_mlb_player_stats(player_name, stat_type, num_games=20, year=2026):
         gamelog_url = f"https://www.baseball-reference.com/players/gl.fcgi?id={player_id}&t={log_type}&year={year}"
         
         print(f"Found player page. Fetching game logs from: {gamelog_url}")
-        
-        headers = get_headers()
-        response = requests.get(gamelog_url, headers=headers, timeout=10)
-        time.sleep(2) # Be polite
+
+        time.sleep(2)  # brief pause between search and gamelog requests
+        response = _fetch_with_retry(session, gamelog_url, referer=player_url)
 
         if response.status_code != 200:
             print(f"Error: Failed to fetch game logs (Status: {response.status_code})")
