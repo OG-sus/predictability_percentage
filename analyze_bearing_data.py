@@ -102,8 +102,10 @@ def analyze_bearing_failure():
     ax2.legend(lines + lines2, labels + labels2, loc='upper left')
 
     fig.tight_layout()
-    
-    output_filename = 'bearing_failure_analysis.png'
+
+    output_dir = os.path.join("static", "images")
+    os.makedirs(output_dir, exist_ok=True)
+    output_filename = os.path.join(output_dir, 'bearing_failure_analysis.png')
     plt.savefig(output_filename)
     print(f"\nSUCCESS: Analysis complete. Chart saved to '{output_filename}'")
 

@@ -1,6 +1,7 @@
 import pandas as pd
 from sliding_window import calculate_sliding_window
 import matplotlib.pyplot as plt
+import os
 
 def analyze_mortgage_rates():
     """
@@ -88,8 +89,10 @@ def analyze_mortgage_rates():
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax2.legend(lines + lines2, labels + labels2, loc='upper left')
 
-    plt.savefig('mortgage_stability_analysis.png')
-    print("\nSUCCESS: Analysis complete. Chart saved to 'mortgage_stability_analysis.png'")
+    output_dir = os.path.join("static", "images")
+    os.makedirs(output_dir, exist_ok=True)
+    plt.savefig(os.path.join(output_dir, 'mortgage_stability_analysis.png'))
+    print(f"\nSUCCESS: Analysis complete. Chart saved to '{os.path.join(output_dir, 'mortgage_stability_analysis.png')}'")
     # plt.show() # Commented out to avoid blocking execution in some environments
 
 

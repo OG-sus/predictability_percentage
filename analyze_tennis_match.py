@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import random
+import os
 from sliding_window import calculate_sliding_window
 
 def generate_tennis_match():
@@ -73,8 +74,11 @@ def analyze_simulation():
     plt.legend(loc='lower left')
 
     plt.tight_layout()
-    plt.savefig("tennis_simulation.png")
-    print("Chart saved to 'tennis_simulation.png'")
+    output_dir = os.path.join("static", "images")
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, "tennis_simulation.png")
+    plt.savefig(output_path)
+    print(f"Chart saved to '{output_path}'")
 
 if __name__ == "__main__":
     analyze_simulation()

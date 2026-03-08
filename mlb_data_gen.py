@@ -4,50 +4,78 @@ import pandas as pd
 import time
 import unidecode
 import random
+import os
+from io import StringIO
+import matplotlib.pyplot as plt
+from fsr import calculate_predictability
+from sliding_window import calculate_sliding_window
 
-def get_headers():
+def get_headers(referer='https://www.baseball-reference.com/'):
     """
-    Returns a random set of headers to mimic a real browser and avoid 403 errors.
+    Returns browser-like headers for baseball-reference.com requests.
+    Keeps only the headers that a real browser sends to reduce bot-detection
+    false positives.  Accept-Encoding is omitted so requests handles
+    decompression automatically (avoids brotli decode errors).
+    Sec-Fetch-* headers are omitted because they are browser-internal and
+    inconsistently set values trigger some WAF rules.
     """
     user_agents = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15'
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0',
     ]
-    
+
     return {
         'User-Agent': random.choice(user_agents),
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Referer': 'https://www.google.com/',
+        'Referer': referer,
         'Connection': 'keep-alive',
         'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'cross-site',
-        'Sec-Fetch-User': '?1',
-        'Cache-Control': 'max-age=0',
     }
 
-def get_player_url(player_name):
+def _fetch_with_retry(session, url, referer, max_retries=3):
+    """
+    Makes a GET request via the provided session, retrying on 429 / 503.
+    """
+    for attempt in range(max_retries):
+        try:
+            response = session.get(url, headers=get_headers(referer), timeout=15)
+            if response.status_code == 429:
+                wait = 15 * (attempt + 1)
+                print(f"  Rate limited (429). Waiting {wait}s before retry {attempt + 1}/{max_retries}...")
+                time.sleep(wait)
+                continue
+            if response.status_code == 503:
+                wait = 10 * (attempt + 1)
+                print(f"  Service unavailable (503). Waiting {wait}s before retry {attempt + 1}/{max_retries}...")
+                time.sleep(wait)
+                continue
+            return response
+        except requests.exceptions.Timeout:
+            print(f"  Request timed out (attempt {attempt + 1}/{max_retries}). Retrying...")
+            time.sleep(5)
+    # Final attempt
+    return session.get(url, headers=get_headers(referer), timeout=15)
+
+
+def get_player_url(player_name, session):
     """
     Searches for a player on Baseball-Reference.com and returns their page URL.
     """
     search_name = unidecode.unidecode(player_name).lower()
-    search_url = f"https://www.baseball-reference.com/search/search.fcgi?search={search_name.replace(' ', '+')}"
-    
-    headers = get_headers()
+    search_url = (
+        "https://www.baseball-reference.com/search/search.fcgi"
+        f"?search={search_name.replace(' ', '+')}"
+    )
+
     print(f"Searching for {player_name}...")
-    
+
     try:
-        response = requests.get(search_url, headers=headers, timeout=10)
-        
-        if response.status_code == 429:
-            print("Rate limited (429). Waiting 10 seconds...")
-            time.sleep(10)
-            response = requests.get(search_url, headers=headers, timeout=10)
+        response = _fetch_with_retry(
+            session, search_url,
+            referer='https://www.baseball-reference.com/'
+        )
 
         if response.status_code != 200:
             print(f"Error: Could not access Baseball-Reference search (Status: {response.status_code})")
@@ -57,9 +85,9 @@ def get_player_url(player_name):
         if "players" in response.url and "/search/" not in response.url:
             return response.url
 
-        # Otherwise, we need to parse the search results page.
+        # Otherwise, parse the search results page.
         soup = BeautifulSoup(response.content, 'html.parser')
-        
+
         # Find the "Players" section in search results
         players_section = soup.find('div', id='players')
         if not players_section:
@@ -68,11 +96,11 @@ def get_player_url(player_name):
             if search_items:
                 link = search_items[0].find('a')
                 if link and link.get('href'):
-                     return f"https://www.baseball-reference.com{link['href']}"
-            
+                    return f"https://www.baseball-reference.com{link['href']}"
+
             print(f"No players found for '{player_name}' in search results.")
             return None
-            
+
         first_result = players_section.find('div', class_='search-item')
         if not first_result:
             print(f"No player items found for '{player_name}'.")
@@ -82,21 +110,26 @@ def get_player_url(player_name):
         if not link or not link.get('href'):
             print("Could not find a valid player link in search results.")
             return None
-            
+
         player_url = f"https://www.baseball-reference.com{link['href']}"
         return player_url
-        
+
     except Exception as e:
         print(f"Connection error: {e}")
         return None
 
-def get_mlb_player_stats(player_name, stat_type, num_games=20, year=2025):
+def get_mlb_player_stats(player_name, stat_type, num_games=20, year=2026):
     """
     Fetches game-by-game stats for a given MLB player by scraping Baseball-Reference.com.
+    Note: the MLB regular season typically begins in late March/April; if you request a
+    year before the season has started you will receive no data.
     """
     print(f"\n--- Fetching {stat_type} data for {player_name} (last {num_games} games of {year}) ---")
 
-    player_url = get_player_url(player_name)
+    # Use a session so cookies are shared across requests, which reduces bot-detection blocks.
+    session = requests.Session()
+
+    player_url = get_player_url(player_name, session)
     if not player_url:
         return
 
@@ -119,10 +152,9 @@ def get_mlb_player_stats(player_name, stat_type, num_games=20, year=2025):
         gamelog_url = f"https://www.baseball-reference.com/players/gl.fcgi?id={player_id}&t={log_type}&year={year}"
         
         print(f"Found player page. Fetching game logs from: {gamelog_url}")
-        
-        headers = get_headers()
-        response = requests.get(gamelog_url, headers=headers, timeout=10)
-        time.sleep(2) # Be polite
+
+        time.sleep(2)  # brief pause between search and gamelog requests
+        response = _fetch_with_retry(session, gamelog_url, referer=player_url)
 
         if response.status_code != 200:
             print(f"Error: Failed to fetch game logs (Status: {response.status_code})")
@@ -133,12 +165,12 @@ def get_mlb_player_stats(player_name, stat_type, num_games=20, year=2025):
         
         # Use pandas to easily read the HTML table
         # We need to pass the HTML string to read_html
-        tables = pd.read_html(str(response.content), attrs={'id': table_id})
+        tables = pd.read_html(StringIO(response.text), attrs={'id': table_id})
         
         if not tables:
             # Fallback: sometimes the table ID is different or hidden
             print(f"Could not find the game log table '{table_id}'. Trying generic search...")
-            tables = pd.read_html(str(response.content))
+            tables = pd.read_html(StringIO(response.text))
             if not tables:
                 print("No tables found on page.")
                 return
@@ -189,8 +221,58 @@ def get_mlb_player_stats(player_name, stat_type, num_games=20, year=2025):
         print("\n----------------------------------------------\n")
         
         if stats:
+            # Predictability Calculation
+            k_factor_sports = 0.5
+            score = calculate_predictability(stats, k=k_factor_sports)
             avg_stat = sum(stats) / len(stats)
+
+            print(f"Predictability Score: {score:.2f}")
             print(f"Suggested Target (Average {stat_type.upper()}): {round(avg_stat, 2)}")
+            print("\n----------------------------------------------\n")
+
+            # Sliding Window Analysis
+            print("Running Sliding Window Analysis...")
+            window_size = min(10, len(stats))
+            results = calculate_sliding_window(stats, window_size, k=k_factor_sports)
+
+            scores_list = [r['score'] for r in results]
+            scores_list = [None] * (window_size - 1) + scores_list
+
+            # Plotting
+            plt.figure(figsize=(12, 8))
+
+            plt.subplot(2, 1, 1)
+            plt.plot(stats, marker='o', linestyle='-', color='#002D62', alpha=0.7,
+                     label=f'{player_name} {stat_type}')
+            plt.axhline(y=avg_stat, color='gray', linestyle='--', label='Average')
+            plt.title(f"{player_name} - {stat_type} Performance ({year})")
+            plt.ylabel(stat_type)
+            plt.legend()
+            plt.grid(True, alpha=0.3)
+
+            plt.subplot(2, 1, 2)
+            plt.plot(scores_list, color='#c8102e', linewidth=2,
+                     label=f'Predictability Score ({window_size}-Game Window)')
+            plt.axhline(y=80, color='green', linestyle='--', label='Elite Stability')
+            plt.axhline(y=60, color='orange', linestyle='--', label='Volatile')
+            plt.title("Stability Analysis")
+            plt.ylabel("Score (0-100)")
+            plt.xlabel("Game Number")
+            plt.ylim(0, 105)
+            plt.legend()
+            plt.grid(True, alpha=0.3)
+
+            output_dir = os.path.join("static", "images", "mlb_charts")
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+
+            filename = f"{player_name.replace(' ', '_')}_{stat_type}_analysis.png"
+            filepath = os.path.join(output_dir, filename)
+
+            plt.tight_layout()
+            plt.savefig(filepath)
+            plt.close()
+            print(f"Chart saved to {filepath}")
 
     except Exception as e:
         print(f"An error occurred while parsing game logs: {e}")
@@ -211,10 +293,10 @@ if __name__ == "__main__":
         stat_type = input("Enter Stat Type (e.g., H, HR, SO): ").strip().upper()
         
         try:
-            year = int(input("Enter Season Year (default 2025): ") or "2025")
+            year = int(input("Enter Season Year (default 2026): ") or "2026")
         except ValueError:
-            print("Invalid year. Using default of 2025.")
-            year = 2025
+            print("Invalid year. Using default of 2026.")
+            year = 2026
             
         try:
             num_games = int(input("Number of recent games to fetch (default 20): ") or "20")
