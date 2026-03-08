@@ -4,6 +4,11 @@ import pandas as pd
 import time
 import unidecode
 import random
+import os
+from io import StringIO
+import matplotlib.pyplot as plt
+from fsr import calculate_predictability
+from sliding_window import calculate_sliding_window
 
 def get_headers():
     """
@@ -90,7 +95,7 @@ def get_player_url(player_name):
         print(f"Connection error: {e}")
         return None
 
-def get_mlb_player_stats(player_name, stat_type, num_games=20, year=2025):
+def get_mlb_player_stats(player_name, stat_type, num_games=20, year=2026):
     """
     Fetches game-by-game stats for a given MLB player by scraping Baseball-Reference.com.
     """
@@ -133,12 +138,12 @@ def get_mlb_player_stats(player_name, stat_type, num_games=20, year=2025):
         
         # Use pandas to easily read the HTML table
         # We need to pass the HTML string to read_html
-        tables = pd.read_html(str(response.content), attrs={'id': table_id})
+        tables = pd.read_html(StringIO(response.text), attrs={'id': table_id})
         
         if not tables:
             # Fallback: sometimes the table ID is different or hidden
             print(f"Could not find the game log table '{table_id}'. Trying generic search...")
-            tables = pd.read_html(str(response.content))
+            tables = pd.read_html(StringIO(response.text))
             if not tables:
                 print("No tables found on page.")
                 return
@@ -189,8 +194,58 @@ def get_mlb_player_stats(player_name, stat_type, num_games=20, year=2025):
         print("\n----------------------------------------------\n")
         
         if stats:
+            # Predictability Calculation
+            k_factor_sports = 0.5
+            score = calculate_predictability(stats, k=k_factor_sports)
             avg_stat = sum(stats) / len(stats)
+
+            print(f"Predictability Score: {score:.2f}")
             print(f"Suggested Target (Average {stat_type.upper()}): {round(avg_stat, 2)}")
+            print("\n----------------------------------------------\n")
+
+            # Sliding Window Analysis
+            print("Running Sliding Window Analysis...")
+            window_size = min(10, len(stats))
+            results = calculate_sliding_window(stats, window_size, k=k_factor_sports)
+
+            scores_list = [r['score'] for r in results]
+            scores_list = [None] * (window_size - 1) + scores_list
+
+            # Plotting
+            plt.figure(figsize=(12, 8))
+
+            plt.subplot(2, 1, 1)
+            plt.plot(stats, marker='o', linestyle='-', color='#002D62', alpha=0.7,
+                     label=f'{player_name} {stat_type}')
+            plt.axhline(y=avg_stat, color='gray', linestyle='--', label='Average')
+            plt.title(f"{player_name} - {stat_type} Performance ({year})")
+            plt.ylabel(stat_type)
+            plt.legend()
+            plt.grid(True, alpha=0.3)
+
+            plt.subplot(2, 1, 2)
+            plt.plot(scores_list, color='#c8102e', linewidth=2,
+                     label=f'Predictability Score ({window_size}-Game Window)')
+            plt.axhline(y=80, color='green', linestyle='--', label='Elite Stability')
+            plt.axhline(y=60, color='orange', linestyle='--', label='Volatile')
+            plt.title("Stability Analysis")
+            plt.ylabel("Score (0-100)")
+            plt.xlabel("Game Number")
+            plt.ylim(0, 105)
+            plt.legend()
+            plt.grid(True, alpha=0.3)
+
+            output_dir = os.path.join("static", "images", "mlb_charts")
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+
+            filename = f"{player_name.replace(' ', '_')}_{stat_type}_analysis.png"
+            filepath = os.path.join(output_dir, filename)
+
+            plt.tight_layout()
+            plt.savefig(filepath)
+            plt.close()
+            print(f"Chart saved to {filepath}")
 
     except Exception as e:
         print(f"An error occurred while parsing game logs: {e}")
@@ -211,10 +266,10 @@ if __name__ == "__main__":
         stat_type = input("Enter Stat Type (e.g., H, HR, SO): ").strip().upper()
         
         try:
-            year = int(input("Enter Season Year (default 2025): ") or "2025")
+            year = int(input("Enter Season Year (default 2026): ") or "2026")
         except ValueError:
-            print("Invalid year. Using default of 2025.")
-            year = 2025
+            print("Invalid year. Using default of 2026.")
+            year = 2026
             
         try:
             num_games = int(input("Number of recent games to fetch (default 20): ") or "20")
