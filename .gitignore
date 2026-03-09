@@ -23,5 +23,4 @@ build/
 output.json
 
 .promptfoo/
-
-DEEPSEEK_API_KEY=sk-320af1b3c15d47178b61ca439b69c55b
+
