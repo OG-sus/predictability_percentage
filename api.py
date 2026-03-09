@@ -3,6 +3,9 @@ import sqlite3
 import json
 import os
 import uuid
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from functools import wraps
 from flask import Flask, request, jsonify, render_template, g, session, redirect, url_for, Response, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -28,6 +31,51 @@ logging.basicConfig(level=logging.INFO)
 load_dotenv()
 import threading
 from collections import deque
+
+# --- Email Notification Config ---
+NOTIFY_EMAIL = os.environ.get('NOTIFY_EMAIL')          # your Gmail address
+NOTIFY_EMAIL_PASSWORD = os.environ.get('NOTIFY_EMAIL_PASSWORD')  # Gmail App Password
+
+def send_lead_notification(lead: dict):
+    """Fire-and-forget email alert when a new lead submits the contact form."""
+    if not NOTIFY_EMAIL or not NOTIFY_EMAIL_PASSWORD:
+        return
+
+    def _send():
+        try:
+            subject = f"🚨 New FSR Lead: {lead.get('name')} @ {lead.get('company') or 'Unknown Co'}"
+            body = f"""New lead from the Predictability Score contact form:
+
+Name:         {lead.get('name')}
+Email:        {lead.get('email')}
+Company:      {lead.get('company') or '—'}
+Industry:     {lead.get('industry') or '—'}
+Company Size: {lead.get('company_size') or '—'}
+Use Case:     {lead.get('use_case') or '—'}
+
+Message:
+{lead.get('message') or '(none)'}
+
+---
+Reply directly to {lead.get('email')} to follow up.
+"""
+            msg = MIMEMultipart()
+            msg['From'] = NOTIFY_EMAIL
+            msg['To'] = NOTIFY_EMAIL
+            msg['Reply-To'] = lead.get('email', NOTIFY_EMAIL)
+            msg['Subject'] = subject
+            msg.attach(MIMEText(body, 'plain'))
+
+            with smtplib.SMTP('smtp.gmail.com', 587) as server:
+                server.starttls()
+                server.login(NOTIFY_EMAIL, NOTIFY_EMAIL_PASSWORD)
+                server.sendmail(NOTIFY_EMAIL, NOTIFY_EMAIL, msg.as_string())
+            logging.info(f"Lead notification sent for {lead.get('email')}")
+        except Exception as e:
+            logging.error(f"Lead email notification failed: {e}")
+
+    threading.Thread(target=_send, daemon=True).start()
+
 from fsr import calculate_predictability # THE SOURCE OF TRUTH
 
 # --- Network Stability State for Ticker/HUB ---
@@ -395,6 +443,9 @@ def submit_lead():
             (name, email, company, industry, company_size, use_case, message)
         )
         logging.info(f"New lead: {name} <{email}> | {industry} | {company_size}")
+        send_lead_notification({'name': name, 'email': email, 'company': company,
+                                'industry': industry, 'company_size': company_size,
+                                'use_case': use_case, 'message': message})
         return jsonify({'success': True, 'message': 'Thank you! We will be in touch within 1 business day.'}), 201
     except Exception as e:
         logging.error(f"Lead submission error: {e}")
