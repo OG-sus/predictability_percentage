@@ -511,18 +511,16 @@ def submit_lead():
 
 @app.route('/api/v1/leads/diagnose', methods=['GET'])
 def diagnose_leads():
-    """Temporary diagnostic endpoint — remove after leads are confirmed working."""
+    """Temporary diagnostic + self-healing endpoint — remove after leads are confirmed working."""
     results = {}
     try:
-        db_url_set = bool(DATABASE_URL)
-        results['DATABASE_URL_set'] = db_url_set
+        results['DATABASE_URL_set'] = bool(DATABASE_URL)
         results['DATABASE_URL_prefix'] = DATABASE_URL[:30] + '...' if DATABASE_URL else None
 
-        # Test connection
         conn = get_db()
         results['db_connection'] = 'OK'
 
-        # Test table exists
+        # Check if table exists
         if DATABASE_URL:
             with conn.cursor() as cur:
                 cur.execute("SELECT to_regclass('public.leads')")
@@ -532,6 +530,40 @@ def diagnose_leads():
             cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='leads'")
             results['leads_table_exists'] = cur.fetchone() is not None
 
+        # Auto-create if missing
+        if not results['leads_table_exists']:
+            if DATABASE_URL:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        CREATE TABLE IF NOT EXISTS leads (
+                            id SERIAL PRIMARY KEY,
+                            name TEXT NOT NULL,
+                            email TEXT NOT NULL,
+                            company TEXT,
+                            industry TEXT,
+                            company_size TEXT,
+                            use_case TEXT,
+                            message TEXT,
+                            submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            status TEXT NOT NULL DEFAULT 'new'
+                        )
+                    """)
+                conn.commit()
+            else:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS leads (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL, email TEXT NOT NULL,
+                        company TEXT, industry TEXT, company_size TEXT,
+                        use_case TEXT, message TEXT,
+                        submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        status TEXT NOT NULL DEFAULT 'new'
+                    )
+                """)
+                conn.commit()
+            results['leads_table_created'] = True
+            logging.info("leads table created via diagnose endpoint")
+        
         return jsonify(results), 200
     except Exception as e:
         results['error'] = f"{type(e).__name__}: {e}"
