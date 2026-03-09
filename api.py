@@ -196,6 +196,57 @@ def log_request_info():
     real_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
     logging.info(f"Request: {request.method} {request.path} from IP: {real_ip} - Agent: {request.user_agent.string}")
 
+def ensure_leads_table():
+    """Create the leads table if it doesn't exist. Safe to call on every startup."""
+    try:
+        if DATABASE_URL:
+            clean_url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+            conn = psycopg2.connect(clean_url) if "sslmode" in clean_url else psycopg2.connect(clean_url, sslmode='require')
+            cur = conn.cursor()
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS leads (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    email TEXT NOT NULL,
+                    company TEXT,
+                    industry TEXT,
+                    company_size TEXT,
+                    use_case TEXT,
+                    message TEXT,
+                    submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    status TEXT NOT NULL DEFAULT 'new'
+                )
+            """)
+            conn.commit()
+            cur.close()
+            conn.close()
+        else:
+            db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
+            conn = sqlite3.connect(db_path)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS leads (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    email TEXT NOT NULL,
+                    company TEXT,
+                    industry TEXT,
+                    company_size TEXT,
+                    use_case TEXT,
+                    message TEXT,
+                    submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    status TEXT NOT NULL DEFAULT 'new'
+                )
+            """)
+            conn.commit()
+            conn.close()
+        logging.info("leads table verified/created OK")
+    except Exception as e:
+        logging.error(f"ensure_leads_table failed: {e}")
+
+with app.app_context():
+    ensure_leads_table()
+
+
 def check_rate_limit(api_key_id):
     current_time = time.time()
     if api_key_id not in RATE_LIMITS:
