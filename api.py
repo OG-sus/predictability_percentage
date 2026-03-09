@@ -33,12 +33,12 @@ import threading
 from collections import deque
 
 # --- Email Notification Config ---
-NOTIFY_EMAIL = os.environ.get('NOTIFY_EMAIL')          # your Gmail address
-NOTIFY_EMAIL_PASSWORD = os.environ.get('NOTIFY_EMAIL_PASSWORD')  # Gmail App Password
+NOTIFY_EMAIL = 'predictabilitycalculator@gmail.com'
+NOTIFY_EMAIL_PASSWORD = os.environ.get('NOTIFY_EMAIL_PASSWORD')  # Gmail App Password (16-char)
 
 def send_lead_notification(lead: dict):
     """Fire-and-forget email alert when a new lead submits the contact form."""
-    if not NOTIFY_EMAIL or not NOTIFY_EMAIL_PASSWORD:
+    if not NOTIFY_EMAIL_PASSWORD:
         return
 
     def _send():
