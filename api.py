@@ -219,12 +219,19 @@ def get_db():
     if 'db' not in g:
         if DATABASE_URL:
             try:
-                g.db = psycopg2.connect(DATABASE_URL, sslmode='require')
+                # Convert postgres:// → postgresql:// (required by psycopg2)
+                # Strip sslmode from URL before passing as kwarg to avoid "conflicting options" error
+                clean_url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+                if "sslmode" in clean_url:
+                    g.db = psycopg2.connect(clean_url)
+                else:
+                    g.db = psycopg2.connect(clean_url, sslmode='require')
             except Exception as e:
                 logging.error(f"Failed to connect to PostgreSQL: {e}")
                 raise
         else:
-            g.db = sqlite3.connect(app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', ''))
+            db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
+            g.db = sqlite3.connect(db_path)
             g.db.row_factory = sqlite3.Row
     return g.db
 
@@ -448,7 +455,7 @@ def submit_lead():
                                 'use_case': use_case, 'message': message})
         return jsonify({'success': True, 'message': 'Thank you! We will be in touch within 1 business day.'}), 201
     except Exception as e:
-        logging.error(f"Lead submission error: {e}")
+        logging.error(f"Lead submission error: {type(e).__name__}: {e}", exc_info=True)
         return jsonify({'error': 'Submission failed, please try again.'}), 500
 
 @app.route('/tutorial')

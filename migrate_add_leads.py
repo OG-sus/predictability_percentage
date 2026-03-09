@@ -42,7 +42,10 @@ CREATE TABLE IF NOT EXISTS leads (
 
 if DATABASE_URL:
     url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-    conn = psycopg2.connect(url, sslmode='require')
+    if "sslmode" in url:
+        conn = psycopg2.connect(url)
+    else:
+        conn = psycopg2.connect(url, sslmode='require')
     cur = conn.cursor()
     cur.execute(SQL_PG)
     conn.commit()
