@@ -456,7 +456,35 @@ def submit_lead():
         return jsonify({'success': True, 'message': 'Thank you! We will be in touch within 1 business day.'}), 201
     except Exception as e:
         logging.error(f"Lead submission error: {type(e).__name__}: {e}", exc_info=True)
-        return jsonify({'error': 'Submission failed, please try again.'}), 500
+        return jsonify({'error': 'Submission failed, please try again.', 'debug': str(e)}), 500
+
+@app.route('/api/v1/leads/diagnose', methods=['GET'])
+def diagnose_leads():
+    """Temporary diagnostic endpoint — remove after leads are confirmed working."""
+    results = {}
+    try:
+        db_url_set = bool(DATABASE_URL)
+        results['DATABASE_URL_set'] = db_url_set
+        results['DATABASE_URL_prefix'] = DATABASE_URL[:30] + '...' if DATABASE_URL else None
+
+        # Test connection
+        conn = get_db()
+        results['db_connection'] = 'OK'
+
+        # Test table exists
+        if DATABASE_URL:
+            with conn.cursor() as cur:
+                cur.execute("SELECT to_regclass('public.leads')")
+                exists = cur.fetchone()[0]
+                results['leads_table_exists'] = exists is not None
+        else:
+            cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='leads'")
+            results['leads_table_exists'] = cur.fetchone() is not None
+
+        return jsonify(results), 200
+    except Exception as e:
+        results['error'] = f"{type(e).__name__}: {e}"
+        return jsonify(results), 500
 
 @app.route('/tutorial')
 def tutorial_page(): return render_template('tutorial.html')
