@@ -19,3 +19,7 @@ flask db upgrade
 # Run manual fix for recovery column (Safe to run multiple times)
 echo "Ensuring recovery column exists..."
 python add_recovery_column.py
+
+# Ensure leads table exists (Safe to run multiple times)
+echo "Ensuring leads table exists..."
+python migrate_add_leads.py
