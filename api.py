@@ -369,6 +369,37 @@ def methodology_page(): return render_template('methodology.html')
 def technical_validation_page(): return render_template('technical_validation.html')
 @app.route('/contact')
 def contact_page(): return render_template('contact.html')
+
+@app.route('/api/v1/leads', methods=['POST'])
+def submit_lead():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid request'}), 400
+
+    name = (data.get('name') or '').strip()
+    email = (data.get('email') or '').strip()
+    company = (data.get('company') or '').strip()
+    industry = (data.get('industry') or '').strip()
+    company_size = (data.get('company_size') or '').strip()
+    use_case = (data.get('use_case') or '').strip()
+    message = (data.get('message') or '').strip()
+
+    if not name or not email:
+        return jsonify({'error': 'Name and email are required'}), 400
+
+    try:
+        query_db(
+            'INSERT INTO leads (name, email, company, industry, company_size, use_case, message) VALUES (%s, %s, %s, %s, %s, %s, %s)'
+            if DATABASE_URL else
+            'INSERT INTO leads (name, email, company, industry, company_size, use_case, message) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            (name, email, company, industry, company_size, use_case, message)
+        )
+        logging.info(f"New lead: {name} <{email}> | {industry} | {company_size}")
+        return jsonify({'success': True, 'message': 'Thank you! We will be in touch within 1 business day.'}), 201
+    except Exception as e:
+        logging.error(f"Lead submission error: {e}")
+        return jsonify({'error': 'Submission failed, please try again.'}), 500
+
 @app.route('/tutorial')
 def tutorial_page(): return render_template('tutorial.html')
 @app.route('/privacy')

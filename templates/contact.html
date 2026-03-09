@@ -3,20 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contact Us - The Predictability Score</title>
+    <title>Contact Sales - The Predictability Score</title>
     <style>
         :root {
-            --bg-color: #f8f9fa; --container-bg: #ffffff; --text-color: #212529;
-            --subtle-text-color: #6c757d; --border-color: #dee2e6; --primary-color: #007bff;
-            --shadow-color: rgba(0, 0, 0, 0.05);
+            --bg-color: #121212; --container-bg: #1e1e1e; --text-color: #e9ecef;
+            --subtle-text-color: #adb5bd; --border-color: #495057;
+            --primary-color: #0170C1; --accent-green: #00ff88; --accent-cyan: #00d0ff;
+            --shadow-color: rgba(0, 0, 0, 0.4);
         }
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg-color: #121212; --container-bg: #1e1e1e; --text-color: #e9ecef;
-                --subtle-text-color: #adb5bd; --border-color: #495057; --primary-color: #007bff;
-                --shadow-color: rgba(0, 0, 0, 0.2);
-            }
-        }
+        * { box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); display: flex; flex-direction: column; min-height: 100vh; }
         .header { background-color: var(--container-bg); padding: 20px; border-bottom: 1px solid var(--border-color); text-align: center; box-shadow: 0 2px 10px var(--shadow-color); }
         .title-container { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 10px; }
@@ -26,20 +21,66 @@
         .nav { margin-top: 10px; }
         .nav a { color: var(--primary-color); text-decoration: none; margin: 0 15px; font-weight: bold; font-size: 1.1em; }
         .nav a:hover { text-decoration: underline; }
-        .container { max-width: 800px; margin: 40px auto; padding: 30px; background: var(--container-bg); border-radius: 12px; box-shadow: 0 8px 30px var(--shadow-color); flex: 1; }
-        h1 { border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
-        a { color: var(--primary-color); }
 
-        .footer {
-            text-align: center;
-            padding: 40px 20px;
-            color: var(--subtle-text-color);
-            font-size: 0.9em;
-            border-top: 1px solid var(--border-color);
-            background: var(--container-bg);
-            margin-top: auto;
+        .hero { text-align: center; padding: 60px 20px 30px; }
+        .hero h2 { font-size: 2.2em; margin: 0 0 10px; color: var(--text-color); }
+        .hero p { color: var(--subtle-text-color); font-size: 1.1em; max-width: 540px; margin: 0 auto; }
+
+        .form-wrapper { max-width: 620px; margin: 0 auto 60px; padding: 0 20px; flex: 1; }
+
+        /* Step indicators */
+        .steps { display: flex; justify-content: center; gap: 8px; margin-bottom: 32px; }
+        .step-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border-color); transition: background 0.3s; }
+        .step-dot.active { background: var(--accent-cyan); }
+        .step-dot.done { background: var(--accent-green); }
+
+        .step { display: none; }
+        .step.active { display: block; }
+
+        .form-card { background: var(--container-bg); border: 1px solid var(--border-color); border-radius: 16px; padding: 36px 40px; box-shadow: 0 8px 40px var(--shadow-color); }
+        .step-label { font-size: 0.8em; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--accent-cyan); margin-bottom: 6px; }
+        .step-title { font-size: 1.5em; font-weight: 700; margin: 0 0 24px; }
+
+        .form-group { margin-bottom: 18px; }
+        label { display: block; font-size: 0.9em; font-weight: 600; margin-bottom: 6px; color: var(--subtle-text-color); }
+        input[type="text"], input[type="email"], textarea, select {
+            width: 100%; padding: 12px 14px; border: 1px solid var(--border-color);
+            border-radius: 8px; background: #2a2a2a; color: var(--text-color);
+            font-size: 1em; transition: border-color 0.2s; appearance: none;
         }
-        .footer a { color: var(--subtle-text-color); text-decoration: none; margin: 0 10px; transition: color 0.2s; }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent-cyan); }
+        textarea { resize: vertical; min-height: 90px; }
+
+        /* Pill selector */
+        .pill-group { display: flex; flex-wrap: wrap; gap: 10px; }
+        .pill { padding: 8px 16px; border: 1px solid var(--border-color); border-radius: 20px; cursor: pointer; font-size: 0.9em; transition: all 0.2s; user-select: none; background: #2a2a2a; }
+        .pill:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+        .pill.selected { border-color: var(--accent-cyan); background: rgba(0, 208, 255, 0.12); color: var(--accent-cyan); font-weight: 600; }
+
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        @media (max-width: 500px) { .row { grid-template-columns: 1fr; } .form-card { padding: 28px 20px; } }
+
+        .btn-row { display: flex; justify-content: space-between; margin-top: 28px; gap: 12px; }
+        .btn { padding: 12px 28px; border-radius: 8px; font-size: 1em; font-weight: 700; cursor: pointer; border: none; transition: all 0.2s; }
+        .btn-back { background: transparent; border: 1px solid var(--border-color); color: var(--subtle-text-color); }
+        .btn-back:hover { border-color: var(--text-color); color: var(--text-color); }
+        .btn-next { background: var(--primary-color); color: #fff; flex: 1; }
+        .btn-next:hover { background: #0189e8; }
+        .btn-submit { background: var(--accent-green); color: #000; flex: 1; font-weight: 800; }
+        .btn-submit:hover { background: #00e87a; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Success state */
+        .success-card { text-align: center; padding: 60px 40px; }
+        .success-icon { font-size: 3em; margin-bottom: 16px; }
+        .success-card h3 { font-size: 1.8em; margin: 0 0 12px; color: var(--accent-green); }
+        .success-card p { color: var(--subtle-text-color); max-width: 400px; margin: 0 auto; }
+
+        .error-msg { color: #ff6b6b; font-size: 0.85em; margin-top: 4px; display: none; }
+        .field-error input, .field-error select, .field-error textarea { border-color: #ff6b6b; }
+
+        .footer { text-align: center; padding: 30px 20px; color: var(--subtle-text-color); font-size: 0.85em; border-top: 1px solid var(--border-color); background: var(--container-bg); margin-top: auto; }
+        .footer a { color: var(--subtle-text-color); text-decoration: none; margin: 0 10px; }
         .footer a:hover { color: var(--primary-color); }
     </style>
 </head>
@@ -54,23 +95,213 @@
             <a href="/calculator">Calculator</a>
             <a href="/tutorial">Tutorial</a>
             <a href="/methodology">Methodology</a>
-            <a href="/technical-validation">Technical Validation</a>
             <a href="/contact">Contact</a>
         </nav>
     </header>
 
-    <div class="container">
-        <h1>Contact Us</h1>
-        <p>For questions, API access, or business inquiries, please reach out to us via email.</p>
-        <p><strong>Email:</strong> <a href="mailto:predictabilitycalculator@gmail.com">predictabilitycalculator@gmail.com</a></p>
+    <div class="hero">
+        <h2>Talk to a Specialist</h2>
+        <p>Tell us about your use case and we'll reach out with pricing and integration details within 1 business day.</p>
+    </div>
+
+    <div class="form-wrapper">
+        <div class="steps">
+            <div class="step-dot active" id="dot-0"></div>
+            <div class="step-dot" id="dot-1"></div>
+            <div class="step-dot" id="dot-2"></div>
+        </div>
+
+        <div class="form-card" id="form-card">
+
+            <!-- STEP 1: About You -->
+            <div class="step active" id="step-0">
+                <div class="step-label">Step 1 of 3</div>
+                <div class="step-title">About You</div>
+                <div class="row">
+                    <div class="form-group" id="fg-name">
+                        <label for="name">Full Name *</label>
+                        <input type="text" id="name" placeholder="Jane Smith" autocomplete="name">
+                        <div class="error-msg" id="err-name">Please enter your name.</div>
+                    </div>
+                    <div class="form-group" id="fg-email">
+                        <label for="email">Work Email *</label>
+                        <input type="email" id="email" placeholder="jane@company.com" autocomplete="email">
+                        <div class="error-msg" id="err-email">Please enter a valid email.</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="company">Company Name</label>
+                    <input type="text" id="company" placeholder="Acme Corp" autocomplete="organization">
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-next" onclick="nextStep(0)">Next →</button>
+                </div>
+            </div>
+
+            <!-- STEP 2: Qualification -->
+            <div class="step" id="step-1">
+                <div class="step-label">Step 2 of 3</div>
+                <div class="step-title">Your Use Case</div>
+                <div class="form-group">
+                    <label>Industry *</label>
+                    <div class="pill-group" id="industry-pills">
+                        <div class="pill" onclick="selectPill(this,'industry')">FinTech / Finance</div>
+                        <div class="pill" onclick="selectPill(this,'industry')">Pharma / MedTech</div>
+                        <div class="pill" onclick="selectPill(this,'industry')">Manufacturing / IoT</div>
+                        <div class="pill" onclick="selectPill(this,'industry')">Sports Analytics</div>
+                        <div class="pill" onclick="selectPill(this,'industry')">AI / ML Infrastructure</div>
+                        <div class="pill" onclick="selectPill(this,'industry')">Other</div>
+                    </div>
+                    <div class="error-msg" id="err-industry">Please select an industry.</div>
+                </div>
+                <div class="form-group" style="margin-top:20px;">
+                    <label>Company Size *</label>
+                    <div class="pill-group" id="size-pills">
+                        <div class="pill" onclick="selectPill(this,'size')">1–10</div>
+                        <div class="pill" onclick="selectPill(this,'size')">11–50</div>
+                        <div class="pill" onclick="selectPill(this,'size')">51–200</div>
+                        <div class="pill" onclick="selectPill(this,'size')">201–1000</div>
+                        <div class="pill" onclick="selectPill(this,'size')">1000+</div>
+                    </div>
+                    <div class="error-msg" id="err-size">Please select a company size.</div>
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-back" onclick="prevStep(1)">← Back</button>
+                    <button class="btn btn-next" onclick="nextStep(1)">Next →</button>
+                </div>
+            </div>
+
+            <!-- STEP 3: Details & Submit -->
+            <div class="step" id="step-2">
+                <div class="step-label">Step 3 of 3</div>
+                <div class="step-title">Tell Us More</div>
+                <div class="form-group">
+                    <label for="use_case">What data are you trying to stabilize?</label>
+                    <select id="use_case">
+                        <option value="" disabled selected>Select a use case…</option>
+                        <option>Sensor / IoT stream data</option>
+                        <option>Trading / price feeds</option>
+                        <option>LLM / AI agent output auditing</option>
+                        <option>Patient / clinical data</option>
+                        <option>Manufacturing QC / batch data</option>
+                        <option>Sports / performance analytics</option>
+                        <option>Other / custom</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="message">Anything else we should know? (optional)</label>
+                    <textarea id="message" placeholder="Data volume, existing stack, timeline…"></textarea>
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-back" onclick="prevStep(2)">← Back</button>
+                    <button class="btn btn-submit" id="submit-btn" onclick="submitLead()">Get in Touch ✓</button>
+                </div>
+            </div>
+
+        </div>
     </div>
 
     <div class="footer">
-        &copy; 2026 Predictability API. All rights reserved.<br>
+        &copy; 2026 Predictability API. All rights reserved. &nbsp;|&nbsp; Colorado, USA &nbsp;|&nbsp; Proprietary License
         <div style="margin-top: 10px;">
-            <a href="#" target="_blank">Twitter/X</a>
-            <a href="#" target="_blank">LinkedIn</a>
+            <a href="/privacy">Privacy Policy</a>
+            <a href="/terms">Terms</a>
         </div>
     </div>
+
+    <script>
+        let currentStep = 0;
+        const selections = { industry: '', size: '' };
+
+        function showStep(n) {
+            document.querySelectorAll('.step').forEach((s, i) => s.classList.toggle('active', i === n));
+            document.querySelectorAll('.step-dot').forEach((d, i) => {
+                d.classList.toggle('active', i === n);
+                d.classList.toggle('done', i < n);
+            });
+            currentStep = n;
+        }
+
+        function selectPill(el, type) {
+            const group = el.parentElement;
+            group.querySelectorAll('.pill').forEach(p => p.classList.remove('selected'));
+            el.classList.add('selected');
+            selections[type] = el.textContent.trim();
+            // Clear error if present
+            const errEl = document.getElementById(type === 'industry' ? 'err-industry' : 'err-size');
+            if (errEl) errEl.style.display = 'none';
+        }
+
+        function showError(id, msg) {
+            const el = document.getElementById(id);
+            if (el) { el.textContent = msg; el.style.display = 'block'; }
+        }
+        function clearError(id) {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        }
+
+        function nextStep(from) {
+            if (from === 0) {
+                const name = document.getElementById('name').value.trim();
+                const email = document.getElementById('email').value.trim();
+                let ok = true;
+                if (!name) { showError('err-name', 'Please enter your name.'); ok = false; } else clearError('err-name');
+                if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('err-email', 'Please enter a valid email.'); ok = false; } else clearError('err-email');
+                if (!ok) return;
+            }
+            if (from === 1) {
+                let ok = true;
+                if (!selections.industry) { showError('err-industry', 'Please select an industry.'); ok = false; }
+                if (!selections.size) { showError('err-size', 'Please select a company size.'); ok = false; }
+                if (!ok) return;
+            }
+            showStep(from + 1);
+        }
+
+        function prevStep(from) { showStep(from - 1); }
+
+        async function submitLead() {
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true;
+            btn.textContent = 'Sending…';
+
+            const payload = {
+                name: document.getElementById('name').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                company: document.getElementById('company').value.trim(),
+                industry: selections.industry,
+                company_size: selections.size,
+                use_case: document.getElementById('use_case').value,
+                message: document.getElementById('message').value.trim()
+            };
+
+            try {
+                const res = await fetch('/api/v1/leads', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    document.getElementById('form-card').innerHTML = `
+                        <div class="success-card">
+                            <div class="success-icon">✅</div>
+                            <h3>You're on the list.</h3>
+                            <p>Thanks, <strong>${payload.name.split(' ')[0]}</strong>. A specialist will reach out to <strong>${payload.email}</strong> within 1 business day with pricing and next steps.</p>
+                        </div>`;
+                    document.querySelector('.steps').style.display = 'none';
+                } else {
+                    alert(data.error || 'Submission failed. Please try again.');
+                    btn.disabled = false;
+                    btn.textContent = 'Get in Touch ✓';
+                }
+            } catch(e) {
+                alert('Network error. Please try again or email us directly.');
+                btn.disabled = false;
+                btn.textContent = 'Get in Touch ✓';
+            }
+        }
+    </script>
 </body>
 </html>

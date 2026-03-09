@@ -48,3 +48,16 @@ CREATE TABLE api_keys (
     usage_count INTEGER DEFAULT 0,
     FOREIGN KEY (user_id) REFERENCES users (id)
 );
+
+CREATE TABLE leads (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    company TEXT,
+    industry TEXT,
+    company_size TEXT,
+    use_case TEXT,
+    message TEXT,
+    submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status TEXT NOT NULL DEFAULT 'new'
+);
