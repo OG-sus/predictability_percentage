@@ -102,3 +102,9 @@ def handler():
 ## Tests
 
 Tests are in `tests.py` using Python's built-in `unittest`. The test class is `TestPredictabilityMath`. Tests exercise the math directly — no HTTP/database mocking required for the core logic tests. There is no pytest config; use `unittest` directly.
+
+
+## Specialized Agents
+Refer to the /agents directory for specific personas:
+- tech_specialist.md: Use for SDK integration and technical docs.
+- sales_qualifier.md: Use for business logic and lead conversion.
