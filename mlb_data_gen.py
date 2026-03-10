@@ -3,6 +3,7 @@ import random
 import requests
 import pandas as pd
 import unidecode
+from fsr import calculate_predictability
 
 try:
     from pybaseball import playerid_lookup, statcast_batter, statcast_pitcher
@@ -73,7 +74,6 @@ def _get_stats_via_pybaseball(player_name, stat_type, num_games=20, year=2025):
         print(f"No player found for '{player_name}'. Check spelling.")
         return
 
-    # Prefer active players; pick most recent if multiple
     lookup = lookup.sort_values('mlb_played_last', ascending=False)
     row = lookup.iloc[0]
     mlbam_id = int(row['key_mlbam'])
@@ -83,7 +83,6 @@ def _get_stats_via_pybaseball(player_name, stat_type, num_games=20, year=2025):
     end_date   = f"{year}-11-30"
 
     try:
-        # Try batter first, fall back to pitcher
         try:
             data = statcast_batter(start_date, end_date, player_id=mlbam_id)
         except Exception:
@@ -93,23 +92,11 @@ def _get_stats_via_pybaseball(player_name, stat_type, num_games=20, year=2025):
             print(f"No Statcast data found for {year}. Try a different year.")
             return
 
-        # Map common stat aliases to Statcast column names
-        STAT_MAP = {
-            'H':   'events',   # will filter for hits
-            'HR':  'events',
-            'SO':  'events',
-            'K':   'events',
-            'BB':  'events',
-            'SB':  'events',
-        }
-
-        # Statcast is pitch-by-pitch — aggregate to game level
         data['game_date'] = pd.to_datetime(data['game_date'])
-        
-        # For hit-based stats, filter by event type
+
         EVENT_FILTERS = {
             'HR': lambda df: df[df['events'] == 'home_run'].groupby('game_date').size(),
-            'H':  lambda df: df[df['events'].isin(['single','double','triple','home_run'])].groupby('game_date').size(),
+            'H':  lambda df: df[df['events'].isin(['single', 'double', 'triple', 'home_run'])].groupby('game_date').size(),
             'SO': lambda df: df[df['events'] == 'strikeout'].groupby('game_date').size(),
             'K':  lambda df: df[df['events'] == 'strikeout'].groupby('game_date').size(),
             'BB': lambda df: df[df['events'] == 'walk'].groupby('game_date').size(),
@@ -131,7 +118,7 @@ def _get_stats_via_pybaseball(player_name, stat_type, num_games=20, year=2025):
         print(f"Statcast data error: {e}")
         return
 
-    _print_results(player_name, stat_type, stats)
+    _print_results(player_name, stat_upper, stats)
 
 
 # ---------------------------------------------------------------------------
@@ -141,6 +128,7 @@ def _get_stats_via_pybaseball(player_name, stat_type, num_games=20, year=2025):
 def _get_stats_via_scraping(player_name, stat_type, num_games=20, year=2025):
     """Falls back to session-based scraping if pybaseball is unavailable."""
     from bs4 import BeautifulSoup
+    stat_upper = stat_type.upper()
     search_name = unidecode.unidecode(player_name).lower().replace(' ', '+')
     search_url  = f"https://www.baseball-reference.com/search/search.fcgi?search={search_name}"
 
@@ -163,7 +151,6 @@ def _get_stats_via_scraping(player_name, stat_type, num_games=20, year=2025):
             print(f"Error: Status {resp.status_code}")
             return
 
-        # Redirect directly to player?
         if "players" in resp.url and "/search/" not in resp.url:
             player_url = resp.url
         else:
@@ -209,33 +196,39 @@ def _get_stats_via_scraping(player_name, stat_type, num_games=20, year=2025):
             return
 
         df = df[df['Date'] != 'Date'].dropna(subset=['Date'])
-        if stat_type == 'K' and 'SO' in df.columns:
-            stat_type = 'SO'
-        if stat_type not in df.columns:
-            print(f"Stat '{stat_type}' not found. Available: {', '.join(df.columns.tolist())}")
+        if stat_upper == 'K' and 'SO' in df.columns:
+            stat_upper = 'SO'
+        if stat_upper not in df.columns:
+            print(f"Stat '{stat_upper}' not found. Available: {', '.join(df.columns.tolist())}")
             return
 
-        df[stat_type] = pd.to_numeric(df[stat_type], errors='coerce').fillna(0)
-        stats = df.head(num_games)[stat_type].astype(int).tolist()
+        df[stat_upper] = pd.to_numeric(df[stat_upper], errors='coerce').fillna(0)
+        stats = df.head(num_games)[stat_upper].astype(int).tolist()
         stats.reverse()
 
     except Exception as e:
         print(f"Scraping error: {e}")
         return
 
-    _print_results(player_name, stat_type, stats)
+    _print_results(player_name, stat_upper, stats)
 
 
 def _print_results(player_name, stat_type, stats):
     if not stats:
         print("No stats returned.")
         return
+
+    k_factor_sports = 0.5
+    score = calculate_predictability(stats, k=k_factor_sports)
+    simple_avg = sum(stats) / len(stats)
+
     print(f"\nSuccessfully fetched {len(stats)} game stats for {player_name}.")
     print(f"Stat Type: {stat_type.upper()}")
     print("\n--- COPY THE DATA BELOW FOR YOUR DASHBOARD ---\n")
     print(", ".join(map(str, stats)))
     print("\n----------------------------------------------\n")
-    print(f"Suggested Target (Average {stat_type.upper()}): {round(sum(stats)/len(stats), 2)}")
+    print(f"Predictability Score: {score:.2f}")
+    print(f"Simple Average: {simple_avg:.2f}")
 
 
 # ---------------------------------------------------------------------------

@@ -1,11 +1,15 @@
 import requests
-import cloudscraper
+try:
+    import cloudscraper
+except ImportError:
+    cloudscraper = None
 from bs4 import BeautifulSoup, Comment
 import pandas as pd
 import time
 import unidecode
 import random
 import json
+from fsr import calculate_predictability
 
 
 # ---------------------------------------------------------------------------
@@ -13,11 +17,24 @@ import json
 # ---------------------------------------------------------------------------
 
 def make_scraper():
-    """Return a cloudscraper session that bypasses Cloudflare JS challenges."""
-    scraper = cloudscraper.create_scraper(
-        browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False}
+    """Return a scraper session; use cloudscraper when available, else requests.Session."""
+    if cloudscraper is None:
+        session = requests.Session()
+        session.headers.update(
+            {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/122.0.0.0 Safari/537.36"
+                )
+            }
+        )
+        print("Warning: 'cloudscraper' not installed. Using requests fallback session.")
+        return session
+
+    return cloudscraper.create_scraper(
+        browser={"browser": "chrome", "platform": "windows", "mobile": False}
     )
-    return scraper
 
 
 # ---------------------------------------------------------------------------
@@ -190,12 +207,18 @@ def _print_results(player_name, stat_type, stats):
     if not stats:
         print("No stats returned.")
         return
+
+    k_factor_sports = 0.5
+    score = calculate_predictability(stats, k=k_factor_sports)
+    simple_avg = sum(stats) / len(stats)
+
     print(f"\nSuccessfully fetched {len(stats)} game stats for {player_name}.")
     print(f"Stat Type: {stat_type.upper()}")
     print("\n--- COPY THE DATA BELOW FOR YOUR DASHBOARD ---\n")
     print(", ".join(map(str, stats)))
     print("\n----------------------------------------------\n")
-    print(f"Suggested Target (Average {stat_type.upper()}): {round(sum(stats)/len(stats), 2)}")
+    print(f"Predictability Score: {score:.2f}")
+    print(f"Simple Average: {simple_avg:.2f}")
 
 
 # ---------------------------------------------------------------------------
