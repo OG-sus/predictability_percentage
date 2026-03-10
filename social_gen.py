@@ -18,6 +18,8 @@ import matplotlib.pyplot as plt
 from datetime import datetime, timedelta, timezone
 from fsr import calculate_predictability
 from sliding_window import calculate_sliding_window
+import requests
+import re
 
 K_SOCIAL = 0.8  # Social metrics are moderately volatile
 
@@ -91,6 +93,11 @@ def youtube_channel_views(channel_id, days=14):
     Falls back to synthetic data if key is missing.
     """
     api_key = os.getenv("YOUTUBE_API_KEY")
+    # If user passed a URL or username, try to resolve to a channel ID
+    if channel_id and not channel_id.startswith('UC'):
+        resolved = resolve_youtube_channel_id(channel_id, api_key=api_key)
+        if resolved:
+            channel_id = resolved
     if not api_key:
         print("  [YouTube] YOUTUBE_API_KEY not set — using synthetic fallback.")
         series = synthetic_engagement_series(n=days, base=50000, spike_chance=0.1)
@@ -147,6 +154,78 @@ def twitter_synthetic_engagement(handle, n=30, base_impressions=10000, seed=None
     """
     series = synthetic_engagement_series(n=n, base=base_impressions, seed=seed, spike_chance=0.1)
     return _run_analysis(f"@{handle} impressions (synthetic, {n}d)", series, unit="impressions/day")
+
+
+def resolve_youtube_channel_id(identifier, api_key=None):
+    """Resolve a YouTube channel ID from a channel URL, username, custom name, or direct ID.
+    Tries (in order): direct UC... pattern, URL parsing, YouTube Data API search (if API key),
+    then a lightweight page fetch to extract channelId as a fallback.
+    Returns channel_id (UC...) or None.
+    """
+    if not identifier:
+        return None
+    identifier = identifier.strip()
+
+    # Direct ID
+    m = re.search(r"(UC[0-9A-Za-z_-]{20,})", identifier)
+    if m:
+        return m.group(1)
+
+    # Try extracting from URL patterns
+    try:
+        if identifier.startswith('http'):
+            # /channel/UC... pattern
+            m = re.search(r"/channel/(UC[0-9A-Za-z_-]{20,})", identifier)
+            if m:
+                return m.group(1)
+            # /user/username or /c/custom -> extract last path segment
+            parts = identifier.rstrip('/').split('/')
+            last = parts[-1]
+            if last:
+                identifier = last
+    except Exception:
+        pass
+
+    # If API key and google client available, use search to find a channel by query
+    if api_key and YOUTUBE_AVAILABLE:
+        try:
+            yt = yt_build('youtube', 'v3', developerKey=api_key)
+            req = yt.search().list(part='snippet', q=identifier, type='channel', maxResults=3)
+            res = req.execute()
+            items = res.get('items', [])
+            if items:
+                return items[0]['id']['channelId']
+        except Exception:
+            pass
+
+    # Fallback: fetch the URL for common channel patterns and scrape channelId
+    try:
+        # Try common URL forms
+        candidates = [
+            f"https://www.youtube.com/channel/{identifier}",
+            f"https://www.youtube.com/c/{identifier}",
+            f"https://www.youtube.com/user/{identifier}",
+            f"https://www.youtube.com/{identifier}",
+        ]
+        headers = {"User-Agent": "Mozilla/5.0 (compatible)"}
+        for url in candidates:
+            try:
+                r = requests.get(url, headers=headers, timeout=8)
+            except Exception:
+                continue
+            if r.status_code != 200:
+                continue
+            # look for channelId in page JSON
+            m = re.search(r'"channelId"\s*:\s*"(UC[0-9A-Za-z_-]{20,})"', r.text)
+            if m:
+                return m.group(1)
+            m2 = re.search(r'"externalId"\s*:\s*"(UC[0-9A-Za-z_-]{20,})"', r.text)
+            if m2:
+                return m2.group(1)
+    except Exception:
+        pass
+
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -264,7 +343,7 @@ if __name__ == "__main__":
             reddit_daily_counts(sub, days=days, count_type=ctype)
 
         elif mode == '2':
-            channel_id = input("YouTube Channel ID (e.g. UC...): ").strip()
+            channel_id = input("YouTube Channel ID or URL (e.g. UC... or https://...): ").strip()
             days = int(input("Days (default 14): ").strip() or "14")
             youtube_channel_views(channel_id, days=days)
 
