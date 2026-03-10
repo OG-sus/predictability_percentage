@@ -235,6 +235,64 @@ def _print_results(player_name, stat_type, stats):
 # Public entry point
 # ---------------------------------------------------------------------------
 
+def get_mlb_stats_raw(player_name, stat_type, num_games=20, year=2025):
+    """
+    Returns a raw list of per-game stats for use by sync/automation scripts.
+    Does not print anything. Returns [] on failure.
+    """
+    if not PYBASEBALL_AVAILABLE:
+        return []
+
+    parts = player_name.strip().split()
+    if len(parts) < 2:
+        return []
+
+    last, first = parts[-1], parts[0]
+    try:
+        lookup = playerid_lookup(last, first)
+    except Exception:
+        return []
+
+    if lookup.empty:
+        return []
+
+    lookup = lookup.sort_values('mlb_played_last', ascending=False)
+    mlbam_id = int(lookup.iloc[0]['key_mlbam'])
+    start_date = f"{year}-03-01"
+    end_date   = f"{year}-11-30"
+
+    try:
+        try:
+            data = statcast_batter(start_date, end_date, player_id=mlbam_id)
+        except Exception:
+            data = statcast_pitcher(start_date, end_date, player_id=mlbam_id)
+
+        if data is None or data.empty:
+            return []
+
+        data['game_date'] = pd.to_datetime(data['game_date'])
+
+        EVENT_FILTERS = {
+            'HR': lambda df: df[df['events'] == 'home_run'].groupby('game_date').size(),
+            'H':  lambda df: df[df['events'].isin(['single', 'double', 'triple', 'home_run'])].groupby('game_date').size(),
+            'SO': lambda df: df[df['events'] == 'strikeout'].groupby('game_date').size(),
+            'K':  lambda df: df[df['events'] == 'strikeout'].groupby('game_date').size(),
+            'BB': lambda df: df[df['events'] == 'walk'].groupby('game_date').size(),
+        }
+
+        stat_upper = stat_type.upper()
+        if stat_upper not in EVENT_FILTERS:
+            return []
+
+        game_stats = EVENT_FILTERS[stat_upper](data).reset_index()
+        game_stats.columns = ['game_date', stat_upper]
+        game_stats = game_stats.sort_values('game_date', ascending=True)
+        return game_stats[stat_upper].astype(int).tail(num_games).tolist()
+
+    except Exception:
+        return []
+
+
 def get_mlb_player_stats(player_name, stat_type, num_games=20, year=2025):
     print(f"\n--- Fetching {stat_type} data for {player_name} (last {num_games} games of {year}) ---")
     if PYBASEBALL_AVAILABLE:

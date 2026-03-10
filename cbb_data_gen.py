@@ -325,6 +325,46 @@ def _get_stats_via_scraping(player_name, stat_type, num_games, year):
 # Public entry point
 # ---------------------------------------------------------------------------
 
+def get_cbb_stats_raw(player_name, stat_type, num_games=30, year=2025):
+    """
+    Returns a raw list of per-game stats for use by sync/automation scripts.
+    Does not print anything. Returns [] on failure.
+    """
+    athlete_id, _ = _get_espn_athlete_id(player_name)
+    if not athlete_id:
+        return []
+
+    espn_key = ESPN_STAT_MAP.get(stat_type.upper())
+    if not espn_key:
+        return []
+
+    season = str(year)
+    candidates = [
+        f"https://site.api.espn.com/apis/common/v3/sports/basketball/mens-college-basketball/athletes/{athlete_id}/gamelog?season={season}",
+        f"https://site.api.espn.com/apis/common/v3/sports/basketball/mens-college-basketball/athletes/{athlete_id}/gamelog",
+    ]
+
+    data = None
+    for url in candidates:
+        try:
+            resp = requests.get(url, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get('seasonTypes') or data.get('labels') or data.get('events'):
+                    break
+        except Exception:
+            pass
+
+    if not data:
+        return []
+
+    stats = _parse_espn_gamelog(data, espn_key)
+    if not stats:
+        return []
+
+    return stats[-num_games:]
+
+
 def get_cbb_player_stats(player_name, stat_type, num_games=30, year=2025):
     print(f"\n--- Fetching {stat_type} data for {player_name} (last {num_games} games of {year}) ---")
     print("Trying ESPN API first (no scraping required)...")
