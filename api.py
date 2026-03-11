@@ -597,6 +597,7 @@ def redirect_to_contact(): return redirect(url_for('contact_page'))
 
 # --- Stability Ticker Routes ---
 @app.route('/ticker')
+@app.route('/ticker-generator')
 def ticker_generator_page():
     return render_template('ticker_generator.html')
 

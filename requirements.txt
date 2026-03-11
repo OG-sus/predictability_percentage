@@ -17,4 +17,5 @@ unidecode
 matplotlib
 pybaseball
 cloudscraper
-sportsreference"html5lib" 
+sportsreference
+html5lib
