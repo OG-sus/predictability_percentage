@@ -1158,8 +1158,8 @@ def checkout_redirect_page(plan_type):
     plan_details = plan_map.get(plan_type)
     
     if not plan_details or not plan_details.get('price_id'):
-        logging.error(f"Invalid or unconfigured plan type in checkout URL: {plan_type}")
-        return "Invalid plan type specified.", 400
+        logging.error(f"Unconfigured plan type in checkout URL: {plan_type}. PRO_PRICE_ID={PRO_PRICE_ID}, API_BASIC_PRICE_ID={API_BASIC_PRICE_ID}, API_BUSINESS_PRICE_ID={API_BUSINESS_PRICE_ID}")
+        return redirect(url_for('hub') + '?error=plan_not_configured')
 
     try:
         checkout_session = stripe.checkout.Session.create(
@@ -1173,8 +1173,8 @@ def checkout_redirect_page(plan_type):
         )
         return redirect(checkout_session.url, code=303)
     except Exception as e:
-        logging.error(f"Stripe session creation failed for plan {plan_type} for user {session.get('user_id')}: {e}")
-        return "Could not connect to our payment processor. Please try again later.", 500
+        logging.error(f"Stripe session creation failed for plan {plan_type} (price_id={plan_details.get('price_id')}) user={session.get('user_id')}: {e}")
+        return redirect(url_for('hub') + '?error=payment_failed')
 
 @app.route('/api/create-checkout-session', methods=['POST'])
 @login_required
@@ -1271,6 +1271,20 @@ def create_portal_session():
 def hub():
     """Renders the Storefront / Linktree replacement"""
     return render_template('HUB.html')
+
+@app.route('/admin/stripe-config')
+@login_required
+def stripe_config_debug():
+    """Admin: show which Stripe price IDs are loaded from env vars."""
+    def mask(val):
+        if not val: return 'NOT SET'
+        return val[:12] + '...' + val[-4:]
+    return jsonify({
+        'PRO_PRICE_ID': mask(PRO_PRICE_ID),
+        'API_BASIC_PRICE_ID': mask(API_BASIC_PRICE_ID),
+        'API_BUSINESS_PRICE_ID': mask(API_BUSINESS_PRICE_ID),
+        'STRIPE_KEY_PREFIX': (os.environ.get('STRIPE_SECRET_KEY') or '')[:7] or 'NOT SET'
+    })
 
 
 @app.route('/download/stability-ticker')
