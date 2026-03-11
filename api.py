@@ -1150,9 +1150,9 @@ def checkout_redirect_page(plan_type):
     # Map URL-friendly plan names to Stripe Price IDs and internal tier names
     # The internal_name MUST match a key in the webhook handler's tier map.
     plan_map = {
-        'ticker':    {'price_id': 'price_1T37yDA3tkC75W23aeOd42U0', 'internal_name': 'ticker_kit',   'success_url': url_for('download_ticker', _external=True)},
-        'api-basic': {'price_id': 'price_1SlowtA3tkC75W23G5luOOAp', 'internal_name': 'api_basic',    'success_url': url_for('calculator_page', _external=True) + '?checkout=success'},
-        'api-pro':   {'price_id': API_BUSINESS_PRICE_ID,             'internal_name': 'api_business', 'success_url': url_for('calculator_page', _external=True) + '?checkout=success'},
+        'ticker':    {'price_id': 'price_1T37yDA3tkC75W23aeOd42U0', 'mode': 'payment',      'internal_name': 'ticker_kit',   'success_url': url_for('download_ticker', _external=True)},
+        'api-basic': {'price_id': 'price_1SlowtA3tkC75W23G5luOOAp', 'mode': 'subscription', 'internal_name': 'api_basic',    'success_url': url_for('calculator_page', _external=True) + '?checkout=success'},
+        'api-pro':   {'price_id': API_BUSINESS_PRICE_ID,             'mode': 'subscription', 'internal_name': 'api_business', 'success_url': url_for('calculator_page', _external=True) + '?checkout=success'},
     }
     
     plan_details = plan_map.get(plan_type)
@@ -1164,7 +1164,7 @@ def checkout_redirect_page(plan_type):
     try:
         checkout_session = stripe.checkout.Session.create(
             line_items=[{'price': plan_details['price_id'], 'quantity': 1}],
-            mode='subscription',
+            mode=plan_details['mode'],
             allow_promotion_codes=True,
             success_url=plan_details['success_url'],
             cancel_url=url_for('hub', _external=True),
