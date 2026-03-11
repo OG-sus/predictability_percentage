@@ -2,34 +2,71 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Stability Hub | Powered by Predictability-API</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stability Hub | Predictability Score™</title>
+    <meta name="description" content="The Predictability Score™ storefront. Get the Stability Ticker for OBS/Twitch/YouTube, or access the Predictability API for data stability scoring.">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <!-- JSON-LD: AI & Search Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "SoftwareApplication",
+          "name": "Predictability Score™ API",
+          "applicationCategory": "DeveloperApplication",
+          "operatingSystem": "Any",
+          "url": "https://www.predictability-api.com",
+          "description": "A mathematical engine that quantifies dataset stability as a 0–100% score using an Euler-decay algorithm (FSR). Deployable via REST API or local Python SDK. Used for sports analytics, fintech, industrial AI, and broadcast overlays.",
+          "offers": {
+            "@type": "Offer",
+            "price": "129.99",
+            "priceCurrency": "USD",
+            "priceSpecification": { "@type": "UnitPriceSpecification", "billingDuration": "P1M" }
+          },
+          "featureList": [
+            "Predictability Score (0–100%) via REST API",
+            "Tunable K-Factor sensitivity (0.5 sports to 15.0 pharma)",
+            "Sliding window drift detection",
+            "Numba-accelerated Python SDK"
+          ],
+          "provider": {
+            "@type": "Organization",
+            "name": "Stability Network",
+            "url": "https://www.predictability-api.com"
+          }
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "Stability Ticker™ Pro Kit",
+          "applicationCategory": "MultimediaApplication",
+          "operatingSystem": "Windows, macOS, Linux",
+          "url": "https://www.predictability-api.com/hub",
+          "description": "No-code OBS browser source widget that connects to Google Sheets for live data tickers on Twitch and YouTube streams. Includes the Smart Template CSV and real-time stability overlays.",
+          "offers": {
+            "@type": "Offer",
+            "price": "19.99",
+            "priceCurrency": "USD"
+          },
+          "featureList": [
+            "OBS Browser Source generator",
+            "Google Sheets Smart Template integration",
+            "Live Prop Auditor for sports streams",
+            "Custom fonts, colors, and ticker presets"
+          ]
+        }
+      ]
+    }
+    </script>
+
     <style>
         body { background: #0f0f0f; color: white; font-family: 'Inter', sans-serif; text-align: center; padding: 0; margin: 0; }
-        
-        /* Branding Header */
-        .header {
-            background-color: #1a1a1a;
-            padding: 20px;
-            border-bottom: 2px solid #0170C1;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            text-align: left;
-        }
-        .brand-box h1 { margin: 0; font-size: 1.8em; color: #fff; letter-spacing: 1px; }
-        .brand-box span { color: #0170C1; font-weight: bold; font-size: 0.8em; text-transform: uppercase; }
-
         .container { max-width: 1100px; margin: 50px auto; padding: 20px; }
-        
-        /* Hero Section */
         .hero { margin-bottom: 60px; }
         .hero h2 { font-size: 2.5em; margin-bottom: 10px; }
         .hero p { color: #adb5bd; font-size: 1.2em; max-width: 700px; margin: 0 auto; }
-
-        /* Two-Pillar Layout */
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 40px; }
-        
         .card {
             background: #1e1e1e;
             padding: 40px;
@@ -42,10 +79,8 @@
             text-align: left;
         }
         .card:hover { transform: translateY(-5px); border-color: #0170C1; }
-        
         .card h3 { font-size: 1.6em; margin-top: 0; color: #0170C1; }
         .card p { color: #ced4da; line-height: 1.6; }
-        
         .btn {
             display: inline-block;
             background: #0170C1;
@@ -58,7 +93,6 @@
             text-align: center;
         }
         .btn-outline { background: transparent; border: 2px solid #0170C1; }
-
         .badge {
             background: #2b2b2b;
             padding: 5px 10px;
@@ -68,20 +102,24 @@
             margin-left: 10px;
             color: #00ff88;
         }
-
         footer { margin-top: 100px; padding: 40px; color: #666; font-size: 0.9em; border-top: 1px solid #222; }
     </style>
 </head>
 <body>
 
     <header class="header">
-        <div class="brand-box">
-            <h1>STABILITY<span>NETWORK</span></h1>
-            <span>Data Integrity Command Center</span>
+        <div class="title-container">
+            <img src="{{ url_for('static', filename='images/brand_logo.png') }}" alt="Logo" class="logo">
+            <h1><a href="/">The Predictability Score</a></h1>
         </div>
-        <nav>
-            <a href="/calculator" style="color: #adb5bd; text-decoration: none; margin-left: 20px;">Launch Calculator</a>
-            <a href="/contact" style="color: #adb5bd; text-decoration: none; margin-left: 20px;">Contact</a>
+        <nav class="nav">
+            <a href="/">Home</a>
+            <a href="/HUB">Store</a>
+            <a href="/tutorial">Tutorial</a>
+            <a href="/methodology">Methodology</a>
+            <a href="/technical-validation">Technical Validation</a>
+            <a href="/contact">Contact</a>
+            <span id="user-info-container" style="margin-left: 20px; font-size: 0.9em;"></span>
         </nav>
     </header>
 
