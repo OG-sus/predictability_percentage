@@ -1119,6 +1119,57 @@ def handle_single_analysis(analysis_id):
         query_db('DELETE FROM analyses WHERE id = %s AND user_id = %s' if DATABASE_URL else 'DELETE FROM analyses WHERE id = ? AND user_id = ?', (analysis_id, user_id))
         return jsonify({'message': 'Analysis deleted successfully.'})
 
+@app.route('/api/analyses/<int:analysis_id>/share', methods=['POST'])
+@login_required
+def share_analysis(analysis_id):
+    if session.get('tier') == 'Free':
+        return jsonify({'error': 'Shareable links are a Pro feature. Please upgrade.'}), 403
+    user_id = session['user_id']
+    analysis = query_db(
+        'SELECT * FROM analyses WHERE id = %s AND user_id = %s' if DATABASE_URL else 'SELECT * FROM analyses WHERE id = ? AND user_id = ?',
+        (analysis_id, user_id), one=True
+    )
+    if not analysis:
+        return jsonify({'error': 'Analysis not found.'}), 404
+    token = dict(analysis).get('public_token') or str(uuid.uuid4()).replace('-', '')
+    query_db(
+        'UPDATE analyses SET public_token = %s WHERE id = %s AND user_id = %s' if DATABASE_URL else 'UPDATE analyses SET public_token = ? WHERE id = ? AND user_id = ?',
+        (token, analysis_id, user_id)
+    )
+    share_url = request.host_url.rstrip('/') + f'/share/{token}'
+    return jsonify({'share_url': share_url, 'token': token})
+
+@app.route('/share/<token>')
+def public_share(token):
+    analysis = query_db(
+        'SELECT a.*, u.username FROM analyses a JOIN users u ON a.user_id = u.id WHERE a.public_token = %s' if DATABASE_URL else 'SELECT a.*, u.username FROM analyses a JOIN users u ON a.user_id = u.id WHERE a.public_token = ?',
+        (token,), one=True
+    )
+    if not analysis:
+        return render_template('methodology.html'), 404
+    data = dict(analysis)
+    try:
+        raw = data['scores']
+        data['scores'] = json.loads(raw) if isinstance(raw, str) else raw
+    except Exception:
+        data['scores'] = []
+    return render_template('share.html', analysis=data)
+
+@app.route('/u/<username>')
+def public_portfolio(username):
+    user = query_db(
+        'SELECT id, username, tier FROM users WHERE username = %s' if DATABASE_URL else 'SELECT id, username, tier FROM users WHERE username = ?',
+        (username,), one=True
+    )
+    if not user:
+        return render_template('methodology.html'), 404
+    analyses = query_db(
+        'SELECT id, name, predictability_score, k, notes, public_token, created_at FROM analyses WHERE user_id = %s AND public_token IS NOT NULL ORDER BY created_at DESC' if DATABASE_URL else 'SELECT id, name, predictability_score, k, notes, public_token, created_at FROM analyses WHERE user_id = ? AND public_token IS NOT NULL ORDER BY created_at DESC',
+        (dict(user)['id'],)
+    )
+    shared = [dict(row) for row in analyses] if analyses else []
+    return render_template('portfolio.html', profile_user=dict(user), analyses=shared)
+
 @app.route('/api/folders', methods=['GET', 'POST'])
 @login_required
 def handle_folders():

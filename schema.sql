@@ -34,6 +34,7 @@ CREATE TABLE analyses (
     folder_id INTEGER,
     k REAL DEFAULT 1.0,
     notes TEXT,
+    public_token TEXT UNIQUE,
     FOREIGN KEY (user_id) REFERENCES users (id),
     FOREIGN KEY (folder_id) REFERENCES folders (id)
 );

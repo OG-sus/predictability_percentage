@@ -655,7 +655,30 @@
                 const li = document.createElement('li');
                 const kInfo = item.k ? `(k=${item.k})` : '';
                 const noteInfo = item.notes ? `<span class="item-notes">- ${item.notes}</span>` : '';
-                li.innerHTML = `<div class="item-info"><input type="checkbox" class="compare-cb" data-id="${item.id}"><span class="item-details">${item.name} ${kInfo} - ${parseFloat(item.predictability_score).toFixed(2)}% ${noteInfo}</span></div><div class="actions"><button class="del-btn" data-id="${item.id}" data-fid="${item.folder_id}">🗑️</button></div>`;
+                const shareLinkBtn = user.tier !== 'Free'
+                    ? `<button class="share-link-btn" data-id="${item.id}" title="Copy shareable link">🔗</button>`
+                    : '';
+                li.innerHTML = `<div class="item-info"><input type="checkbox" class="compare-cb" data-id="${item.id}"><span class="item-details">${item.name} ${kInfo} - ${parseFloat(item.predictability_score).toFixed(2)}% ${noteInfo}</span></div><div class="actions">${shareLinkBtn}<button class="del-btn" data-id="${item.id}" data-fid="${item.folder_id}">🗑️</button></div>`;
+                const linkBtn = li.querySelector('.share-link-btn');
+                if (linkBtn) {
+                    linkBtn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        const id = linkBtn.dataset.id;
+                        try {
+                            const res = await fetch(`/api/analyses/${id}/share`, { method: 'POST', credentials: 'include' });
+                            const data = await res.json();
+                            if (data.share_url) {
+                                await navigator.clipboard.writeText(data.share_url);
+                                linkBtn.textContent = '✅';
+                                setTimeout(() => { linkBtn.textContent = '🔗'; }, 2000);
+                            } else {
+                                alert(data.error || 'Could not generate link.');
+                            }
+                        } catch (err) {
+                            alert('Failed to copy link. Try again.');
+                        }
+                    });
+                }
                 return li;
             }
 
@@ -851,6 +874,10 @@
             });
 
             shareBtn.addEventListener('click', () => {
+                if (user.tier === 'Free') {
+                    alert('⭐ Sharing is a Pro feature. Upgrade to download white-background charts for your posts.');
+                    return;
+                }
                 if (!myChart) return alert("No chart to share!");
                 const canvas = document.getElementById('scores-chart');
                 const newCanvas = document.createElement('canvas');
@@ -880,12 +907,18 @@
                     }
                 } else {
                     const title = document.getElementById('dataset-name').value || 'Analysis';
+                    const notes = notesInput ? notesInput.value.trim() : '';
                     ctx.font = 'bold 28px Arial';
                     ctx.fillStyle = '#333';
                     ctx.textAlign = 'left';
                     ctx.fillText(title, 20, 40);
                     ctx.font = 'bold 36px Arial';
                     ctx.fillText(`Score: ${scoreText}`, 20, 80);
+                    if (notes) {
+                        ctx.font = '16px Arial';
+                        ctx.fillStyle = '#555';
+                        ctx.fillText(notes.length > 80 ? notes.slice(0, 77) + '…' : notes, 20, 116);
+                    }
                 }
                 const link = document.createElement('a');
                 link.download = 'Predictability_Score.png';
@@ -894,6 +927,11 @@
             });
 
             fileUpload.addEventListener('change', (event) => {
+                if (user.tier === 'Free') {
+                    alert('⭐ CSV & file upload is a Pro feature. Upgrade to import your data directly.');
+                    event.target.value = '';
+                    return;
+                }
                 const file = event.target.files[0];
                 if (!file) return;
                 clearResults();

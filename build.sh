@@ -23,3 +23,8 @@ python add_recovery_column.py
 # Ensure leads table exists (Safe to run multiple times)
 echo "Ensuring leads table exists..."
 python migrate_add_leads.py
+
+# Ensure public_token column exists on analyses (Safe to run multiple times)
+echo "Ensuring public_token column exists..."
+python migrate_add_public_token.py
+
