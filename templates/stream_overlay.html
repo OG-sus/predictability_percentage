@@ -153,8 +153,26 @@
 </head>
 <body>
     <div id="js-error-console"></div>
-    <div id="debug-info">V1.5 - Status: <span id="debug-status">Initializing...</span> <span id="live-dot" style="color: red; opacity: 0;">●</span></div>
+    <div id="debug-info">V1.6 - Status: <span id="debug-status">Initializing...</span> <span id="live-dot" style="color: red; opacity: 0;">●</span></div>
     <div id="status-message"></div>
+
+    <!-- Tab badge — shows on stream which sport is active -->
+    <div id="tab-badge" style="
+        position: fixed; top: 12px; right: 14px; z-index: 500;
+        background: rgba(1, 112, 193, 0.85); color: #fff;
+        font-family: 'Courier New', monospace; font-weight: bold; font-size: 1em;
+        padding: 4px 12px; border-radius: 20px; letter-spacing: 1px;
+        pointer-events: none;
+    "></div>
+
+    <!-- Floating tab switcher — visible in browser, easy to hide in OBS via crop -->
+    <div id="tab-switcher" style="
+        position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);
+        display: flex; gap: 8px; z-index: 900;
+        background: rgba(0,0,0,0.7); padding: 8px 14px; border-radius: 30px;
+        border: 1px solid #333;
+    "></div>
+
     <div class="ticker-band" id="top-ticker"><div class="marquee" id="top-marquee">Loading Ticker...</div></div>
 
     <div class="main-stage">
@@ -180,7 +198,49 @@
             return false;
         };
 
-        const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT76OLQ-oBF5Jrxqi-6ZcdapCQfTBYZ3icuKV_E7_flohmqwJj0IQnY6s5-1Lnb2lJKgQ93Q_JEHsFo/pub?gid=0&single=true&output=csv";
+        const SHEET_BASE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT76OLQ-oBF5Jrxqi-6ZcdapCQfTBYZ3icuKV_E7_flohmqwJj0IQnY6s5-1Lnb2lJKgQ93Q_JEHsFo/pub";
+
+        // ----------------------------------------------------------------
+        // TAB CONFIGURATION
+        // To find a tab's gid: open your Google Sheet, click the tab,
+        // look at the URL — it ends in  ...#gid=XXXXXXXXX
+        // ----------------------------------------------------------------
+        const TABS = {
+            'nba':     { label: '🏀 NBA',     gid: '0' },
+            'cbb':     { label: '🏀 CBB',     gid: 'REPLACE_CBB_GID' },
+            'mlb':     { label: '⚾ MLB',     gid: 'REPLACE_MLB_GID' },
+            'finance': { label: '📈 Finance', gid: 'REPLACE_FINANCE_GID' },
+            'golf':    { label: '⛳ Golf',    gid: 'REPLACE_GOLF_GID' },
+        };
+
+        // Read active tab from URL param: /stream-overlay?tab=cbb
+        const _urlParams = new URLSearchParams(window.location.search);
+        let activeTab = (_urlParams.get('tab') || 'nba').toLowerCase();
+        if (!TABS[activeTab]) activeTab = 'nba';
+
+        function getSheetUrl() {
+            return `${SHEET_BASE}?gid=${TABS[activeTab].gid}&single=true&output=csv&cache_bust=${Date.now()}`;
+        }
+
+        function switchTab(tabKey) {
+            if (!TABS[tabKey]) return;
+            activeTab = tabKey;
+            // Update the tab badge on the overlay
+            const badge = document.getElementById('tab-badge');
+            if (badge) badge.textContent = TABS[tabKey].label;
+            // Update switcher button states
+            document.querySelectorAll('.tab-switcher-btn').forEach(btn => {
+                btn.style.opacity = btn.dataset.tab === tabKey ? '1' : '0.4';
+                btn.style.borderColor = btn.dataset.tab === tabKey ? '#0170C1' : '#444';
+            });
+            // Reset chart so stale data from the old tab doesn't bleed in
+            chartData.labels = [];
+            chartData.datasets[0].data = [];
+            chartData.datasets[1].data = [];
+            currentLiveIndex = 0;
+            if (aiChart) aiChart.update();
+            fetchData();
+        }
 
         let currentLiveIndex = 0;
         let lastRotationTime = 0;
@@ -287,7 +347,7 @@
                     document.head.appendChild(script);
                     throw new Error("PapaParse missing. Retrying...");
                 }
-                const url = SHEET_URL + '&cache_bust=' + new Date().getTime();
+                const url = getSheetUrl();
                 setStatus("Fetching Data...");
                 Papa.parse(url, {
                     download: true,
@@ -481,6 +541,29 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Build floating tab switcher buttons
+            const switcher = document.getElementById('tab-switcher');
+            Object.entries(TABS).forEach(([key, cfg]) => {
+                const btn = document.createElement('button');
+                btn.textContent = cfg.label;
+                btn.dataset.tab = key;
+                btn.className = 'tab-switcher-btn';
+                Object.assign(btn.style, {
+                    background: 'transparent', color: '#fff', border: '2px solid #444',
+                    borderRadius: '20px', padding: '4px 14px', cursor: 'pointer',
+                    fontFamily: "'Courier New', monospace", fontWeight: 'bold',
+                    fontSize: '0.85em', opacity: key === activeTab ? '1' : '0.4',
+                    borderColor: key === activeTab ? '#0170C1' : '#444',
+                    transition: 'all 0.2s',
+                });
+                btn.addEventListener('click', () => switchTab(key));
+                switcher.appendChild(btn);
+            });
+
+            // Set initial tab badge
+            const badge = document.getElementById('tab-badge');
+            if (badge) badge.textContent = TABS[activeTab].label;
+
             initializeChart();
             fetchData();
             setInterval(fetchData, 5000);
