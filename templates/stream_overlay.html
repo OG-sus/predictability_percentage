@@ -153,7 +153,9 @@
 </head>
 <body>
     <div id="js-error-console"></div>
-    <div id="debug-info">V1.6 - Status: <span id="debug-status">Initializing...</span> <span id="live-dot" style="color: red; opacity: 0;">●</span></div>
+    <div id="debug-info">V1.6 - Status: <span id="debug-status">Initializing...</span> <span id="live-dot" style="color: red; opacity: 0;">●</span>
+        <div id="sheet-info" style="font-size:10px;color:#888;margin-top:2px;pointer-events:none;"></div>
+    </div>
     <div id="status-message"></div>
 
     <!-- Tab badge — shows on stream which sport is active -->
@@ -198,7 +200,9 @@
             return false;
         };
 
-        const SHEET_BASE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT76OLQ-oBF5Jrxqi-6ZcdapCQfTBYZ3icuKV_E7_flohmqwJj0IQnY6s5-1Lnb2lJKgQ93Q_JEHsFo/pub";
+        // Use the same Google Sheet ID as the AI auditor (audit_ai_stream.py)
+        const SHEET_ID = "1F3V-nmqchQE2-pauoRCVWDdZKLUIOLbSt1qeXvcUz6o";
+        const SHEET_BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/pub`;
 
         // ----------------------------------------------------------------
         // TAB CONFIGURATION
@@ -207,10 +211,10 @@
         // ----------------------------------------------------------------
         const TABS = {
             'nba':     { label: '🏀 NBA',     gid: '0' },
-            'cbb':     { label: '🏀 CBB',     gid: 'REPLACE_CBB_GID' },
-            'mlb':     { label: '⚾ MLB',     gid: 'REPLACE_MLB_GID' },
-            'finance': { label: '📈 Finance', gid: 'REPLACE_FINANCE_GID' },
-            'golf':    { label: '⛳ Golf',    gid: 'REPLACE_GOLF_GID' },
+            'cbb':     { label: '🏀 CBB',     gid: '1' },
+            'mlb':     { label: '⚾ MLB',     gid: '2' },
+            'finance': { label: '📈 Finance', gid: '3' },
+            'golf':    { label: '⛳ Golf',    gid: '4' },
         };
 
         // Read active tab from URL param: /stream-overlay?tab=cbb
@@ -219,7 +223,10 @@
         if (!TABS[activeTab]) activeTab = 'nba';
 
         function getSheetUrl() {
-            return `${SHEET_BASE}?gid=${TABS[activeTab].gid}&single=true&output=csv&cache_bust=${Date.now()}`;
+            // Allow explicit gid override via URL param: /stream-overlay?gid=12345
+            const gidOverride = _urlParams.get('gid');
+            const gid = gidOverride || (TABS[activeTab] && TABS[activeTab].gid) || '0';
+            return `${SHEET_BASE}?gid=${gid}&single=true&output=csv&cache_bust=${Date.now()}`;
         }
 
         function switchTab(tabKey) {
@@ -348,6 +355,9 @@
                     throw new Error("PapaParse missing. Retrying...");
                 }
                 const url = getSheetUrl();
+                // Show the published sheet URL (without cache bust) for debugging
+                const sheetInfoEl = document.getElementById('sheet-info');
+                if (sheetInfoEl) sheetInfoEl.innerText = `${SHEET_BASE}?gid=${TABS[activeTab].gid}&output=csv`;
                 setStatus("Fetching Data...");
                 Papa.parse(url, {
                     download: true,
@@ -422,25 +432,16 @@
                 return;
             }
 
-            // ROTATION LOGIC (Only rotates if multiple rows are strictly marked FEATURED)
-            const now = Date.now();
-            if (now - lastRotationTime > ROTATION_INTERVAL) {
-                currentLiveIndex = (currentLiveIndex + 1) % liveRows.length;
-                lastRotationTime = now;
-                console.log(`Rotating to player ${currentLiveIndex + 1} of ${liveRows.length}`);
-                
-                // Reset chart data when switching players to avoid mixing graphs
-                chartData.labels = [];
-                chartData.datasets[0].data = [];
-                chartData.datasets[1].data = [];
+            // Prefer rows that look like AI Audit rows (Column M / index 12) if present.
+            // For now, disable rotation and show the preferred row immediately so the stream matches the sheet.
+            let preferredIndex = -1;
+            for (let i = 0; i < liveRows.length; i++) {
+                const r = liveRows[i];
+                if (r[12] && r[12].toString().trim() !== '') { preferredIndex = i; break; }
             }
-
-            // Safety check for index out of bounds
-            if (currentLiveIndex >= liveRows.length) {
-                currentLiveIndex = 0;
-            }
-
+            currentLiveIndex = preferredIndex !== -1 ? preferredIndex : 0;
             const targetRow = liveRows[currentLiveIndex];
+            console.log(`Displaying featured row ${currentLiveIndex + 1} of ${liveRows.length}`, targetRow);
             const liveCount = liveRows.length;
             renderRow(targetRow, liveCount);
             

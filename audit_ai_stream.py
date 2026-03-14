@@ -12,22 +12,31 @@ SHEET_ID          = "1F3V-nmqchQE2-pauoRCVWDdZKLUIOLbSt1qeXvcUz6o"
 SHEET_TAB_NAME    = "Sheet1"   # change to "CBB", "MLB", "Finance", "Golf", etc.
 CREDENTIALS_FILE  = "service_account.json"
 
-# Cells the auditor writes to (for the row being audited)
-AI_SCORE_CELL     = "M2"
-AI_STATUS_CELL    = "N2"
-DATA_STREAM_CELL  = "P2"
+# Row in the sheet that the AI audit occupies (row 2 = first data row)
+# Make sure column E (Is_Live) = TRUE and column F (Featured) = TRUE for this row
+AUDIT_ROW         = 2
+
+# Cells the auditor writes to (AI-specific columns)
+AI_SCORE_CELL     = f"M{AUDIT_ROW}"
+AI_STATUS_CELL    = f"N{AUDIT_ROW}"
+DATA_STREAM_CELL  = f"P{AUDIT_ROW}"
+
+# Overlay-critical columns — the stream reads these for the chart
+COL_SCORE         = 2   # B — Predictability Score (shown in ticker)
+COL_FEATURED_TITLE   = 9   # I — Large title on main stage
+COL_FEATURED_SUB     = 10  # J — Subtitle / status line
+COL_REAL_DATA        = 11  # K — Comma-separated values drawn as the chart line
 
 # How many data points to keep in the rolling audit window
 WINDOW_SIZE       = 10
 
-# Seconds between audit cycles
+# Seconds between audit cycles (keep at 10 so overlay's 5-sec poll always has fresh data)
 POLL_INTERVAL     = 10
 
 # K-factor: 0.5 = forgiving (good for noisy AI outputs), 1.0 = standard
 K_FACTOR          = 0.5
 
 # Column index (0-based) in the sheet that holds the live data string (Column K = index 10)
-# The auditor pulls this as the "truth" sequence the AI must reason about.
 REAL_DATA_COL_IDX = 10
 
 # ---------------------------------------------------------------------------
@@ -196,14 +205,23 @@ def main():
             score = calculate_predictability(prediction_log, k=K_FACTOR) if len(prediction_log) >= 3 else 0.0
             status = audit_status(score, accuracy if live_sequence else None)
 
-            # Write to sheet
+            # Build the cumulative data string for the overlay chart (Column K)
+            chart_data_str = ', '.join(f'{v:.2f}' for v in prediction_log)
             recent_str = '[' + ', '.join(f'{v:.2f}' for v in prediction_log[-5:]) + ']'
-            worksheet.update_acell(AI_SCORE_CELL, f'{score:.2f}')
-            worksheet.update_acell(AI_STATUS_CELL, status)
+
+            # Write overlay-critical columns so the stream chart updates
+            worksheet.update_cell(AUDIT_ROW, COL_SCORE,         f'{score:.2f}')
+            worksheet.update_cell(AUDIT_ROW, COL_FEATURED_TITLE, 'AI AUDIT')
+            worksheet.update_cell(AUDIT_ROW, COL_FEATURED_SUB,   status)
+            worksheet.update_cell(AUDIT_ROW, COL_REAL_DATA,      chart_data_str)
+
+            # Write AI-specific columns
+            worksheet.update_acell(AI_SCORE_CELL,    f'{score:.2f}')
+            worksheet.update_acell(AI_STATUS_CELL,   status)
             worksheet.update_acell(DATA_STREAM_CELL, recent_str)
 
             print(f"   📝  Score: {score:.2f}%  |  Status: {status}")
-            print(f"   💾  Written → {AI_SCORE_CELL}, {AI_STATUS_CELL}, {DATA_STREAM_CELL}\n")
+            print(f"   💾  Chart data ({len(prediction_log)} pts) → K{AUDIT_ROW}  |  Score → B{AUDIT_ROW}\n")
 
             time.sleep(POLL_INTERVAL)
 
