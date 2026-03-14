@@ -8,6 +8,22 @@ from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog
 from fsr import calculate_predictability
 
+NBA_HEADERS = {
+    'Host': 'stats.nba.com',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'x-nba-stats-origin': 'stats',
+    'x-nba-stats-token': 'true',
+    'Origin': 'https://www.nba.com',
+    'Referer': 'https://www.nba.com/',
+    'Connection': 'keep-alive',
+    'Sec-Fetch-Dest': 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'same-site',
+}
+
 # --- CONFIGURATION ---
 SHEET_ID = "1F3V-nmqchQE2-pauoRCVWDdZKLUIOLbSt1qeXvcUz6o"
 SHEET_TAB_NAME = "Sheet1"
@@ -52,11 +68,11 @@ def get_nba_stats(player_name, stat_type, num_games=50, retries=3, delay=5):
     for attempt in range(retries):
         try:
             current_season = "2025-26"
-            gamelogs = playergamelog.PlayerGameLog(player_id=player_id, season=current_season).get_data_frames()[0]
+            gamelogs = playergamelog.PlayerGameLog(player_id=player_id, season=current_season, timeout=60, headers=NBA_HEADERS).get_data_frames()[0]
             
             if len(gamelogs) < num_games:
                  previous_season = "2024-25"
-                 gamelogs_prev = playergamelog.PlayerGameLog(player_id=player_id, season=previous_season).get_data_frames()[0]
+                 gamelogs_prev = playergamelog.PlayerGameLog(player_id=player_id, season=previous_season, timeout=60, headers=NBA_HEADERS).get_data_frames()[0]
                  gamelogs = pd.concat([gamelogs, gamelogs_prev])
 
             if stat_type.upper() not in gamelogs.columns:

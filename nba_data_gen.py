@@ -8,14 +8,21 @@ from sliding_window import calculate_sliding_window
 from fsr import calculate_predictability
 import matplotlib.pyplot as plt
 
-# --- FIXED: Added custom headers to bypass NBA's bot detection ---
+# Headers required by NBA Stats API (they block outdated/missing headers)
 HEADERS = {
     'Host': 'stats.nba.com',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:72.0) Gecko/20100101 Firefox/72.0',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     'Accept': 'application/json, text/plain, */*',
-    'Accept-Language': 'en-US,en;q=0.5',
-    'Referer': 'https://stats.nba.com/',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'x-nba-stats-origin': 'stats',
+    'x-nba-stats-token': 'true',
+    'Origin': 'https://www.nba.com',
+    'Referer': 'https://www.nba.com/',
     'Connection': 'keep-alive',
+    'Sec-Fetch-Dest': 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'same-site',
 }
 
 
@@ -28,14 +35,16 @@ def fetch_gamelog_with_retry(player_id, season, retries=3):
             log = playergamelog.PlayerGameLog(
                 player_id=player_id,
                 season=season,
-                timeout=60,  # Increased timeout to 60s
+                timeout=60,
                 headers=HEADERS
             ).get_data_frames()[0]
             return log
         except Exception as e:
             print(f"  [Attempt {i + 1}] Error fetching {season} data: {e}")
             if i < retries - 1:
-                time.sleep(2)  # Wait 2 seconds before retrying
+                wait = (i + 1) * 5  # 5s, 10s, 15s — exponential-ish backoff
+                print(f"  Waiting {wait}s before retry...")
+                time.sleep(wait)
             else:
                 raise e
 

@@ -26,6 +26,22 @@ from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog
 from fsr import calculate_predictability
 
+NBA_HEADERS = {
+    'Host': 'stats.nba.com',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'x-nba-stats-origin': 'stats',
+    'x-nba-stats-token': 'true',
+    'Origin': 'https://www.nba.com',
+    'Referer': 'https://www.nba.com/',
+    'Connection': 'keep-alive',
+    'Sec-Fetch-Dest': 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'same-site',
+}
+
 # List of top players to analyze
 TARGET_PLAYERS = [
     "LeBron James", "Stephen Curry", "Nikola Jokic", "Luka Doncic", 
@@ -70,7 +86,7 @@ def generate_dataset():
         
         try:
             # Fetch last 30 games
-            gamelog = playergamelog.PlayerGameLog(player_id=player_id, season='2024-25') 
+            gamelog = playergamelog.PlayerGameLog(player_id=player_id, season='2024-25', timeout=60, headers=NBA_HEADERS)
             df = gamelog.get_data_frames()[0]
             
             if len(df) < 5:
