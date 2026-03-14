@@ -99,7 +99,7 @@ def get_market_data(ticker, period="2d", interval="1h"):
         if period == "2d" and interval == "1h":
             close = close.tail(24)
 
-        series = [round(float(x), 4) for x in close.tolist()]
+        series = [round(float(x), 2) for x in close.tolist()]
         if len(series) < 2:
             print("Insufficient data points for analysis.")
             return None
@@ -123,8 +123,8 @@ def _run_analysis(label, series, unit=""):
     print(f"\n{label} ({len(series)} points)")
     print(f"\n--- COPY DATA ---\n{output}\n")
     print(f"Predictability Score : {score:.2f}")
-    print(f"Average              : {avg:.4f}" + (f" ({unit})" if unit else ""))
-    print(f"Suggested Target     : {round(avg, 4)}")
+    print(f"Average              : {avg:.2f}" + (f" ({unit})" if unit else ""))
+    print(f"Suggested Target     : {round(avg, 2)}")
 
     _save_chart(label, series, unit)
     return score
