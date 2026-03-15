@@ -261,6 +261,14 @@ def _get_player_url_via_scraping(player_name, scraper):
 
 def _get_stats_via_scraping(player_name, stat_type, num_games, year):
     """Uses cloudscraper to bypass Cloudflare and scrape Sports-Reference CBB."""
+    # Sports-Reference column names differ from user-friendly aliases
+    SCRAPE_STAT_ALIAS = {
+        'REB': 'TRB',   # total rebounds
+        'TO':  'TOV',   # turnovers
+        '3PM': '3P',    # 3-pointers made
+        'FTM': 'FT',    # free throws made
+        'FGM': 'FG',    # field goals made
+    }
     scraper    = make_scraper()
     player_url = _get_player_url_via_scraping(player_name, scraper)
     if not player_url:
@@ -312,6 +320,9 @@ def _get_stats_via_scraping(player_name, stat_type, num_games, year):
 
     df = df[df['Date'] != 'Date'].dropna(subset=['Date'])
 
+    if stat_type not in df.columns:
+        # Try alias (e.g. REB → TRB, TO → TOV)
+        stat_type = SCRAPE_STAT_ALIAS.get(stat_type, stat_type)
     if stat_type not in df.columns:
         print(f"Stat '{stat_type}' not found. Available: {', '.join(df.columns.tolist())}")
         return

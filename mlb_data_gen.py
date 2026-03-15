@@ -95,11 +95,19 @@ def _get_stats_via_pybaseball(player_name, stat_type, num_games=20, year=2025):
         data['game_date'] = pd.to_datetime(data['game_date'])
 
         EVENT_FILTERS = {
-            'HR': lambda df: df[df['events'] == 'home_run'].groupby('game_date').size(),
-            'H':  lambda df: df[df['events'].isin(['single', 'double', 'triple', 'home_run'])].groupby('game_date').size(),
-            'SO': lambda df: df[df['events'] == 'strikeout'].groupby('game_date').size(),
-            'K':  lambda df: df[df['events'] == 'strikeout'].groupby('game_date').size(),
-            'BB': lambda df: df[df['events'] == 'walk'].groupby('game_date').size(),
+            'HR':   lambda df: df[df['events'] == 'home_run'].groupby('game_date').size(),
+            'H':    lambda df: df[df['events'].isin(['single', 'double', 'triple', 'home_run'])].groupby('game_date').size(),
+            '1B':   lambda df: df[df['events'] == 'single'].groupby('game_date').size(),
+            '2B':   lambda df: df[df['events'] == 'double'].groupby('game_date').size(),
+            '3B':   lambda df: df[df['events'] == 'triple'].groupby('game_date').size(),
+            'SO':   lambda df: df[df['events'] == 'strikeout'].groupby('game_date').size(),
+            'K':    lambda df: df[df['events'] == 'strikeout'].groupby('game_date').size(),
+            'BB':   lambda df: df[df['events'] == 'walk'].groupby('game_date').size(),
+            'SB':   lambda df: df[df['events'].isin(['stolen_base_2b', 'stolen_base_3b', 'stolen_base_home'])].groupby('game_date').size(),
+            # Statcast advanced — continuous mechanical metrics, ideal for predictability
+            'EV':   lambda df: df[df['launch_speed'].notna()].groupby('game_date')['launch_speed'].mean().round(1),
+            'VELO': lambda df: df[df['release_speed'].notna()].groupby('game_date')['release_speed'].mean().round(1),
+            'LA':   lambda df: df[df['launch_angle'].notna()].groupby('game_date')['launch_angle'].mean().round(1),
         }
 
         stat_upper = stat_type.upper()
@@ -108,17 +116,17 @@ def _get_stats_via_pybaseball(player_name, stat_type, num_games=20, year=2025):
             game_stats.columns = ['game_date', stat_upper]
         else:
             print(f"Stat '{stat_type}' not directly available via Statcast.")
-            print("Available: H, HR, SO/K, BB")
+            print("Counting stats: H, 1B, 2B, 3B, HR, SO/K, BB, SB")
+            print("Advanced (Statcast): EV (exit velo), VELO (pitch speed), LA (launch angle)")
             return
 
         game_stats = game_stats.sort_values('game_date', ascending=True)
-        stats = game_stats[stat_upper].astype(int).tail(num_games).tolist()
-
-    except Exception as e:
-        print(f"Statcast data error: {e}")
-        return
-
-    _print_results(player_name, stat_upper, stats)
+        # EV/VELO/LA are floats — keep as float; counting stats cast to int
+        FLOAT_STATS = {'EV', 'VELO', 'LA'}
+        if stat_upper in FLOAT_STATS:
+            stats = game_stats[stat_upper].astype(float).tail(num_games).tolist()
+        else:
+            stats = game_stats[stat_upper].astype(int).tail(num_games).tolist()
 
 
 # ---------------------------------------------------------------------------
@@ -273,11 +281,18 @@ def get_mlb_stats_raw(player_name, stat_type, num_games=20, year=2025):
         data['game_date'] = pd.to_datetime(data['game_date'])
 
         EVENT_FILTERS = {
-            'HR': lambda df: df[df['events'] == 'home_run'].groupby('game_date').size(),
-            'H':  lambda df: df[df['events'].isin(['single', 'double', 'triple', 'home_run'])].groupby('game_date').size(),
-            'SO': lambda df: df[df['events'] == 'strikeout'].groupby('game_date').size(),
-            'K':  lambda df: df[df['events'] == 'strikeout'].groupby('game_date').size(),
-            'BB': lambda df: df[df['events'] == 'walk'].groupby('game_date').size(),
+            'HR':   lambda df: df[df['events'] == 'home_run'].groupby('game_date').size(),
+            'H':    lambda df: df[df['events'].isin(['single', 'double', 'triple', 'home_run'])].groupby('game_date').size(),
+            '1B':   lambda df: df[df['events'] == 'single'].groupby('game_date').size(),
+            '2B':   lambda df: df[df['events'] == 'double'].groupby('game_date').size(),
+            '3B':   lambda df: df[df['events'] == 'triple'].groupby('game_date').size(),
+            'SO':   lambda df: df[df['events'] == 'strikeout'].groupby('game_date').size(),
+            'K':    lambda df: df[df['events'] == 'strikeout'].groupby('game_date').size(),
+            'BB':   lambda df: df[df['events'] == 'walk'].groupby('game_date').size(),
+            'SB':   lambda df: df[df['events'].isin(['stolen_base_2b', 'stolen_base_3b', 'stolen_base_home'])].groupby('game_date').size(),
+            'EV':   lambda df: df[df['launch_speed'].notna()].groupby('game_date')['launch_speed'].mean().round(1),
+            'VELO': lambda df: df[df['release_speed'].notna()].groupby('game_date')['release_speed'].mean().round(1),
+            'LA':   lambda df: df[df['launch_angle'].notna()].groupby('game_date')['launch_angle'].mean().round(1),
         }
 
         stat_upper = stat_type.upper()
@@ -287,6 +302,9 @@ def get_mlb_stats_raw(player_name, stat_type, num_games=20, year=2025):
         game_stats = EVENT_FILTERS[stat_upper](data).reset_index()
         game_stats.columns = ['game_date', stat_upper]
         game_stats = game_stats.sort_values('game_date', ascending=True)
+        FLOAT_STATS = {'EV', 'VELO', 'LA'}
+        if stat_upper in FLOAT_STATS:
+            return game_stats[stat_upper].astype(float).tail(num_games).tolist()
         return game_stats[stat_upper].astype(int).tail(num_games).tolist()
 
     except Exception:
@@ -306,8 +324,9 @@ def get_mlb_player_stats(player_name, stat_type, num_games=20, year=2025):
 if __name__ == "__main__":
     print("MLB Player Stat Generator for Predictability API")
     print("------------------------------------------------")
-    print("Stats available via pybaseball: H, HR, SO/K, BB")
-    print("Stats available via scraping:   H, HR, R, RBI, SO, BB, SB (may be blocked)")
+    print("Counting stats (pybaseball): H, 1B, 2B, 3B, HR, SO/K, BB, SB")
+    print("Advanced  stats (Statcast) : EV (avg exit velo), VELO (avg pitch speed), LA (launch angle)")
+    print("Scraping fallback stats    : H, HR, R, RBI, SO, BB, SB (may be blocked)")
 
     while True:
         player_name = input("\nEnter MLB Player Name (e.g., Shohei Ohtani, Aaron Judge, or 'q' to quit): ").strip()
