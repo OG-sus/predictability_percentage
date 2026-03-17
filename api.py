@@ -90,6 +90,7 @@ network_status = NetworkState()
 def ping_worker():
     """Background thread using Native Sockets to feed the Predictability Engine."""
     import socket
+    ping_interval = int(os.environ.get('PING_INTERVAL', 10))  # seconds, default 10
     while True:
         try:
             # Primary: Native TCP handshake to Google DNS (Port 53)
@@ -117,18 +118,22 @@ def ping_worker():
             # Record the ping and update predictability
             network_status.latency_history.append(current_ms)
             network_status.last_ping = current_ms
-            logging.info(f"ping recorded: {current_ms:.2f} ms; history_len={len(network_status.latency_history)}")
+            logging.debug(f"ping recorded: {current_ms:.2f} ms; history_len={len(network_status.latency_history)}")
 
             if len(network_status.latency_history) >= 2:
                 pings = list(network_status.latency_history)
                 network_status.p_score = calculate_predictability(pings, k=1.0)
 
-            time.sleep(1)  # 1Hz Frequency
+            time.sleep(ping_interval)
         except Exception as e:
             # No more [Errno 2]!
             logging.error(f"Stability Engine Heartbeat Failed: {e}")
-            time.sleep(5)
-threading.Thread(target=ping_worker, daemon=True).start()
+            time.sleep(30)
+
+# Start ping worker at module load (runs under Gunicorn on Render too).
+# Disable with ENABLE_PING=0; tune frequency with PING_INTERVAL=N (seconds, default 10).
+if os.environ.get('ENABLE_PING', '1') != '0':
+    threading.Thread(target=ping_worker, daemon=True).start()
 # --- App & Security Configuration ---
 app = Flask(__name__)
 
@@ -1444,16 +1449,5 @@ if __name__ == '__main__':
     # Check if we are in a dev environment to enable debug
     is_dev = os.environ.get('FLASK_ENV') == 'development'
     
-    # Start background ping worker that feeds the predictability engine
-    # Ping worker can be disabled via the environment variable ENABLE_PING=0
-    try:
-        if os.environ.get('ENABLE_PING', '1') != '0':
-            threading.Thread(target=ping_worker, daemon=True).start()
-            logging.info("Started ping_worker thread")
-        else:
-            logging.info("Ping worker disabled via ENABLE_PING=0")
-    except Exception as e:
-        logging.error(f"Failed to start ping_worker thread: {e}")
-
     # Must bind to 0.0.0.0 to be visible to the outside world
     app.run(host='0.0.0.0', port=port, debug=is_dev)
