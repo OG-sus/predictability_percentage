@@ -92,20 +92,26 @@ def fetch_blocks(num_blocks=50):
     for i in range(num_blocks):
         block_num = latest - (num_blocks - 1 - i)
         block_hex = hex(block_num)
-        try:
-            block = get_block(block_hex, full_tx=False)
-            if block:
-                blocks.append({
-                    'number':    hex_to_int(block.get('number')),
-                    'timestamp': hex_to_int(block.get('timestamp')),
-                    'gas_used':  hex_to_int(block.get('gasUsed')),
-                    'base_fee':  hex_to_int(block.get('baseFeePerGas')),
-                    'tx_count':  len(block.get('transactions', [])),
-                })
-        except Exception as e:
-            print(f"  Warning: could not fetch block #{block_num}: {e}")
-        # Be polite to the public RPC — no hammering
-        time.sleep(0.05)
+        # Retry up to 3 times with backoff on connection errors
+        for attempt in range(3):
+            try:
+                block = get_block(block_hex, full_tx=False)
+                if block:
+                    blocks.append({
+                        'number':    hex_to_int(block.get('number')),
+                        'timestamp': hex_to_int(block.get('timestamp')),
+                        'gas_used':  hex_to_int(block.get('gasUsed')),
+                        'base_fee':  hex_to_int(block.get('baseFeePerGas')),
+                        'tx_count':  len(block.get('transactions', [])),
+                    })
+                break
+            except Exception as e:
+                if attempt < 2:
+                    time.sleep(0.5 * (attempt + 1))
+                else:
+                    print(f"  Warning: could not fetch block #{block_num}: {e}")
+        # Polite pacing — avoid rate limit resets from public RPC
+        time.sleep(0.15)
 
     print(f"Successfully fetched {len(blocks)} blocks.\n")
     return blocks
