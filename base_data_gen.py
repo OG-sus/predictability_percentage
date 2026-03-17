@@ -33,6 +33,10 @@ import matplotlib.pyplot as plt
 
 BASE_RPC_URL = os.environ.get('BASE_RPC_URL', 'https://mainnet.base.org')
 
+# Persistent session — reuses TCP connection, avoids ConnectionReset on rapid calls
+SESSION = requests.Session()
+SESSION.headers.update({'Content-Type': 'application/json'})
+
 STAT_OPTIONS = {
     'BLOCK_TIME': 'Inter-block interval (seconds) — finality consistency',
     'GAS':        'Base fee per gas (Gwei) — gas price stability',
@@ -49,7 +53,7 @@ K_FACTOR = 2.0  # Finance-grade sensitivity (blockchain is serious infrastructur
 def _rpc(method, params=None):
     payload = {'jsonrpc': '2.0', 'method': method, 'params': params or [], 'id': 1}
     try:
-        resp = requests.post(BASE_RPC_URL, json=payload, timeout=10)
+        resp = SESSION.post(BASE_RPC_URL, json=payload, timeout=10)
         resp.raise_for_status()
         data = resp.json()
         if 'error' in data:
@@ -81,6 +85,7 @@ def hex_to_int(h):
 def fetch_blocks(num_blocks=50):
     """
     Fetches the last N blocks from Base L2.
+    Uses a persistent session to reuse TCP connections and avoid ConnectionReset errors.
     Returns a list of dicts with timestamp, baseFeePerGas, tx_count.
     """
     print(f"Connecting to Base L2 ({BASE_RPC_URL})...")
@@ -92,7 +97,6 @@ def fetch_blocks(num_blocks=50):
     for i in range(num_blocks):
         block_num = latest - (num_blocks - 1 - i)
         block_hex = hex(block_num)
-        # Retry up to 3 times with backoff on connection errors
         for attempt in range(3):
             try:
                 block = get_block(block_hex, full_tx=False)
@@ -110,8 +114,7 @@ def fetch_blocks(num_blocks=50):
                     time.sleep(0.5 * (attempt + 1))
                 else:
                     print(f"  Warning: could not fetch block #{block_num}: {e}")
-        # Polite pacing — avoid rate limit resets from public RPC
-        time.sleep(0.15)
+        time.sleep(0.1)
 
     print(f"Successfully fetched {len(blocks)} blocks.\n")
     return blocks
