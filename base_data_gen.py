@@ -1,23 +1,16 @@
 """
-base_data_gen.py — Base L2 Blockchain Stability Analyzer
-=========================================================
-Pulls live on-chain data from Coinbase's Base L2 (Ethereum Layer 2) via
-the public JSON-RPC endpoint and runs the FSR Predictability Score™ on it.
+base_data_gen.py — Blockchain Stability Analyzer
+=================================================
+Pulls live on-chain data from Base L2 or Ethereum mainnet via public
+JSON-RPC endpoints and runs the FSR Predictability Score™ on it.
 
-Why this matters:
-  Blockchain infrastructure is the ultimate high-entropy environment.
-  Block finality intervals, gas fees, and tx throughput all need to be
-  consistent for dApps to work reliably. FSR quantifies that consistency.
+Best stats for stream (actual visual movement):
+  GAS       — gas fees swing constantly, great entropy
+  TX_COUNT  — block load varies wildly, very watchable
+  BLOCK_TIME — use on Ethereum (~12s target with real variance),
+               NOT Base (Base is always exactly 2.0s — flat line)
 
-Metrics available:
-  BLOCK_TIME  — Inter-block interval in seconds (target: ~2s on Base)
-  GAS         — Base fee per gas in Gwei (market stability)
-  TX_COUNT    — Transactions per block (network load consistency)
-
-No API key required. Uses Base's public RPC endpoint.
-
-Usage:
-  python base_data_gen.py
+No API key required.
 """
 
 import requests
@@ -28,32 +21,52 @@ from sliding_window import calculate_sliding_window
 import matplotlib.pyplot as plt
 
 # ---------------------------------------------------------------------------
-# Base L2 RPC Configuration
+# RPC endpoints (public, no API key)
 # ---------------------------------------------------------------------------
 
-BASE_RPC_URL = os.environ.get('BASE_RPC_URL', 'https://mainnet.base.org')
+CHAINS = {
+    'BASE': {
+        'rpc':   'https://mainnet.base.org',
+        'label': 'Base L2',
+        'color': '#0052ff',
+        'block_target': 2,
+    },
+    'ETH': {
+        'rpc':   'https://eth.llamarpc.com',
+        'label': 'Ethereum',
+        'color': '#627eea',
+        'block_target': 12,
+    },
+}
 
-# Persistent session — reuses TCP connection, avoids ConnectionReset on rapid calls
+# Default chain — override with CHAIN env var (BASE or ETH)
+DEFAULT_CHAIN = os.environ.get('CHAIN', 'BASE').upper()
+
+RPC_URL = os.environ.get('BASE_RPC_URL', CHAINS.get(DEFAULT_CHAIN, CHAINS['BASE'])['rpc'])
+CHAIN_META = CHAINS.get(DEFAULT_CHAIN, CHAINS['BASE'])
+
+# Persistent session — reuses TCP connection, avoids ConnectionReset
 SESSION = requests.Session()
 SESSION.headers.update({'Content-Type': 'application/json'})
 
 STAT_OPTIONS = {
-    'BLOCK_TIME': 'Inter-block interval (seconds) — finality consistency',
-    'GAS':        'Base fee per gas (Gwei) — gas price stability',
-    'TX_COUNT':   'Transactions per block — network throughput consistency',
+    'TX_COUNT':   'Transactions per block — network throughput     ← BEST FOR STREAM (156-860 range)',
+    'GAS':        'Base fee per gas (Gwei) — gas price stability  ← use ETH chain for movement',
+    'BLOCK_TIME': 'Inter-block interval (seconds) — use ETH chain for variance',
 }
 
-K_FACTOR = 2.0  # Finance-grade sensitivity (blockchain is serious infrastructure)
+K_FACTOR = 2.0  # Finance-grade sensitivity for infrastructure data
 
 
 # ---------------------------------------------------------------------------
 # JSON-RPC helpers
 # ---------------------------------------------------------------------------
 
-def _rpc(method, params=None):
+def _rpc(method, params=None, rpc_url=None):
+    url = rpc_url or RPC_URL
     payload = {'jsonrpc': '2.0', 'method': method, 'params': params or [], 'id': 1}
     try:
-        resp = SESSION.post(BASE_RPC_URL, json=payload, timeout=10)
+        resp = SESSION.post(url, json=payload, timeout=10)
         resp.raise_for_status()
         data = resp.json()
         if 'error' in data:
@@ -88,7 +101,7 @@ def fetch_blocks(num_blocks=50):
     Uses a persistent session to reuse TCP connections and avoid ConnectionReset errors.
     Returns a list of dicts with timestamp, baseFeePerGas, tx_count.
     """
-    print(f"Connecting to Base L2 ({BASE_RPC_URL})...")
+    print(f"Connecting to {CHAIN_META['label']} ({RPC_URL})...")
     latest = get_latest_block_number()
     print(f"Latest block: #{latest:,}")
     print(f"Fetching {num_blocks} blocks...")
@@ -218,11 +231,11 @@ def _save_chart(stat_upper, series, unit, score, avg, num_blocks):
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
 
-    ax1.plot(series, marker='o', markersize=3, linestyle='-', color='#0052ff',
+    ax1.plot(series, marker='o', markersize=3, linestyle='-', color=CHAIN_META['color'],
              alpha=0.85, label=f'{stat_upper} ({unit})')
     ax1.axhline(y=avg, color='#888', linestyle='--', linewidth=1,
                 label=f'Avg: {avg:.4f} {unit}')
-    ax1.set_title(f'Base L2 — {stat_upper} per Block (last {num_blocks} blocks)',
+    ax1.set_title(f"{CHAIN_META['label']} — {stat_upper} per Block (last {num_blocks} blocks)",
                   color='white', fontsize=13, pad=10)
     ax1.set_ylabel(unit, color='#aaaaaa')
     ax1.legend(facecolor='#1a1d27', labelcolor='white', framealpha=0.5)
@@ -255,12 +268,12 @@ def _save_chart(stat_upper, series, unit, score, avg, num_blocks):
 # Live stream mode — continuously updates every N seconds
 # ---------------------------------------------------------------------------
 
-def stream_mode(stat_type, refresh_seconds=30, num_blocks=50):
+def stream_mode(stat_type, refresh_seconds=10, num_blocks=50):
     """
-    Continuously re-fetches and scores Base L2 data. Designed to feed
-    the Twitch stream overlay via Google Sheets (pair with base_stream_sync.py).
+    Continuously re-fetches and scores blockchain data.
+    Default refresh: 10s (fast enough to feel live, slow enough to fetch cleanly).
     """
-    print(f"\n🔴 LIVE STREAM MODE — Base L2 {stat_type.upper()}")
+    print(f"\n🔴 LIVE STREAM MODE — {CHAIN_META['label']} {stat_type.upper()}")
     print(f"   Refreshing every {refresh_seconds}s. Ctrl+C to stop.\n")
     try:
         while True:
@@ -277,16 +290,18 @@ def stream_mode(stat_type, refresh_seconds=30, num_blocks=50):
 # ---------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    print("Base L2 Blockchain Stability Analyzer")
+    print("Blockchain Stability Analyzer")
     print("Powered by FSR Predictability Score™")
     print("=" * 42)
-    print("\nAvailable metrics:")
+    print(f"\nActive chain: {CHAIN_META['label']} ({RPC_URL})")
+    print("Switch chain: set CHAIN=ETH or CHAIN=BASE env var\n")
+    print("Available metrics (pick for stream action):")
     for k, v in STAT_OPTIONS.items():
         print(f"  {k:<12} — {v}")
     print()
 
     while True:
-        stat = input("Stat to analyze (BLOCK_TIME / GAS / TX_COUNT) or 'q': ").strip().upper()
+        stat = input("Stat to analyze (TX_COUNT / GAS / BLOCK_TIME) or 'q' [default: TX_COUNT]: ").strip().upper() or 'TX_COUNT'
         if stat == 'Q':
             break
         if stat not in STAT_OPTIONS:
@@ -298,12 +313,12 @@ if __name__ == '__main__':
         except ValueError:
             n = 50
 
-        live = input("Live stream mode? (y/n, default n): ").strip().lower()
-        if live == 'y':
+        live = input("Live stream mode? (y/n, default y): ").strip().lower()
+        if live != 'n':
             try:
-                interval = int(input("Refresh interval in seconds (default 30): ").strip() or "30")
+                interval = int(input("Refresh interval in seconds (default 10): ").strip() or "10")
             except ValueError:
-                interval = 30
+                interval = 10
             stream_mode(stat, refresh_seconds=interval, num_blocks=n)
         else:
             analyze(stat, num_blocks=n)
