@@ -218,50 +218,70 @@ def _save_chart(stat_upper, series, unit, score, avg, num_blocks):
     if window_size < 2:
         return
 
-    results = calculate_sliding_window(series, window_size, k=K_FACTOR)
-    scores  = [None] * (window_size - 1) + [r['score'] for r in results]
-
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(13, 8))
-    fig.patch.set_facecolor('#0f1117')
-    for ax in (ax1, ax2):
-        ax.set_facecolor('#1a1d27')
-        ax.tick_params(colors='#aaaaaa')
-        ax.spines['bottom'].set_color('#333')
-        ax.spines['left'].set_color('#333')
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-
-    ax1.plot(series, marker='o', markersize=3, linestyle='-', color=CHAIN_META['color'],
-             alpha=0.85, label=f'{stat_upper} ({unit})')
-    ax1.axhline(y=avg, color='#888', linestyle='--', linewidth=1,
-                label=f'Avg: {avg:.4f} {unit}')
-    ax1.set_title(f"{CHAIN_META['label']} — {stat_upper} per Block (last {num_blocks} blocks)",
-                  color='white', fontsize=13, pad=10)
-    ax1.set_ylabel(unit, color='#aaaaaa')
-    ax1.legend(facecolor='#1a1d27', labelcolor='white', framealpha=0.5)
-    ax1.grid(True, alpha=0.15)
-
-    ax2.plot(scores, color='#00c2ff', linewidth=2,
-             label=f'Predictability Score ({window_size}-block window)')
-    ax2.axhline(y=score, color='#0052ff', linestyle='--', linewidth=1,
-                label=f'Overall: {score:.2f}')
-    ax2.axhline(y=80, color='#00ff88', linestyle=':', linewidth=1, label='Elite (80)')
-    ax2.axhline(y=60, color='#ffaa00', linestyle=':', linewidth=1, label='Volatile (60)')
-    ax2.set_title('FSR Predictability Score™ — Sliding Window', color='white',
-                  fontsize=13, pad=10)
-    ax2.set_ylabel('Score (0–100)', color='#aaaaaa')
-    ax2.set_xlabel('Block (relative)', color='#aaaaaa')
-    ax2.set_ylim(0, 105)
-    ax2.legend(facecolor='#1a1d27', labelcolor='white', framealpha=0.5)
-    ax2.grid(True, alpha=0.15)
+    # Close any leaked figures from previous failed renders
+    plt.close('all')
 
     out_dir = os.path.join('static', 'images', 'base_charts')
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, f'base_{stat_upper.lower()}_analysis.png')
-    plt.tight_layout()
-    plt.savefig(path, facecolor='#0f1117')
-    plt.close()
-    print(f"Chart saved → {path}")
+    tmp_path = path + '.tmp'
+
+    fig = None
+    try:
+        results = calculate_sliding_window(series, window_size, k=K_FACTOR)
+        scores  = [None] * (window_size - 1) + [r['score'] for r in results]
+
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(13, 8))
+        fig.patch.set_facecolor('#0f1117')
+        for ax in (ax1, ax2):
+            ax.set_facecolor('#1a1d27')
+            ax.tick_params(colors='#aaaaaa')
+            ax.spines['bottom'].set_color('#333')
+            ax.spines['left'].set_color('#333')
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+
+        ax1.plot(series, marker='o', markersize=3, linestyle='-', color=CHAIN_META['color'],
+                 alpha=0.85, label=f'{stat_upper} ({unit})')
+        ax1.axhline(y=avg, color='#888', linestyle='--', linewidth=1,
+                    label=f'Avg: {avg:.4f} {unit}')
+        ax1.set_title(f"{CHAIN_META['label']} — {stat_upper} per Block (last {num_blocks} blocks)",
+                      color='white', fontsize=13, pad=10)
+        ax1.set_ylabel(unit, color='#aaaaaa')
+        ax1.legend(facecolor='#1a1d27', labelcolor='white', framealpha=0.5)
+        ax1.grid(True, alpha=0.15)
+
+        ax2.plot(scores, color='#00c2ff', linewidth=2,
+                 label=f'Predictability Score ({window_size}-block window)')
+        ax2.axhline(y=score, color=CHAIN_META['color'], linestyle='--', linewidth=1,
+                    label=f'Overall: {score:.2f}')
+        ax2.axhline(y=80, color='#00ff88', linestyle=':', linewidth=1, label='Elite (80)')
+        ax2.axhline(y=60, color='#ffaa00', linestyle=':', linewidth=1, label='Volatile (60)')
+        ax2.set_title('FSR Predictability Score™ — Sliding Window', color='white',
+                      fontsize=13, pad=10)
+        ax2.set_ylabel('Score (0–100)', color='#aaaaaa')
+        ax2.set_xlabel('Block (relative)', color='#aaaaaa')
+        ax2.set_ylim(0, 105)
+        ax2.legend(facecolor='#1a1d27', labelcolor='white', framealpha=0.5)
+        ax2.grid(True, alpha=0.15)
+
+        plt.tight_layout()
+        # Write to temp file first, then rename — prevents black flash mid-write
+        plt.savefig(tmp_path, facecolor='#0f1117')
+        os.replace(tmp_path, path)
+        print(f"Chart saved → {path}")
+
+    except Exception as e:
+        print(f"Chart render error (keeping last good chart): {e}")
+        # Clean up temp file if it exists
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+    finally:
+        if fig is not None:
+            plt.close(fig)
 
 
 # ---------------------------------------------------------------------------
@@ -277,9 +297,13 @@ def stream_mode(stat_type, refresh_seconds=10, num_blocks=50):
     print(f"   Refreshing every {refresh_seconds}s. Ctrl+C to stop.\n")
     try:
         while True:
-            print(f"\n[{time.strftime('%H:%M:%S')}] Fetching fresh data...")
-            analyze(stat_type, num_blocks)
-            print(f"Next update in {refresh_seconds}s...")
+            try:
+                print(f"\n[{time.strftime('%H:%M:%S')}] Fetching fresh data...")
+                analyze(stat_type, num_blocks)
+                print(f"Next update in {refresh_seconds}s...")
+            except Exception as e:
+                print(f"[{time.strftime('%H:%M:%S')}] Cycle error (stream continues): {e}")
+                print(f"Retrying in {refresh_seconds}s...")
             time.sleep(refresh_seconds)
     except KeyboardInterrupt:
         print("\nStream stopped.")
