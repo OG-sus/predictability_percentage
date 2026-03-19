@@ -1077,6 +1077,23 @@ def validate_analysis_input(data):
             except: cleaned['folder_id'] = None
     return cleaned, None
 
+
+def serialize_analysis_row(row):
+    result = dict(row)
+    try:
+        raw_scores = result.get('scores', [])
+        result['scores'] = json.loads(raw_scores) if isinstance(raw_scores, str) else raw_scores
+    except Exception:
+        result['scores'] = []
+    result['created_at'] = str(result.get('created_at', ''))
+    if not result.get('folder_name'):
+        result['folder_name'] = 'Uncategorized'
+    return result
+
+
+def serialize_analysis_rows(rows):
+    return [serialize_analysis_row(row) for row in rows] if rows else []
+
 @app.route('/api/analyses', methods=['GET', 'POST'])
 @login_required
 def handle_analyses():
@@ -1093,16 +1110,7 @@ def handle_analyses():
     else:
         analyses = query_db('SELECT * FROM analyses WHERE user_id = %s' if DATABASE_URL else 'SELECT * FROM analyses WHERE user_id = ?', (user_id,))
         if analyses is None: return jsonify({'saved_analyses': []})
-        results = []
-        for row in analyses:
-            res = dict(row)
-            try:
-                raw_scores = res['scores']
-                if isinstance(raw_scores, str): res['scores'] = json.loads(raw_scores)
-                else: res['scores'] = raw_scores
-            except: res['scores'] = []
-            results.append(res)
-        return jsonify({'saved_analyses': results})
+        return jsonify({'saved_analyses': serialize_analysis_rows(analyses)})
 
 @app.route('/api/analysis/<int:analysis_id>', methods=['GET', 'PUT', 'DELETE'])
 @login_required
@@ -1111,13 +1119,7 @@ def handle_single_analysis(analysis_id):
     if request.method == 'GET':
         analysis = query_db('SELECT * FROM analyses WHERE id = %s AND user_id = %s' if DATABASE_URL else 'SELECT * FROM analyses WHERE id = ? AND user_id = ?', (analysis_id, user_id), one=True)
         if not analysis: return jsonify({'error': 'Analysis not found.'}), 404
-        result = dict(analysis)
-        try:
-            raw_scores = result['scores']
-            if isinstance(raw_scores, str): result['scores'] = json.loads(raw_scores)
-            else: result['scores'] = raw_scores
-        except: result['scores'] = []
-        return jsonify(result)
+        return jsonify(serialize_analysis_row(analysis))
     elif request.method == 'PUT':
         data = request.get_json()
         cleaned, error = validate_analysis_input(data)
@@ -1163,12 +1165,7 @@ def public_share(token):
     )
     if not analysis:
         return render_template('methodology.html'), 404
-    data = dict(analysis)
-    try:
-        raw = data['scores']
-        data['scores'] = json.loads(raw) if isinstance(raw, str) else raw
-    except Exception:
-        data['scores'] = []
+    data = serialize_analysis_row(analysis)
     return render_template('share.html', analysis=data)
 
 @app.route('/u/<username>')
@@ -1185,6 +1182,57 @@ def public_portfolio(username):
     )
     shared = [dict(row) for row in analyses] if analyses else []
     return render_template('portfolio.html', profile_user=dict(user), analyses=shared)
+
+
+@app.route('/gallery')
+@login_required
+def saved_png_gallery():
+    user_id = session['user_id']
+    analyses = query_db(
+        '''
+        SELECT
+            a.id,
+            a.name,
+            a.predictability_score,
+            a.scores,
+            a.created_at,
+            a.folder_id,
+            a.k,
+            a.notes,
+            a.public_token,
+            COALESCE(f.name, 'Uncategorized') AS folder_name
+        FROM analyses a
+        LEFT JOIN folders f ON a.folder_id = f.id
+        WHERE a.user_id = %s
+        ORDER BY a.created_at DESC
+        ''' if DATABASE_URL else
+        '''
+        SELECT
+            a.id,
+            a.name,
+            a.predictability_score,
+            a.scores,
+            a.created_at,
+            a.folder_id,
+            a.k,
+            a.notes,
+            a.public_token,
+            COALESCE(f.name, 'Uncategorized') AS folder_name
+        FROM analyses a
+        LEFT JOIN folders f ON a.folder_id = f.id
+        WHERE a.user_id = ?
+        ORDER BY a.created_at DESC
+        ''',
+        (user_id,)
+    )
+    return render_template(
+        'gallery.html',
+        gallery_user={
+            'username': session.get('username', 'user'),
+            'tier': session.get('tier', 'Free')
+        },
+        analyses=serialize_analysis_rows(analyses)
+    )
 
 @app.route('/api/folders', methods=['GET', 'POST'])
 @login_required

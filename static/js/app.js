@@ -270,6 +270,8 @@
                     let links = `Logged in as <b>${username}</b> (${tier})`;
                     // CHANGED: Redirect to Pricing Section instead of direct checkout
                     if (tier === 'Free') links += ` | <a href="/#pricing" style="cursor:pointer; color:var(--primary-color)">Upgrade</a>`;
+                    links += ` | <a href="/u/${encodeURIComponent(username)}" style="cursor:pointer; color:var(--primary-color)">Portfolio</a>`;
+                    links += ` | <a href="/gallery" style="cursor:pointer; color:var(--primary-color)">Gallery</a>`;
                     links += ` | <a onclick="openSettings()" style="cursor:pointer; color:var(--primary-color)">Settings</a>`;
                     if (stripeCustomerId) links += ` | <a onclick="redirectToPortal()" style="cursor:pointer; color:var(--primary-color)">Billing</a>`;
                     links += ` | <a id="logout-btn" style="cursor:pointer; color:var(--primary-color)">Log Out</a>`;

@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ gallery_user.username }}'s Saved PNG Gallery — Predictability Score™</title>
+    <style>
+        :root {
+            --bg: #f5f7fb;
+            --card: #ffffff;
+            --text: #1f2937;
+            --subtle: #6b7280;
+            --border: #dbe3ef;
+            --blue: #007bff;
+            --blue-dark: #0056b3;
+            --shadow: rgba(15, 23, 42, 0.08);
+            --soft: #eef5ff;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0f172a;
+                --card: #111827;
+                --text: #e5e7eb;
+                --subtle: #94a3b8;
+                --border: #334155;
+                --blue: #4da3ff;
+                --blue-dark: #78b7ff;
+                --shadow: rgba(0, 0, 0, 0.35);
+                --soft: #172554;
+            }
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+        header {
+            padding: 18px 24px;
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            box-shadow: 0 2px 10px var(--shadow);
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .brand img { height: 38px; }
+        .brand a {
+            color: var(--blue);
+            text-decoration: none;
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+        .header-links {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            font-size: 0.95rem;
+        }
+        .header-links a {
+            color: var(--blue);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .page {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 32px 20px 40px;
+        }
+        .hero {
+            margin-bottom: 28px;
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: end;
+        }
+        .hero h1 {
+            margin: 0 0 10px;
+            font-size: clamp(1.8rem, 4vw, 2.5rem);
+        }
+        .hero p {
+            margin: 0;
+            color: var(--subtle);
+            max-width: 760px;
+            line-height: 1.5;
+        }
+        .hero-stats {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px 18px;
+            min-width: 220px;
+            box-shadow: 0 8px 24px var(--shadow);
+        }
+        .hero-stats .label {
+            color: var(--subtle);
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .hero-stats .value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--blue);
+            line-height: 1.1;
+            margin-top: 6px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 22px;
+        }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 18px;
+            box-shadow: 0 12px 30px var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .card-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: start;
+        }
+        .card-title {
+            font-weight: 800;
+            font-size: 1rem;
+            line-height: 1.35;
+        }
+        .score-pill {
+            background: var(--soft);
+            color: var(--blue);
+            border-radius: 999px;
+            padding: 8px 12px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+        .meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            color: var(--subtle);
+            font-size: 0.82rem;
+        }
+        .badge {
+            background: var(--soft);
+            border-radius: 999px;
+            padding: 4px 10px;
+        }
+        .preview-wrap {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            background: #fff;
+        }
+        .preview {
+            width: 100%;
+            height: 240px;
+            display: block;
+        }
+        .notes {
+            margin: 0;
+            color: var(--subtle);
+            font-size: 0.9rem;
+            line-height: 1.5;
+            min-height: 2.8em;
+        }
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .btn,
+        .btn-secondary {
+            border: 0;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .btn {
+            background: var(--blue);
+            color: #fff;
+        }
+        .btn:hover { background: var(--blue-dark); }
+        .btn-secondary {
+            background: transparent;
+            color: var(--blue);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { border-color: var(--blue); }
+        .empty {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 48px 24px;
+            text-align: center;
+            color: var(--subtle);
+            box-shadow: 0 12px 30px var(--shadow);
+        }
+        .empty h2 {
+            color: var(--text);
+            margin-top: 0;
+        }
+        .flash {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            background: #111827;
+            color: #fff;
+            padding: 12px 16px;
+            border-radius: 10px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.3);
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            pointer-events: none;
+        }
+        .flash.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <img src="/static/images/brand_logo.png" alt="Logo">
+            <a href="/">The Predictability Score™</a>
+        </div>
+        <div class="header-links">
+            <span>@{{ gallery_user.username }} · {{ gallery_user.tier }}</span>
+            <a href="/">Calculator</a>
+        </div>
+    </header>
+
+    <main class="page">
+        <section class="hero">
+            <div>
+                <h1>Saved PNG Gallery</h1>
+                <p>
+                    Every saved analysis becomes a clean, white-background share card here.
+                    Open them, download PNGs on demand, and generate share links without rebuilding the chart manually.
+                </p>
+            </div>
+            <div class="hero-stats">
+                <div class="label">Saved cards</div>
+                <div class="value">{{ analyses | length }}</div>
+            </div>
+        </section>
+
+        {% if analyses %}
+        <section class="grid">
+            {% for analysis in analyses %}
+            <article class="card" data-analysis-id="{{ analysis.id }}">
+                <div class="card-top">
+                    <div>
+                        <div class="card-title">{{ analysis.name }}</div>
+                        <div class="meta">
+                            <span class="badge">{{ analysis.folder_name }}</span>
+                            <span class="badge">{{ analysis.created_at[:10] if analysis.created_at else 'Saved' }}</span>
+                            <span class="badge">k={{ "%.1f"|format(analysis.k|float) }}</span>
+                        </div>
+                    </div>
+                    <div class="score-pill">{{ "%.2f"|format(analysis.predictability_score|float) }}%</div>
+                </div>
+
+                <div class="preview-wrap">
+                    <canvas class="preview" id="preview-{{ analysis.id }}" width="640" height="360"></canvas>
+                </div>
+
+                <p class="notes">{{ analysis.notes if analysis.notes else 'No notes attached.' }}</p>
+
+                <div class="actions">
+                    <button class="btn download-btn" data-id="{{ analysis.id }}">Download PNG</button>
+                    <button class="btn-secondary copy-link-btn" data-id="{{ analysis.id }}">
+                        {{ 'Copy Share Link' if analysis.public_token else 'Create Share Link' }}
+                    </button>
+                    {% if analysis.public_token %}
+                    <a class="btn-secondary open-share-link" data-id="{{ analysis.id }}" href="/share/{{ analysis.public_token }}" target="_blank" rel="noopener">Open Share</a>
+                    {% else %}
+                    <a class="btn-secondary open-share-link" data-id="{{ analysis.id }}" href="#" target="_blank" rel="noopener" style="display:none;">Open Share</a>
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </section>
+        {% else %}
+        <section class="empty">
+            <h2>No saved analyses yet.</h2>
+            <p>Save an analysis from the calculator, then come back here to build PNG cards and share links.</p>
+            <a class="btn" href="/">Go to Calculator</a>
+        </section>
+        {% endif %}
+    </main>
+
+    <div id="flash" class="flash"></div>
+
+    <script>
+        const analyses = {{ analyses | tojson }};
+
+        function showFlash(message) {
+            const flash = document.getElementById('flash');
+            flash.textContent = message;
+            flash.classList.add('visible');
+            clearTimeout(showFlash._timer);
+            showFlash._timer = setTimeout(() => flash.classList.remove('visible'), 2200);
+        }
+
+        function slugify(text) {
+            return (text || 'Predictability_Score')
+                .replace(/[^a-z0-9]+/gi, '_')
+                .replace(/^_+|_+$/g, '')
+                .slice(0, 80) || 'Predictability_Score';
+        }
+
+        function kLabel(k) {
+            const labels = {
+                '0.5': 'Sports',
+                '1.0': 'Standard',
+                '2.0': 'Finance',
+                '15.0': 'Pharma'
+            };
+            return labels[Number(k).toFixed(1)] || `k=${Number(k).toFixed(1)}`;
+        }
+
+        function drawAnalysisCard(canvas, analysis, options = {}) {
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            const score = Number(analysis.predictability_score || 0);
+            const scores = Array.isArray(analysis.scores) ? analysis.scores.map(Number).filter(Number.isFinite) : [];
+            const padding = options.padding || 28;
+            const chartTop = options.chartTop || 140;
+            const chartBottom = options.chartBottom || 68;
+            const chartHeight = height - chartTop - chartBottom;
+            const chartWidth = width - padding * 2;
+
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.fillStyle = '#0f172a';
+            ctx.font = `700 ${options.titleSize || 28}px Arial`;
+            ctx.textAlign = 'left';
+            ctx.fillText((analysis.name || 'Saved Analysis').slice(0, 42), padding, 42);
+
+            ctx.fillStyle = '#007bff';
+            ctx.font = `800 ${options.scoreSize || 38}px Arial`;
+            ctx.fillText(`${score.toFixed(2)}%`, padding, 88);
+
+            ctx.fillStyle = '#475569';
+            ctx.font = `${options.metaSize || 16}px Arial`;
+            ctx.fillText(`${kLabel(analysis.k)} mode`, padding, 112);
+            ctx.fillText(`${analysis.folder_name || 'Uncategorized'} folder`, padding + 150, 112);
+
+            if (analysis.notes) {
+                ctx.fillStyle = '#64748b';
+                ctx.font = `${options.notesSize || 15}px Arial`;
+                const note = analysis.notes.length > 78 ? `${analysis.notes.slice(0, 75)}...` : analysis.notes;
+                ctx.fillText(note, padding, height - 26);
+            }
+
+            ctx.strokeStyle = '#dbeafe';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 4; i += 1) {
+                const y = chartTop + (chartHeight / 3) * i;
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(width - padding, y);
+                ctx.stroke();
+            }
+
+            if (scores.length >= 2) {
+                const min = Math.min(...scores);
+                const max = Math.max(...scores);
+                const range = max - min || 1;
+
+                ctx.beginPath();
+                scores.forEach((value, index) => {
+                    const x = padding + (chartWidth * index) / Math.max(scores.length - 1, 1);
+                    const y = chartTop + chartHeight - ((value - min) / range) * chartHeight;
+                    if (index === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.strokeStyle = '#007bff';
+                ctx.lineWidth = options.lineWidth || 4;
+                ctx.stroke();
+
+                ctx.fillStyle = '#007bff';
+                ctx.font = `${options.metaSize || 16}px Arial`;
+                ctx.textAlign = 'right';
+                ctx.fillText(`n=${scores.length}`, width - padding, 42);
+            } else {
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = `${options.emptySize || 20}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.fillText('Not enough data for preview', width / 2, chartTop + chartHeight / 2);
+            }
+
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#0ea5e9';
+            ctx.font = `${options.brandSize || 16}px Arial`;
+            ctx.fillText('predictability-api.com', width - padding, height - 26);
+        }
+
+        function createPngDataUrl(analysis) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1400;
+            canvas.height = 900;
+            drawAnalysisCard(canvas, analysis, {
+                padding: 54,
+                titleSize: 44,
+                scoreSize: 68,
+                metaSize: 24,
+                notesSize: 22,
+                emptySize: 28,
+                brandSize: 24,
+                chartTop: 220,
+                chartBottom: 110,
+                lineWidth: 6
+            });
+            return canvas.toDataURL('image/png');
+        }
+
+        async function ensureShareLink(analysis) {
+            if (analysis.public_token) {
+                return `${window.location.origin}/share/${analysis.public_token}`;
+            }
+
+            const response = await fetch(`/api/analyses/${analysis.id}/share`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Unable to create share link.');
+            }
+            analysis.public_token = data.token;
+
+            const openLink = document.querySelector(`.open-share-link[data-id="${analysis.id}"]`);
+            if (openLink) {
+                openLink.href = data.share_url;
+                openLink.style.display = 'inline-block';
+            }
+
+            const copyButton = document.querySelector(`.copy-link-btn[data-id="${analysis.id}"]`);
+            if (copyButton) {
+                copyButton.textContent = 'Copy Share Link';
+            }
+
+            return data.share_url;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            analyses.forEach((analysis) => {
+                const preview = document.getElementById(`preview-${analysis.id}`);
+                if (preview) drawAnalysisCard(preview, analysis);
+            });
+
+            document.querySelectorAll('.download-btn').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const analysis = analyses.find((item) => item.id === Number(button.dataset.id));
+                    if (!analysis) return;
+                    const link = document.createElement('a');
+                    link.href = createPngDataUrl(analysis);
+                    link.download = `${slugify(analysis.name)}_Predictability.png`;
+                    link.click();
+                });
+            });
+
+            document.querySelectorAll('.copy-link-btn').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    const analysis = analyses.find((item) => item.id === Number(button.dataset.id));
+                    if (!analysis) return;
+                    try {
+                        const shareUrl = await ensureShareLink(analysis);
+                        await navigator.clipboard.writeText(shareUrl);
+                        showFlash('Share link copied.');
+                    } catch (error) {
+                        showFlash(error.message);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
