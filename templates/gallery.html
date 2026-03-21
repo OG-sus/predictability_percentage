@@ -310,9 +310,10 @@
     </main>
 
     <div id="flash" class="flash"></div>
+    <script id="gallery-analyses-data" type="application/json">{{ analyses | tojson }}</script>
 
     <script>
-        const analyses = {{ analyses | tojson }};
+        const analyses = JSON.parse(document.getElementById('gallery-analyses-data').textContent);
 
         function showFlash(message) {
             const flash = document.getElementById('flash');

@@ -22,7 +22,6 @@ from flasgger import Swagger
 import time
 from datetime import datetime
 import requests
-import subprocess
 
 # --- Logging Configuration ---
 logging.basicConfig(level=logging.INFO)
@@ -303,7 +302,7 @@ def get_db():
     return g.db
 
 @app.teardown_appcontext
-def close_db(e=None):
+def close_db(_e=None):
     db = g.pop('db', None)
     if db is not None:
         db.close()
@@ -1472,8 +1471,6 @@ def agent_beacon():
                            next_step=iteration + 1, 
                            user_agent=user_agent,
                            is_moltbook=is_moltbook)
-    # If they don't have the right tier, send them back to the hub
-    return redirect(url_for('hub'))
 # --- SYSTEM OF RECORD: ALPHA BRIDGE LANDING ---
 @app.route('/system-beacon')
 def system_of_record_beacon():
