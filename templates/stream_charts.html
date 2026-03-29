@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>FSR Live Charts</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: #0f1117;
+      overflow: hidden;
+      font-family: 'Consolas', 'Courier New', monospace;
+      color: #f5f7fa;
+    }
+
+    /* ── Layout ────────────────────────────────────────────── */
+    #wrapper {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 10px 14px 6px;
+      gap: 8px;
+    }
+
+    /* ── Top HUD bar ───────────────────────────────────────── */
+    #hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 28px;
+      flex-shrink: 0;
+    }
+    #hud-brand {
+      font-size: 13px;
+      font-weight: bold;
+      color: #39c2ff;
+      letter-spacing: 1px;
+    }
+    #hud-date {
+      font-size: 11px;
+      color: #aab6c4;
+    }
+    #hud-counter {
+      font-size: 11px;
+      color: #ffd166;
+    }
+
+    /* ── Film strip ────────────────────────────────────────── */
+    #strip-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .slot {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .slot img {
+      width: 100%;
+      height: 100%;
+      object-fit: fill;   /* stretch to fill frame — no black bars */
+      display: block;
+    }
+
+    /* Active center slot — full width and height */
+    .slot.center {
+      opacity: 1;
+      filter: none;
+      width: 100%;
+      height: 100%;
+      border: 2px solid #39c2ff;
+      box-shadow: 0 0 28px rgba(57, 194, 255, 0.35),
+                  0 0 60px rgba(57, 194, 255, 0.12);
+      flex-shrink: 1;
+    }
+
+    /* Slide-out animation classes */
+    .slot.slide-out-left  { transform: translateX(-120%) scale(0.8); opacity: 0; }
+    .slot.slide-out-right { transform: translateX(120%)  scale(0.8); opacity: 0; }
+    .slot.slide-in-left   { transform: translateX(-60%)  scale(0.9); opacity: 0; }
+
+    /* ── Labels under the strip ────────────────────────────── */
+    #label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      height: 38px;
+      flex-shrink: 0;
+      padding: 0 2px;
+    }
+
+    .slot-label {
+      font-size: 9.5px;
+      color: #aab6c4;
+      text-align: center;
+      transition: all 0.9s ease;
+      line-height: 1.35;
+    }
+    .slot-label.side-label { display: none; }
+    .slot-label.center-label {
+      flex: 1;
+      font-size: 12px;
+      font-weight: bold;
+      color: #f5f7fa;
+      text-align: center;
+      opacity: 1;
+    }
+
+    /* ── Game ticker bar ───────────────────────────────────── */
+    #ticker-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 22px;
+      flex-shrink: 0;
+      padding: 0 6px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      margin-top: 2px;
+    }
+    #ticker-now {
+      font-size: 10px;
+      color: #39c2ff;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 55%;
+    }
+    #ticker-now strong { color: #ffd166; margin-right: 4px; font-size: 9px; text-transform: uppercase; }
+    #ticker-next {
+      font-size: 10px;
+      color: #6b7a8e;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 43%;
+      text-align: right;
+    }
+    #ticker-next strong { color: #8a9ab0; margin-right: 4px; font-size: 9px; text-transform: uppercase; }
+
+    /* ── Progress bar ──────────────────────────────────────── */
+    #progress-track {
+      height: 3px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 2px;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    #progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #39c2ff, #ffd166);
+      border-radius: 2px;
+      transition: width linear;
+    }
+
+    /* ── Loading screen ────────────────────────────────────── */
+    #loading {
+      position: fixed; inset: 0;
+      background: #0f1117;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      z-index: 999;
+    }
+    #loading h1 { color: #39c2ff; font-size: 22px; letter-spacing: 2px; }
+    #loading p  { color: #aab6c4; font-size: 13px; }
+    .dots::after {
+      content: '';
+      animation: dots 1.4s steps(4, end) infinite;
+    }
+    @keyframes dots {
+      0%   { content: ''; }
+      25%  { content: '.'; }
+      50%  { content: '..'; }
+      75%  { content: '...'; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <h1>FSR™  LIVE CHARTS</h1>
+  <p>Loading chart library<span class="dots"></span></p>
+</div>
+
+<div id="wrapper" style="display:none">
+  <div id="hud">
+    <span id="hud-brand">FSR™  PREDICTABILITY CHARTS</span>
+    <span id="hud-date"></span>
+    <span id="hud-counter"></span>
+  </div>
+
+  <div id="strip-row">
+    <div class="slot center" id="slot-curr"><img id="img-curr" src="" alt="" /></div>
+  </div>
+
+  <div id="label-row">
+    <div class="slot-label center-label" id="lbl-curr"></div>
+  </div>
+
+  <div id="ticker-row">
+    <div id="ticker-now"><strong>NOW</strong><span id="ticker-now-text"></span></div>
+    <div id="ticker-next"><strong>NEXT</strong><span id="ticker-next-text"></span></div>
+  </div>
+
+  <div id="progress-track">
+    <div id="progress-fill"></div>
+  </div>
+</div>
+
+<script>
+const DATE_STR      = "{{ date_str }}";
+const DISPLAY_MS    = 18000;   // 18 s per chart
+const FADE_MS       = 900;     // slide transition
+const REFRESH_MS    = 90000;   // re-fetch chart list every 90 s
+
+let charts  = [];
+let idx     = 0;
+let timer   = null;
+let progTimer = null;
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+function mod(n, m) { return ((n % m) + m) % m; }
+
+function chart(offset) {
+  if (!charts.length) return { url: '', label: '' };
+  return charts[mod(idx + offset, charts.length)];
+}
+
+// ── DOM refs ─────────────────────────────────────────────────────────────────
+const imgCurr = document.getElementById('img-curr');
+const lblCurr = document.getElementById('lbl-curr');
+const counter = document.getElementById('hud-counter');
+const progFill = document.getElementById('progress-fill');
+const hudDate  = document.getElementById('hud-date');
+const tickerNow  = document.getElementById('ticker-now-text');
+const tickerNext = document.getElementById('ticker-next-text');
+
+// ── Render current state (no animation) ──────────────────────────────────────
+function renderStatic() {
+  imgCurr.src = chart(0).url;   lblCurr.textContent = chart(0).label;
+  counter.textContent = `${idx + 1} / ${charts.length}`;
+  tickerNow.textContent  = chart(0).label;
+  tickerNext.textContent = chart(1).label;
+}
+
+// ── Animated advance ─────────────────────────────────────────────────────────
+function advance() {
+  if (charts.length <= 1) return;
+
+  // Pre-load the chart that will become the new "next"
+  const preload = new Image();
+  preload.src = chart(2).url;
+
+  // Advance index
+  idx = mod(idx + 1, charts.length);
+
+  // Quick swap — browser already has prev/next in cache from renderStatic
+  renderStatic();
+  resetProgress();
+}
+
+// ── Progress bar ─────────────────────────────────────────────────────────────
+function resetProgress() {
+  progFill.style.transition = 'none';
+  progFill.style.width = '0%';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      progFill.style.transition = `width ${DISPLAY_MS}ms linear`;
+      progFill.style.width = '100%';
+    });
+  });
+}
+
+// ── Start rotation ────────────────────────────────────────────────────────────
+function startRotation() {
+  clearInterval(timer);
+  renderStatic();
+  resetProgress();
+  timer = setInterval(advance, DISPLAY_MS);
+}
+
+// ── Fetch chart list ──────────────────────────────────────────────────────────
+async function fetchCharts() {
+  try {
+    const res = await fetch(`/stream/charts/data?date=${DATE_STR}`);
+    const data = await res.json();
+    if (data.charts && data.charts.length) {
+      const prevCount = charts.length;
+      charts = data.charts;
+      hudDate.textContent = DATE_STR;
+      if (prevCount === 0) {
+        // First load — preload all images then show
+        await preloadAll();
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('wrapper').style.display = 'flex';
+        startRotation();
+      }
+      // If new charts were added mid-stream, list updates automatically next cycle
+    }
+  } catch (e) {
+    console.error('Chart fetch error:', e);
+  }
+}
+
+async function preloadAll() {
+  return Promise.all(
+    charts.map(c => new Promise(resolve => {
+      const img = new Image();
+      img.onload = img.onerror = resolve;
+      img.src = c.url;
+    }))
+  );
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+fetchCharts();
+setInterval(fetchCharts, REFRESH_MS);
+</script>
+</body>
+</html>

@@ -135,8 +135,7 @@ if os.environ.get('ENABLE_PING', '1') != '0':
     threading.Thread(target=ping_worker, daemon=True).start()
 # --- App & Security Configuration ---
 app = Flask(__name__)
-
-# --- SWAGGER CONFIGURATION (Single Instance) ---
+app.jinja_env.auto_reload = True   # always serve fresh templates
 swagger_template = {
     "swagger": "2.0",
     "info": {
@@ -1419,7 +1418,7 @@ def download_ticker():
             path=filename, 
             as_attachment=True
         )
-    except FileNotFoundError:
+    except Exception:
         logging.error(f"FILE MISSING: {os.path.join(products_dir, filename)}")
         return "The product file is missing on the server. Please contact support.", 404
 
@@ -1487,12 +1486,59 @@ def system_of_record_beacon():
         "network": "Alpha Bridge"
     })
 
+
+# ── Stream chart overlay (OBS Browser Source) ────────────────────────────────
+@app.route('/stream/charts')
+def stream_charts_page():
+    """Rotating chart overlay for OBS Browser Source.
+    Usage: add http://localhost:10000/stream/charts?date=2026-03-26 as a Browser Source.
+    Defaults to today's date if no date param supplied."""
+    date_str = request.args.get('date', datetime.today().strftime('%Y-%m-%d'))
+    return render_template('stream_charts.html', date_str=date_str)
+
+
+@app.route('/stream/charts/data')
+def stream_charts_data():
+    """Returns JSON list of chart PNGs for a given date folder with human-readable labels."""
+    date_str = request.args.get('date', datetime.today().strftime('%Y-%m-%d'))
+    try:
+        d = datetime.strptime(date_str, '%Y-%m-%d')
+        folder = os.path.join('static', 'images', 'mlb_preview',
+                              str(d.year), d.strftime('%m-%d'))
+
+        def _label(fname):
+            """Turn filename into readable chart label and game tag."""
+            n = fname.replace('.png', '')
+            parts = n.split('_')
+            kind = parts[0] if parts else ''
+            # extract team codes from filename
+            teams = [p.upper() for p in parts[1:] if len(p) in (2, 3) and p.isalpha()]
+            game = f"{teams[0]} @ {teams[1]}" if len(teams) >= 2 else (teams[0] if teams else '')
+            labels = {
+                'pitcher': f"⚾ Pitcher Duel  ·  {game}",
+                'gbfb':    f"🔄 GB% / FB%  ·  {game}",
+                'park':    f"🏟️ Park Context  ·  {teams[0] if teams else ''}",
+                'batter':  f"🏏 Batter Duel  ·  {game}",
+                'closer':  f"🔒 Closer Duel  ·  {game}",
+                'vpd':     f"🌡️ VPD Weather  ·  {' '.join(parts[1:]).title()}",
+                'star':    f"⭐ Star Chart  ·  {' '.join(parts[1:3]).title()}",
+                'parlay':  f"💰 Parlay Breakdown",
+                'summary': f"📊 FSR Leaderboard",
+            }
+            return labels.get(kind, n.replace('_', ' ').upper())
+
+        charts = []
+        if os.path.exists(folder):
+            for fname in sorted(os.listdir(folder)):
+                if fname.lower().endswith('.png'):
+                    url = f'/static/images/mlb_preview/{d.year}/{d.strftime("%m-%d")}/{fname}'
+                    charts.append({'url': url, 'label': _label(fname), 'file': fname})
+        return jsonify({'date': date_str, 'charts': charts, 'count': len(charts)})
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 400
+
+
 if __name__ == '__main__':
-    # Use the PORT provided by the environment, or default to 10000
     port = int(os.environ.get("PORT", 10000))
-    
-    # Check if we are in a dev environment to enable debug
     is_dev = os.environ.get('FLASK_ENV') == 'development'
-    
-    # Must bind to 0.0.0.0 to be visible to the outside world
     app.run(host='0.0.0.0', port=port, debug=is_dev)

@@ -54,6 +54,22 @@ def make_session():
 # Primary path: pybaseball (no scraping, no 403s)
 # ---------------------------------------------------------------------------
 
+# Pybaseball lookup table has encoding bugs for accented names.
+# Map normalized name → MLBAM ID as a reliable override.
+KNOWN_MLBAM_IDS = {
+    "eugenio suarez":    553993,
+    "yordan alvarez":    670541,
+    "rafael devers":     646240,
+    "jose abreu":        547989,
+    "yoan moncada":      622057,
+    "adolis garcia":     666969,
+    "julio rodriguez":   677594,
+    "vladimir guerrero": 665489,
+    "jose ramirez":      608070,
+    "freddie freeman":   518692,
+}
+
+
 def _get_stats_via_pybaseball(player_name, stat_type, num_games=20, year=2025):
     """Uses pybaseball Statcast data — no scraping required."""
     parts = player_name.strip().split()
@@ -62,30 +78,50 @@ def _get_stats_via_pybaseball(player_name, stat_type, num_games=20, year=2025):
         return
 
     last, first = parts[-1], parts[0]
+    # Strip accents so "Eugenio Suárez" → "Eugenio Suarez" matches the lookup table
+    last_clean  = unidecode.unidecode(last).lower()
+    first_clean = unidecode.unidecode(first).lower()
     print(f"Looking up player ID for {first} {last}...")
 
     try:
-        lookup = playerid_lookup(last, first)
+        lookup = playerid_lookup(last_clean, first_clean)
     except Exception as e:
         print(f"Player lookup failed: {e}")
         return
 
     if lookup.empty:
-        print(f"No player found for '{player_name}'. Check spelling.")
-        return
+        # Try last-name-only fallback
+        try:
+            lookup = playerid_lookup(last_clean)
+            if not lookup.empty:
+                lookup = lookup[lookup['name_first'].str.lower().str.startswith(first_clean[:3])]
+        except Exception:
+            pass
 
-    lookup = lookup.sort_values('mlb_played_last', ascending=False)
-    row = lookup.iloc[0]
-    mlbam_id = int(row['key_mlbam'])
-    print(f"Found: {row.get('name_first','')} {row.get('name_last','')} (MLBAM ID: {mlbam_id})")
+    if lookup.empty:
+        # Final fallback: known MLBAM IDs for players with broken accent encoding
+        norm_name = unidecode.unidecode(player_name).lower().strip()
+        if norm_name in KNOWN_MLBAM_IDS:
+            mlbam_id = KNOWN_MLBAM_IDS[norm_name]
+            print(f"Using known MLBAM ID {mlbam_id} for '{player_name}'")
+        else:
+            print(f"No player found for '{player_name}'. Check spelling.")
+            return
+    else:
+        lookup = lookup.sort_values('mlb_played_last', ascending=False)
+        row = lookup.iloc[0]
+        mlbam_id = int(row['key_mlbam'])
+        print(f"Found: {row.get('name_first','')} {row.get('name_last','')} (MLBAM ID: {mlbam_id})")
 
     start_date = f"{year}-03-01"
     end_date   = f"{year}-11-30"
 
     try:
-        try:
-            data = statcast_batter(start_date, end_date, player_id=mlbam_id)
-        except Exception:
+        data = statcast_batter(start_date, end_date, player_id=mlbam_id)
+
+        # If batter query returns empty, this is likely a pitcher — try pitcher endpoint
+        if data is None or data.empty:
+            print(f"No batter data found — trying pitcher endpoint...")
             data = statcast_pitcher(start_date, end_date, player_id=mlbam_id)
 
         if data is None or data.empty:
@@ -94,20 +130,42 @@ def _get_stats_via_pybaseball(player_name, stat_type, num_games=20, year=2025):
 
         data['game_date'] = pd.to_datetime(data['game_date'])
 
+        def _rbi_per_game(df):
+            # RBI approximated by runs scored on each at-bat-ending event
+            # post_bat_score - bat_score = runs added on that play (proxy for RBI)
+            ab_events = df[df['events'].notna()].copy()
+            if 'post_bat_score' not in ab_events.columns or 'bat_score' not in ab_events.columns:
+                return pd.Series(dtype=int)
+            ab_events['_rbi'] = (ab_events['post_bat_score'] - ab_events['bat_score']).clip(lower=0)
+            return ab_events.groupby('game_date')['_rbi'].sum()
+
+        def _tb_per_game(df):
+            # Total bases: 1B=1, 2B=2, 3B=3, HR=4
+            tb_map = {'single': 1, 'double': 2, 'triple': 3, 'home_run': 4}
+            hits = df[df['events'].isin(tb_map.keys())].copy()
+            hits['_tb'] = hits['events'].map(tb_map)
+            return hits.groupby('game_date')['_tb'].sum()
+
         EVENT_FILTERS = {
             'HR':   lambda df: df[df['events'] == 'home_run'].groupby('game_date').size(),
             'H':    lambda df: df[df['events'].isin(['single', 'double', 'triple', 'home_run'])].groupby('game_date').size(),
             '1B':   lambda df: df[df['events'] == 'single'].groupby('game_date').size(),
             '2B':   lambda df: df[df['events'] == 'double'].groupby('game_date').size(),
             '3B':   lambda df: df[df['events'] == 'triple'].groupby('game_date').size(),
+            'XBH':  lambda df: df[df['events'].isin(['double', 'triple', 'home_run'])].groupby('game_date').size(),
+            'TB':   _tb_per_game,
             'SO':   lambda df: df[df['events'] == 'strikeout'].groupby('game_date').size(),
             'K':    lambda df: df[df['events'] == 'strikeout'].groupby('game_date').size(),
             'BB':   lambda df: df[df['events'] == 'walk'].groupby('game_date').size(),
+            'HBP':  lambda df: df[df['events'] == 'hit_by_pitch'].groupby('game_date').size(),
             'SB':   lambda df: df[df['events'].isin(['stolen_base_2b', 'stolen_base_3b', 'stolen_base_home'])].groupby('game_date').size(),
+            'CS':   lambda df: df[df['events'].isin(['caught_stealing_2b', 'caught_stealing_3b', 'caught_stealing_home'])].groupby('game_date').size(),
+            'RBI':  _rbi_per_game,
             # Statcast advanced — continuous mechanical metrics, ideal for predictability
             'EV':   lambda df: df[df['launch_speed'].notna()].groupby('game_date')['launch_speed'].mean().round(1),
             'VELO': lambda df: df[df['release_speed'].notna()].groupby('game_date')['release_speed'].mean().round(1),
             'LA':   lambda df: df[df['launch_angle'].notna()].groupby('game_date')['launch_angle'].mean().round(1),
+            'SPIN': lambda df: df[df['release_spin_rate'].notna()].groupby('game_date')['release_spin_rate'].mean().round(0),
         }
 
         stat_upper = stat_type.upper()
@@ -116,8 +174,8 @@ def _get_stats_via_pybaseball(player_name, stat_type, num_games=20, year=2025):
             game_stats.columns = ['game_date', stat_upper]
         else:
             print(f"Stat '{stat_type}' not directly available via Statcast.")
-            print("Counting stats: H, 1B, 2B, 3B, HR, SO/K, BB, SB")
-            print("Advanced (Statcast): EV (exit velo), VELO (pitch speed), LA (launch angle)")
+            print("Counting: H, 1B, 2B, 3B, HR, XBH, TB, SO/K, BB, HBP, SB, CS, RBI")
+            print("Advanced: EV (exit velo), VELO (pitch speed), LA (launch angle), SPIN (spin rate)")
             return
 
         game_stats = game_stats.sort_values('game_date', ascending=True)
@@ -127,6 +185,12 @@ def _get_stats_via_pybaseball(player_name, stat_type, num_games=20, year=2025):
             stats = game_stats[stat_upper].astype(float).tail(num_games).tolist()
         else:
             stats = game_stats[stat_upper].astype(int).tail(num_games).tolist()
+
+        _print_results(player_name, stat_upper, stats)
+
+    except Exception as e:
+        print(f"Statcast fetch error: {e}")
+        return
 
 
 # ---------------------------------------------------------------------------
