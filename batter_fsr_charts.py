@@ -248,6 +248,10 @@ def _tb_from_events(df: pd.DataFrame) -> pd.Series:
     return hits.groupby("game_date")["_tb"].sum()
 
 
+# Stats where a 0 on a played game date is meaningful and must be filled in.
+# EV/RBI are aggregations — they handle their own NaN logic.
+_ZERO_FILL_STATS = {"H", "HR", "TB", "SO", "K", "BB", "SB"}
+
 STAT_EXTRACTORS = {
     "H":   lambda df: df[df["events"].isin(["single","double","triple","home_run"])].groupby("game_date").size(),
     "HR":  lambda df: df[df["events"] == "home_run"].groupby("game_date").size(),
@@ -293,6 +297,13 @@ def fetch_batter_series(name: str, stat: str = "H", num_games: int = 40) -> list
         return []
 
     series = extractor(data).sort_index()
+
+    # For counting stats, reindex to all game dates the player appeared so
+    # that 0-hit / 0-HR games show up as 0 instead of being silently dropped.
+    if stat_upper in _ZERO_FILL_STATS:
+        all_game_dates = data["game_date"].drop_duplicates().sort_values()
+        series = series.reindex(all_game_dates, fill_value=0)
+
     values = series.astype(float).tail(num_games).tolist()
     return values
 
@@ -323,6 +334,11 @@ def fetch_pitcher_series(name: str, stat: str = "K", num_games: int = 20) -> lis
         return []
 
     series = extractor(data).sort_index()
+
+    if stat_upper in _ZERO_FILL_STATS:
+        all_game_dates = data["game_date"].drop_duplicates().sort_values()
+        series = series.reindex(all_game_dates, fill_value=0)
+
     return series.astype(float).tail(num_games).tolist()
 
 
