@@ -38,81 +38,99 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 #  Copy the block from the previous day and update starters + date.
 # ===============================================================================
 
-GAME_DATE = "2026-03-29"   # ← change this every day
+GAME_DATE = "2026-03-30"   # ← change this every day
 
 # One dict per game. Dome stadiums get no weather chart automatically.
 GAMES: list[dict] = [
     {
-        "away": "MIN",  "home": "BAL",
-        "away_pitcher": "Bailey Ober",            "home_pitcher": "Shane Baz",
+        "away": "MIN",  "home": "KC",
+        "away_pitcher": "Simeon Woods Richardson", "home_pitcher": "Kris Bubic",
+        "park": "Kauffman Stadium",               "city": "Kansas City",
+        "is_dome": False,                         "time_et": "4:10 PM",
+    },
+    {
+        "away": "TEX",  "home": "BAL",
+        "away_pitcher": "Jack Leiter",            "home_pitcher": "Chris Bassitt",
         "park": "Oriole Park at Camden Yards",    "city": "Baltimore",
-        "is_dome": False,                         "time_et": "1:35 PM",
+        "is_dome": False,                         "time_et": "6:35 PM",
     },
     {
-        "away": "TEX",  "home": "PHI",
-        "away_pitcher": "MacKenzie Gore",         "home_pitcher": "Jesus Luzardo",
+        "away": "WSH",  "home": "PHI",
+        "away_pitcher": "Foster Griffin",         "home_pitcher": "Taijuan Walker",
         "park": "Citizens Bank Park",             "city": "Philadelphia",
-        "is_dome": False,                         "time_et": "1:35 PM",
+        "is_dome": False,                         "time_et": "6:40 PM",
     },
     {
-        "away": "KC",   "home": "ATL",
-        "away_pitcher": "Seth Lugo",              "home_pitcher": "Grant Holmes",
-        "park": "Truist Park",                    "city": "Atlanta",
-        "is_dome": False,                         "time_et": "1:35 PM",
-    },
-    {
-        "away": "ATH",  "home": "TOR",
-        "away_pitcher": "Luis Morales",           "home_pitcher": "Eric Lauer",
-        "park": "Rogers Centre",                  "city": "Toronto",
-        "is_dome": True,                          "time_et": "1:37 PM",
-    },
-    {
-        "away": "BOS",  "home": "CIN",
-        "away_pitcher": "Connelly Early",         "home_pitcher": "Rhett Lowder",
-        "park": "Great American Ball Park",       "city": "Cincinnati",
-        "is_dome": False,                         "time_et": "1:40 PM",
-    },
-    {
-        "away": "PIT",  "home": "NYM",
-        "away_pitcher": "Carmen Mlodzinski",      "home_pitcher": "Nolan McLean",
-        "park": "Citi Field",                     "city": "New York",
-        "is_dome": False,                         "time_et": "1:40 PM",
-    },
-    {
-        "away": "COL",  "home": "MIA",
-        "away_pitcher": "Jose Quintana",          "home_pitcher": "Max Meyer",
+        "away": "CWS",  "home": "MIA",
+        "away_pitcher": "Davis Martin",           "home_pitcher": "Chris Paddack",
         "park": "loanDepot Park",                 "city": "Miami",
-        "is_dome": True,                          "time_et": "1:40 PM",
+        "is_dome": True,                          "time_et": "6:40 PM",
     },
     {
-        "away": "LAA",  "home": "HOU",
-        "away_pitcher": "Jack Kochanowicz",       "home_pitcher": "Tatsuya Imai",
-        "park": "Daikin Park",                    "city": "Houston",
-        "is_dome": True,                          "time_et": "2:10 PM",
+        "away": "PIT",  "home": "CIN",
+        "away_pitcher": "Braxton Ashcraft",       "home_pitcher": "Chase Burns",
+        "park": "Great American Ball Park",       "city": "Cincinnati",
+        "is_dome": False,                         "time_et": "6:40 PM",
     },
     {
-        "away": "CWS",  "home": "MIL",
-        "away_pitcher": "Anthony Kay",            "home_pitcher": "Brandon Sproat",
+        "away": "COL",  "home": "TOR",
+        "away_pitcher": "Tomoyuki Sugano",        "home_pitcher": "Cody Ponce",
+        "park": "Rogers Centre",                  "city": "Toronto",
+        "is_dome": True,                          "time_et": "7:07 PM",
+    },
+    {
+        "away": "ATH",  "home": "ATL",
+        "away_pitcher": "Aaron Civale",           "home_pitcher": "Bryce Elder",
+        "park": "Truist Park",                    "city": "Atlanta",
+        "is_dome": False,                         "time_et": "7:15 PM",
+    },
+    {
+        "away": "TB",   "home": "MIL",
+        "away_pitcher": "Nick Martinez",          "home_pitcher": "Kyle Harrison",
         "park": "American Family Field",          "city": "Milwaukee",
-        "is_dome": True,                          "time_et": "2:10 PM",
+        "is_dome": True,                          "time_et": "7:40 PM",
     },
     {
-        "away": "TB",   "home": "STL",
-        "away_pitcher": "Dustin May",             "home_pitcher": "Steven Matz",
-        "park": "Busch Stadium",                  "city": "St. Louis",
-        "is_dome": False,                         "time_et": "2:15 PM",
-    },
-    {
-        "away": "WSH",  "home": "CHC",
-        "away_pitcher": "Jake Irvin",             "home_pitcher": "Shota Imanaga",
+        "away": "LAA",  "home": "CHC",
+        "away_pitcher": "Ryan Johnson",           "home_pitcher": "Edward Cabrera",
         "park": "Wrigley Field",                  "city": "Chicago",
-        "is_dome": False,                         "time_et": "2:20 PM",
+        "is_dome": False,                         "time_et": "7:40 PM",
     },
     {
-        "away": "CLE",  "home": "SEA",
-        "away_pitcher": "Slade Cecconi",          "home_pitcher": "Emerson Hancock",
+        "away": "NYM",  "home": "STL",
+        "away_pitcher": "Clay Holmes",            "home_pitcher": "Kyle Leahy",
+        "park": "Busch Stadium",                  "city": "St. Louis",
+        "is_dome": False,                         "time_et": "7:45 PM",
+    },
+    {
+        "away": "BOS",  "home": "HOU",
+        "away_pitcher": "Ranger Suarez",          "home_pitcher": "Lance McCullers Jr.",
+        "park": "Daikin Park",                    "city": "Houston",
+        "is_dome": True,                          "time_et": "8:10 PM",
+    },
+    {
+        "away": "NYY",  "home": "SEA",
+        "away_pitcher": "Ryan Weathers",          "home_pitcher": "Luis Castillo",
         "park": "T-Mobile Park",                  "city": "Seattle",
-        "is_dome": True,                          "time_et": "7:20 PM",
+        "is_dome": True,                          "time_et": "9:40 PM",
+    },
+    {
+        "away": "SF",   "home": "SD",
+        "away_pitcher": "Landen Roupp",           "home_pitcher": "Walker Buehler",
+        "park": "Petco Park",                     "city": "San Diego",
+        "is_dome": False,                         "time_et": "9:40 PM",
+    },
+    {
+        "away": "CLE",  "home": "LAD",
+        "away_pitcher": "Parker Messick",         "home_pitcher": "Roki Sasaki",
+        "park": "Dodger Stadium",                 "city": "Los Angeles",
+        "is_dome": False,                         "time_et": "10:10 PM",
+    },
+    {
+        "away": "DET",  "home": "ARI",
+        "away_pitcher": "Justin Verlander",       "home_pitcher": "Michael Soroka",
+        "park": "Chase Field",                    "city": "Phoenix",
+        "is_dome": True,                          "time_et": "10:10 PM",
     },
 ]
 
@@ -120,50 +138,50 @@ GAMES: list[dict] = [
 # Each entry produces one chart per stat listed.
 BATTER_MATCHUPS: list[dict] = [
     {
-        "away": "TEX",  "home": "PHI",
-        "away_batters": ["corey seager", "marcus semien", "nathaniel lowe"],
-        "home_batters":  ["bryce harper", "kyle schwarber", "trea turner"],
+        "away": "CLE",  "home": "LAD",
+        "away_batters": ["jose ramirez", "steven kwan", "josh naylor"],
+        "home_batters":  ["shohei ohtani", "freddie freeman", "mookie betts"],
         "stats": ["H"],
         "num_games": 40,
     },
     {
-        "away": "KC",   "home": "ATL",
-        "away_batters": ["bobby witt jr", "salvador perez", "vinnie pasquantino"],
-        "home_batters":  ["ozzie albies", "michael harris ii", "matt olson"],
+        "away": "NYY",  "home": "SEA",
+        "away_batters": ["aaron judge", "juan soto", "jazz chisholm"],
+        "home_batters":  ["julio rodriguez", "cal raleigh", "jorge polanco"],
         "stats": ["H"],
         "num_games": 40,
     },
 ]
 
 STAR_CHARTS: list[dict] = [
-    # MacKenzie Gore spotlight -- TEX @ PHI
+    # Roki Sasaki spotlight -- CLE @ LAD
     {
-        "name": "mackenzie gore",  "team": "TEX",
+        "name": "roki sasaki",  "team": "LAD",
         "stats": ["SO"],
-        "game_label": "TEX @ PHI  .  Citizens Bank Park  .  1:35 PM ET",
+        "game_label": "CLE @ LAD  .  Dodger Stadium  .  10:10 PM ET",
         "num_games": 30,
     },
-    # Shota Imanaga spotlight -- WSH @ CHC
+    # Luis Castillo spotlight -- NYY @ SEA
     {
-        "name": "shota imanaga",  "team": "CHC",
+        "name": "luis castillo",  "team": "SEA",
         "stats": ["SO"],
-        "game_label": "WSH @ CHC  .  Wrigley Field  .  2:20 PM ET",
+        "game_label": "NYY @ SEA  .  T-Mobile Park  .  9:40 PM ET",
         "num_games": 30,
     },
 ]
 
 CLOSER_DUELS: list[dict] = [
     {
-        "away": "TEX",  "home": "PHI",
-        "away_closer": "jose leclerc",
-        "home_closer": "jeff hoffman",
+        "away": "CLE",  "home": "LAD",
+        "away_closer": "cade smith",
+        "home_closer": "evan phillips",
         "stat": "K",
         "num_games": 40,
     },
     {
-        "away": "KC",   "home": "ATL",
-        "away_closer": "james mcarthur",
-        "home_closer": "raisel iglesias",
+        "away": "NYY",  "home": "SEA",
+        "away_closer": "luke weaver",
+        "home_closer": "andres munoz",
         "stat": "K",
         "num_games": 40,
     },
@@ -173,16 +191,16 @@ CLOSER_DUELS: list[dict] = [
 # Produces one combined FSR chart per entry.
 BULLPEN_DUELS: list[dict] = [
     {
-        "away": "TEX",  "home": "PHI",
-        "away_relievers": ["jose leclerc", "jonathan hernandez", "kirby yates"],
-        "home_relievers": ["seranthony dominguez", "jeff hoffman", "jose alvarado"],
+        "away": "CLE",  "home": "LAD",
+        "away_relievers": ["cade smith", "hunter gaddis", "nick sandlin"],
+        "home_relievers": ["evan phillips", "brusdar graterol", "alex vesia"],
         "stat": "K",
         "num_games": 35,
     },
     {
-        "away": "CLE",  "home": "SEA",
-        "away_relievers": ["cade smith", "hunter gaddis", "tim herrin"],
-        "home_relievers": ["andres munoz", "trent thornton", "matt brash"],
+        "away": "NYY",  "home": "SEA",
+        "away_relievers": ["luke weaver", "ian hamilton", "jake cousins"],
+        "home_relievers": ["andres munoz", "matt brash", "trent thornton"],
         "stat": "K",
         "num_games": 35,
     },

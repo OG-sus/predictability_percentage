@@ -196,6 +196,8 @@ PLAYER_IDS: dict[str, int] = {
     # MIN
     "royce lewis":           668686,
     "byron buxton":          621439,
+    # MIN pitchers
+    "simeon woods richardson": 680573,
     # MIL
     "christian yelich":      592885,
     "william contreras":     661388,
