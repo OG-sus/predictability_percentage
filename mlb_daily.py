@@ -281,16 +281,13 @@ def run(game_date: str, only: str | None, force_park: bool, skip_batters: bool):
                 logging.warning(f"    GB/FB chart failed (may need more data): {e}")
 
     # ──────────────────────────────────────────────────────────────────────────
-    # 2. WEATHER/VPD charts (always regenerated, outdoor only)
+    # 2. WEATHER/VPD charts (always regenerated daily — weather changes every day)
+    #    Generated for ALL stadiums; retractable roofs may open, conditions vary.
     # ──────────────────────────────────────────────────────────────────────────
     if only in (None, "weather"):
         logging.info("── Weather/VPD charts ──────────────────────────────────")
-        outdoor_games = [g for g in GAMES if not g.get("is_dome", False)]
-        dome_count    = len(GAMES) - len(outdoor_games)
-        if dome_count:
-            logging.info(f"  Skipping {dome_count} dome stadium(s)")
 
-        for game in outdoor_games:
+        for game in GAMES:
             logging.info(f"  VPD: {game['city']}")
             try:
                 path = G.save_city_vpd_chart(game, end_date=target)

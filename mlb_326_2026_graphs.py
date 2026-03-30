@@ -708,8 +708,6 @@ def save_park_context_chart(game: dict, out_path_override: str | None = None) ->
 
 # ── Chart 3: City VPD weather (outdoor only) ──────────────────────────────────
 def save_city_vpd_chart(game: dict, end_date: date) -> Optional[str]:
-    if game.get("is_dome"):
-        return None
     if not _WEATHER_OK:
         logging.warning("weather_compare not available; skipping VPD chart")
         return None
