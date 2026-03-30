@@ -75,6 +75,10 @@ PLAYER_IDS: dict[str, int] = {
     "cal raleigh":         663728,
     "mitch garver":        608348,
     "jorge polanco":       553869,
+    # SEA pitchers
+    "luis castillo":       622379,
+    # LAD pitchers
+    "roki sasaki":         808963,
     # Closers / relievers
     "emmanuel clase":      661403,
     "andres munoz":        668678,
@@ -100,6 +104,7 @@ PLAYER_IDS: dict[str, int] = {
     "alex vesia":          672710,
     "michael kopech":      645261,
     # CLE bullpen
+    "cade smith":          671922,
     "hunter gaddis":       683301,
     "nick sandlin":        680710,
     # SEA bullpen
@@ -109,6 +114,7 @@ PLAYER_IDS: dict[str, int] = {
     "robert suarez":       622766,
     "tom cosgrove":        669701,
     # NYY bullpen
+    "jake cousins":        664776,
     "luke weaver":         621592,
     "ian hamilton":        672779,
     # SF bullpen
