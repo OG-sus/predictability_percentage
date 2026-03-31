@@ -205,6 +205,7 @@ TEAM_PARKS: dict[str, str] = {
     "SF":  "Oracle Park",
     "NYY": "Yankee Stadium",
     "OAK": "Oakland Coliseum",
+    "ATH": "Oakland Coliseum",  # Athletics (temp Sacramento); use OAK factors as proxy
     "TOR": "Rogers Centre",
     "COL": "Coors Field",
     "MIA": "loanDepot park",
@@ -322,7 +323,20 @@ def _game_slug(game: dict) -> str:
     return f"{game['away'].lower()}_{game['home'].lower()}"
 
 
+# Manual overrides for pitchers whose names contain accents or are otherwise
+# not resolved correctly by pybaseball's playerid_lookup.
+_PITCHER_ID_OVERRIDES: dict[str, int] = {
+    "jose suarez":         660761,  # ATL — stored as "josé" in pybaseball
+    "jose soriano":        667755,  # LAA — stored as "josé" in pybaseball
+    "shohei ohtani":       660271,
+    "german marquez":      608566,  # stored as "germán márquez"
+}
+
+
 def _lookup_mlbam_id(player_name: str) -> int:
+    key = player_name.strip().lower()
+    if key in _PITCHER_ID_OVERRIDES:
+        return _PITCHER_ID_OVERRIDES[key]
     parts = player_name.strip().split()
     if len(parts) < 2:
         raise ValueError(f"Need first and last name: {player_name}")
@@ -619,8 +633,8 @@ def save_park_context_chart(game: dict, out_path_override: str | None = None) ->
     home_park = game.get("park") or TEAM_PARKS.get(home, "Unknown Park")
     away_park = TEAM_PARKS.get(away)
 
-    home_history = PARK_HR_HISTORY.get(home_park, [0])
-    away_history = PARK_HR_HISTORY.get(away_park, [0]) if away_park else [0]
+    home_history = PARK_HR_HISTORY.get(home_park, [0, 0, 0])
+    away_history = PARK_HR_HISTORY.get(away_park, [0, 0, 0]) if away_park else [0, 0, 0]
 
     home_fsr = calculate_predictability([abs(v) for v in home_history], k=SPORTS_K) if len(home_history) >= 2 else None
     away_fsr = calculate_predictability([abs(v) for v in away_history], k=SPORTS_K) if len(away_history) >= 2 else None

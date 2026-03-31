@@ -38,99 +38,93 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 #  Copy the block from the previous day and update starters + date.
 # ===============================================================================
 
-GAME_DATE = "2026-03-30"   # ← change this every day
+GAME_DATE = "2026-03-31"   # ← change this every day
 
 # One dict per game. Dome stadiums get no weather chart automatically.
 GAMES: list[dict] = [
     {
-        "away": "MIN",  "home": "KC",
-        "away_pitcher": "Simeon Woods Richardson", "home_pitcher": "Kris Bubic",
-        "park": "Kauffman Stadium",               "city": "Kansas City",
-        "is_dome": False,                         "time_et": "4:10 PM",
-    },
-    {
         "away": "TEX",  "home": "BAL",
-        "away_pitcher": "Jack Leiter",            "home_pitcher": "Chris Bassitt",
+        "away_pitcher": "Jacob deGrom",           "home_pitcher": "Zach Eflin",
         "park": "Oriole Park at Camden Yards",    "city": "Baltimore",
         "is_dome": False,                         "time_et": "6:35 PM",
     },
     {
         "away": "WSH",  "home": "PHI",
-        "away_pitcher": "Foster Griffin",         "home_pitcher": "Taijuan Walker",
+        "away_pitcher": "PJ Poulin",              "home_pitcher": "TBD",
         "park": "Citizens Bank Park",             "city": "Philadelphia",
         "is_dome": False,                         "time_et": "6:40 PM",
     },
     {
         "away": "CWS",  "home": "MIA",
-        "away_pitcher": "Davis Martin",           "home_pitcher": "Chris Paddack",
-        "park": "loanDepot Park",                 "city": "Miami",
+        "away_pitcher": "Erick Fedde",            "home_pitcher": "Janson Junk",
+        "park": "loanDepot park",                 "city": "Miami",
         "is_dome": True,                          "time_et": "6:40 PM",
     },
     {
         "away": "PIT",  "home": "CIN",
-        "away_pitcher": "Braxton Ashcraft",       "home_pitcher": "Chase Burns",
+        "away_pitcher": "Bubba Chandler",         "home_pitcher": "Brandon Williamson",
         "park": "Great American Ball Park",       "city": "Cincinnati",
         "is_dome": False,                         "time_et": "6:40 PM",
     },
     {
         "away": "COL",  "home": "TOR",
-        "away_pitcher": "Tomoyuki Sugano",        "home_pitcher": "Cody Ponce",
+        "away_pitcher": "Ryan Feltner",           "home_pitcher": "Max Scherzer",
         "park": "Rogers Centre",                  "city": "Toronto",
         "is_dome": True,                          "time_et": "7:07 PM",
     },
     {
         "away": "ATH",  "home": "ATL",
-        "away_pitcher": "Aaron Civale",           "home_pitcher": "Bryce Elder",
+        "away_pitcher": "Aaron Civale",           "home_pitcher": "Jose Suarez",
         "park": "Truist Park",                    "city": "Atlanta",
         "is_dome": False,                         "time_et": "7:15 PM",
     },
     {
         "away": "TB",   "home": "MIL",
-        "away_pitcher": "Nick Martinez",          "home_pitcher": "Kyle Harrison",
+        "away_pitcher": "Shane McClanahan",       "home_pitcher": "Brandon Woodruff",
         "park": "American Family Field",          "city": "Milwaukee",
         "is_dome": True,                          "time_et": "7:40 PM",
     },
     {
         "away": "LAA",  "home": "CHC",
-        "away_pitcher": "Ryan Johnson",           "home_pitcher": "Edward Cabrera",
+        "away_pitcher": "Jose Soriano",           "home_pitcher": "Jameson Taillon",
         "park": "Wrigley Field",                  "city": "Chicago",
         "is_dome": False,                         "time_et": "7:40 PM",
     },
     {
         "away": "NYM",  "home": "STL",
-        "away_pitcher": "Clay Holmes",            "home_pitcher": "Kyle Leahy",
+        "away_pitcher": "Kodai Senga",            "home_pitcher": "Andre Pallante",
         "park": "Busch Stadium",                  "city": "St. Louis",
         "is_dome": False,                         "time_et": "7:45 PM",
     },
     {
         "away": "BOS",  "home": "HOU",
-        "away_pitcher": "Ranger Suarez",          "home_pitcher": "Lance McCullers Jr.",
+        "away_pitcher": "Brayan Bello",           "home_pitcher": "Hunter Brown",
         "park": "Daikin Park",                    "city": "Houston",
         "is_dome": True,                          "time_et": "8:10 PM",
     },
     {
         "away": "NYY",  "home": "SEA",
-        "away_pitcher": "Ryan Weathers",          "home_pitcher": "Luis Castillo",
+        "away_pitcher": "Max Fried",              "home_pitcher": "Logan Gilbert",
         "park": "T-Mobile Park",                  "city": "Seattle",
         "is_dome": True,                          "time_et": "9:40 PM",
     },
     {
         "away": "SF",   "home": "SD",
-        "away_pitcher": "Landen Roupp",           "home_pitcher": "Walker Buehler",
+        "away_pitcher": "Logan Webb",             "home_pitcher": "German Marquez",
         "park": "Petco Park",                     "city": "San Diego",
         "is_dome": False,                         "time_et": "9:40 PM",
     },
     {
-        "away": "CLE",  "home": "LAD",
-        "away_pitcher": "Parker Messick",         "home_pitcher": "Roki Sasaki",
-        "park": "Dodger Stadium",                 "city": "Los Angeles",
-        "is_dome": False,                         "time_et": "10:10 PM",
+        "away": "DET",  "home": "ARI",
+        "away_pitcher": "Casey Mize",             "home_pitcher": "Brandon Pfaadt",
+        "park": "Chase Field",                    "city": "Phoenix",
+        "is_dome": True,                          "time_et": "9:40 PM",
     },
     {
-        "away": "DET",  "home": "ARI",
-        "away_pitcher": "Justin Verlander",       "home_pitcher": "Michael Soroka",
-        "park": "Chase Field",                    "city": "Phoenix",
-        "is_dome": True,                          "time_et": "10:10 PM",
+        "away": "CLE",  "home": "LAD",
+        "away_pitcher": "Tanner Bibee",           "home_pitcher": "Shohei Ohtani",
+        "park": "Dodger Stadium",                 "city": "Los Angeles",
+        "is_dome": False,                         "time_et": "10:10 PM",
     },
 ]
 
@@ -154,16 +148,23 @@ BATTER_MATCHUPS: list[dict] = [
 ]
 
 STAR_CHARTS: list[dict] = [
-    # Roki Sasaki spotlight -- CLE @ LAD
+    # Ohtani pitching spotlight -- CLE @ LAD
     {
-        "name": "roki sasaki",  "team": "LAD",
+        "name": "shohei ohtani",  "team": "LAD",
         "stats": ["SO"],
         "game_label": "CLE @ LAD  .  Dodger Stadium  .  10:10 PM ET",
         "num_games": 30,
     },
-    # Luis Castillo spotlight -- NYY @ SEA
+    # Logan Gilbert spotlight -- NYY @ SEA
     {
-        "name": "luis castillo",  "team": "SEA",
+        "name": "logan gilbert",  "team": "SEA",
+        "stats": ["SO"],
+        "game_label": "NYY @ SEA  .  T-Mobile Park  .  9:40 PM ET",
+        "num_games": 30,
+    },
+    # Max Fried spotlight -- NYY @ SEA
+    {
+        "name": "max fried",  "team": "NYY",
         "stats": ["SO"],
         "game_label": "NYY @ SEA  .  T-Mobile Park  .  9:40 PM ET",
         "num_games": 30,

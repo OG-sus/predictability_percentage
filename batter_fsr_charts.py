@@ -77,6 +77,7 @@ PLAYER_IDS: dict[str, int] = {
     "jorge polanco":       553869,
     # SEA pitchers
     "luis castillo":       622379,
+    "logan gilbert":       669302,
     # LAD pitchers
     "roki sasaki":         808963,
     # Closers / relievers
@@ -114,6 +115,7 @@ PLAYER_IDS: dict[str, int] = {
     "robert suarez":       622766,
     "tom cosgrove":        669701,
     # NYY bullpen
+    "max fried":           608331,
     "jake cousins":        664776,
     "luke weaver":         621592,
     "ian hamilton":        672779,
