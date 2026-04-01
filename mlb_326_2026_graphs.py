@@ -326,10 +326,13 @@ def _game_slug(game: dict) -> str:
 # Manual overrides for pitchers whose names contain accents or are otherwise
 # not resolved correctly by pybaseball's playerid_lookup.
 _PITCHER_ID_OVERRIDES: dict[str, int] = {
-    "jose suarez":         660761,  # ATL — stored as "josé" in pybaseball
-    "jose soriano":        667755,  # LAA — stored as "josé" in pybaseball
+    "jose suarez":         660761,  # stored as "josé" in pybaseball
+    "jose soriano":        667755,  # stored as "josé" in pybaseball
     "shohei ohtani":       660271,
     "german marquez":      608566,  # stored as "germán márquez"
+    "cristopher sanchez":  663556,  # stored as "cristópher sánchez"
+    "sandy alcantara":     645261,  # stored as "sandy alcántara"
+    "matthew boyd":        571510,  # stored as "matt boyd" in pybaseball
 }
 
 

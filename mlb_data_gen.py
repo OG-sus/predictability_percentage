@@ -179,8 +179,20 @@ def _get_stats_via_pybaseball(player_name, stat_type, num_games=20, year=2025):
             return
 
         game_stats = game_stats.sort_values('game_date', ascending=True)
-        # EV/VELO/LA are floats — keep as float; counting stats cast to int
-        FLOAT_STATS = {'EV', 'VELO', 'LA'}
+
+        # Counting stats need zero-fill: a game with all outs still counts as 0 H / 0 TB / etc.
+        # Float/average stats (EV, VELO, LA) should NOT zero-fill — no data means no at-bat.
+        FLOAT_STATS = {'EV', 'VELO', 'LA', 'SPIN'}
+        NO_ZERO_FILL = FLOAT_STATS | {'RBI'}
+        if stat_upper not in NO_ZERO_FILL:
+            all_game_dates = data['game_date'].drop_duplicates().sort_values()
+            game_stats = (
+                game_stats.set_index('game_date')
+                .reindex(all_game_dates, fill_value=0)
+                .reset_index()
+            )
+            game_stats.columns = ['game_date', stat_upper]
+
         if stat_upper in FLOAT_STATS:
             stats = game_stats[stat_upper].astype(float).tail(num_games).tolist()
         else:

@@ -189,6 +189,9 @@ PLAYER_IDS: dict[str, int] = {
     # Pitchers used in star charts
     "jacob degrom":          594798,
     "tyler glasnow":         607192,
+    "paul skenes":           694973,
+    "tarik skubal":          669373,
+    "garrett crochet":       676979,
     # DET closer
     "alex lange":            650895,
     # TEX bullpen
