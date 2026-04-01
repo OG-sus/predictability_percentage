@@ -19,7 +19,7 @@ import argparse
 import logging
 import os
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 import matplotlib
@@ -55,7 +55,7 @@ OUTPUT_DIR = os.path.join("static", "images", "mlb_preview", "2026", "03-26")
 
 # Use last completed season for meaningful FSR history
 SEASON_START = "2025-03-01"
-SEASON_END   = "2026-11-30"   # Extended to cover 2026 season starts
+SEASON_END   = datetime.today().strftime("%Y-%m-%d")  # Through today — picks up 2026 starts
 
 SPORTS_K = 0.5
 WEATHER_K = 1.0
