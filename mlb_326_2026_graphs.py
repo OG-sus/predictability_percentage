@@ -55,7 +55,7 @@ OUTPUT_DIR = os.path.join("static", "images", "mlb_preview", "2026", "03-26")
 
 # Use last completed season for meaningful FSR history
 SEASON_START = "2025-03-01"
-SEASON_END = "2025-11-30"
+SEASON_END   = "2026-11-30"   # Extended to cover 2026 season starts
 
 SPORTS_K = 0.5
 WEATHER_K = 1.0
@@ -254,6 +254,7 @@ PARK_HR_HISTORY: dict[str, list[int]] = {
 class PitcherSeries:
     name: str
     dates: list[str]
+    years: list[int]        # Calendar year for each start (2025 vs 2026)
     strikeouts: list[float]
     velocities: list[float]
     gb_rates: list[float]   # Ground-ball % per start (0-100)
@@ -359,6 +360,9 @@ def fetch_pitcher_series(player_name: str, num_starts: int = 12, color: str = AC
 
     frame = raw.copy()
     frame["game_date"] = pd.to_datetime(frame["game_date"])
+    # Regular season + post-season only — exclude spring training
+    if "game_type" in frame.columns:
+        frame = frame[frame["game_type"].isin(["R", "D", "L", "W", "F"])]
 
     ks = (
         frame[frame["events"] == "strikeout"]
@@ -386,6 +390,7 @@ def fetch_pitcher_series(player_name: str, num_starts: int = 12, color: str = AC
     return PitcherSeries(
         name=player_name,
         dates=[s.strftime("%m/%d") for s in merged.index],
+        years=[s.year for s in merged.index],
         strikeouts=merged["ks"].astype(float).tolist(),
         velocities=merged["velo"].astype(float).tolist(),
         gb_rates=merged["gb_pct"].astype(float).tolist(),
@@ -417,6 +422,12 @@ def _plot_pitcher_panel(
     _style_axes(ax_series)
     ax_series.plot(labels, vals, marker="o", markersize=5, linewidth=2.6,
                    color=series.color, alpha=0.95, zorder=3)
+    # Subtle diamond overlay on 2026-season starts
+    for i, yr in enumerate(series.years):
+        if yr == 2026:
+            ax_series.plot(i, vals[i], marker="D", markersize=7,
+                           markerfacecolor="none", markeredgecolor="#ffffff",
+                           markeredgewidth=1.2, zorder=5, alpha=0.75)
     ax_series.axhline(avg, color=GOLD, linestyle="--", linewidth=1.4,
                       label=f"Season avg  {avg_fmt.format(avg)}")
     ax_series.fill_between(labels, vals, alpha=0.08, color=series.color)

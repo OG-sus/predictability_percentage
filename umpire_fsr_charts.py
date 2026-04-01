@@ -43,6 +43,8 @@ from sliding_window import calculate_sliding_window
 
 try:
     from pybaseball import statcast
+    import pybaseball
+    pybaseball.cache.enable()   # cache large Statcast pulls so reruns are instant
     _PYB_OK = True
 except ImportError:
     _PYB_OK = False
