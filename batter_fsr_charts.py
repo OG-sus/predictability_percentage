@@ -606,6 +606,9 @@ def build_solo_batter_chart(
     for ax, stat in zip(axes, stats):
         logging.info(f"  Fetching {name} {stat}...")
         vals = fetch_batter_series(name, stat=stat, num_games=num_games)
+        # Pitcher spotlights request SO — batter fetch returns empty for them
+        if not vals and stat.upper() in ("SO", "K"):
+            vals = fetch_pitcher_series(name, stat=stat, num_games=num_games)
         _draw_batter_panel(ax, name, team, vals, stat, game_label="")
 
     plt.subplots_adjust(wspace=0.38, left=0.06, right=0.96, top=0.92, bottom=0.08)
