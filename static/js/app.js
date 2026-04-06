@@ -510,6 +510,11 @@
                         }
                     }
                 });
+                // Show avg of all window scores — labelled "Avg:" so viewer knows it's not a single FSR score
+                const avgScore = dataPoints.reduce((a, b) => a + b, 0) / dataPoints.length;
+                const scoreEl = document.getElementById('display-score');
+                scoreEl.style.display = 'block';
+                scoreEl.textContent = `Avg: ${avgScore.toFixed(2)}%`;
             }
 
             function sanitizeScores(scores) {
@@ -915,7 +920,8 @@
                     ctx.textAlign = 'left';
                     ctx.fillText(title, 20, 40);
                     ctx.font = 'bold 36px Arial';
-                    ctx.fillText(`Score: ${scoreText}`, 20, 80);
+                    // Sliding window shows "Avg: X.XX%" — skip redundant "Score:" prefix
+                    ctx.fillText(calculationMode === 'sliding' ? scoreText : `Score: ${scoreText}`, 20, 80);
                     if (notes) {
                         ctx.font = '16px Arial';
                         ctx.fillStyle = '#555';
