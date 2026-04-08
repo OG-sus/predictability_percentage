@@ -920,8 +920,10 @@
                     ctx.textAlign = 'left';
                     ctx.fillText(title, 20, 40);
                     ctx.font = 'bold 36px Arial';
-                    // Sliding window shows "Avg: X.XX%" — skip redundant "Score:" prefix
-                    ctx.fillText(calculationMode === 'sliding' ? scoreText : `Score: ${scoreText}`, 20, 80);
+                    // Show score if available; sliding mode shows "Avg: X.XX%", standard shows "Score: X.XX%", hide if "--"
+                    if (scoreText && scoreText !== '--') {
+                        ctx.fillText(calculationMode === 'sliding' ? scoreText : `Score: ${scoreText}`, 20, 80);
+                    }
                     if (notes) {
                         ctx.font = '16px Arial';
                         ctx.fillStyle = '#555';
