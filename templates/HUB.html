@@ -66,7 +66,8 @@
         .hero { margin-bottom: 60px; }
         .hero h2 { font-size: 2.5em; margin-bottom: 10px; }
         .hero p { color: #adb5bd; font-size: 1.2em; max-width: 700px; margin: 0 auto; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 40px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 30px; margin-top: 40px; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
         .card {
             background: #1e1e1e;
             padding: 40px;
@@ -129,41 +130,50 @@
             <p>Whether you are auditing live sports props on stream or deploying sub-millisecond logic guards for industrial AI, the Predictability-API provides the pulse.</p>
         </div>
 
-        <div class="grid">
+        <div class="grid" style="grid-template-columns: repeat(3, 1fr);">
             <div class="card">
                 <div>
-                    <h3>Stability Network <span class="badge">LIVE TOOLS</span></h3>
-                    <p>Access the official broadcast suite for Twitch and YouTube. Custom tickers, real-time overlays, and the Google Sheets "Smart Template" integration.</p>
+                    <h3>Pro <span class="badge">MOST POPULAR</span></h3>
+                    <div style="font-size: 2em; font-weight: bold; color: #00d0ff; margin: 12px 0;">$19.99<span style="font-size: 0.45em; color: #aaa;">/mo</span></div>
                     <ul>
-                        <li>OBS Browser Source Generators</li>
-                        <li>Live Prop Auditor (Sports Mode)</li>
-                        <li>Community Data Tickers</li>
+                        <li><strong>Unlimited</strong> Saves &amp; Folders</li>
+                        <li>Full <strong>K-Factor™</strong> Access</li>
+                        <li>CSV &amp; Text Upload</li>
+                        <li><strong>Multi-Line Comparison</strong> (Up to 3)</li>
+                        <li><strong>Shareable Links</strong></li>
                     </ul>
                 </div>
-                <a href="/checkout/ticker" class="btn">Get Ticker Access →</a>
+                <a href="https://buy.stripe.com/eVq00i5M9aaz36m2a37ok02" class="btn">Start Analyzing →</a>
+            </div>
+
+            <div class="card" style="border-color: #007bff;">
+                <div>
+                    <h3>Business <span class="badge" style="color:#00d0ff;">DEVELOPER</span></h3>
+                    <div style="font-size: 2em; font-weight: bold; color: #00d0ff; margin: 12px 0;">$129.99<span style="font-size: 0.45em; color: #aaa;">/mo</span></div>
+                    <ul>
+                        <li><strong>Everything in Pro</strong></li>
+                        <li><strong>Unlimited</strong> Comparison</li>
+                        <li><strong>Sliding Window</strong> UI</li>
+                        <li><strong>Basic API</strong> Access</li>
+                        <li>Priority Support</li>
+                    </ul>
+                </div>
+                <a href="https://buy.stripe.com/3cIbJ07Uh3MbdL05mf7ok01" class="btn btn-outline">Get the Edge →</a>
             </div>
 
             <div class="card">
                 <div>
-                    <h3>Predictability-API <span class="badge" style="color:#00d0ff;">DEVELOPER</span></h3>
-                    <p>The core mathematical engine. Integrate Euler-decay stability scoring directly into your apps, trading bots, or manufacturing dashboards via REST API or local SDK.</p>
+                    <h3>Enterprise / SDK <span class="badge" style="color:#ffc107;">ENTERPRISE</span></h3>
+                    <div style="font-size: 2em; font-weight: bold; color: #ffc107; margin: 12px 0;">Custom</div>
                     <ul>
-                        <li>RESTful Endpoint Access</li>
-                        <li>Numba-Accelerated SDK (Enterprise)</li>
-                        <li>Sliding Window Drift Detection</li>
+                        <li><strong>Everything in Business</strong></li>
+                        <li><strong>High-Volume API</strong></li>
+                        <li><strong>SLA</strong> Guarantees</li>
+                        <li><strong>Offline Python SDK</strong></li>
+                        <li>Custom Model Tuning</li>
                     </ul>
                 </div>
-                <a href="/checkout/api-basic" class="btn btn-outline">Get API Access →</a>
-            </div>
-        </div>
-
-        <div style="margin-top: 40px;">
-            <div class="card" style="flex-direction: row; align-items: center; justify-content: space-between;">
-                <div style="max-width: 60%;">
-                    <h3 style="color: #ffc107;">Enterprise SDK Access</h3>
-                    <p>Running high-frequency operations? Get the offline Python SDK for zero-latency local processing. No API calls required.</p>
-                </div>
-                <a href="/contact" class="btn" style="background: #444;">Request SDK Quote</a>
+                <a href="/contact" class="btn" style="background: #444;">Contact Sales →</a>
             </div>
         </div>
 
