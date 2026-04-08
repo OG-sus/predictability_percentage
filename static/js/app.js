@@ -920,9 +920,9 @@
                     ctx.textAlign = 'left';
                     ctx.fillText(title, 20, 40);
                     ctx.font = 'bold 36px Arial';
-                    // Show score if available; sliding mode shows "Avg: X.XX%", standard shows "Score: X.XX%", hide if "--"
-                    if (scoreText && scoreText !== '--') {
-                        ctx.fillText(calculationMode === 'sliding' ? scoreText : `Score: ${scoreText}`, 20, 80);
+                    // Only show score label for standard mode; skip entirely for sliding window
+                    if (calculationMode !== 'sliding' && scoreText && scoreText !== '--') {
+                        ctx.fillText(`Score: ${scoreText}`, 20, 80);
                     }
                     if (notes) {
                         ctx.font = '16px Arial';
