@@ -131,6 +131,7 @@
             let folders = [];
             let currentEditingId = null;
             let calculationMode = 'standard';
+            let currentComparisonData = null; // tracks multi-series state for save/share
 
             const CHART_COLORS = ['#33C3F0', '#FF5252', '#FFD700', '#69F0AE', '#E040FB', '#FFAB40', '#7700f8', '#20c997', '#e83e8c', '#fd7e14'];
             Chart.defaults.font.size = 11;
@@ -419,7 +420,8 @@
                                 criticalAlert.style.display = 'block';
                             }
                         }
-                        displaySingleResult({ name: 'Input Data', predictability_score: currentRawScore, scores: scores });
+                        currentComparisonData = null;
+                    displaySingleResult({ name: 'Input Data', predictability_score: currentRawScore, scores: scores });
                     } else {
                         const windowSize = parseInt(windowSizeInput.value);
                         const targetVal = targetInput.value ? parseFloat(targetInput.value) : null;
@@ -454,6 +456,15 @@
                 const comparisonList = document.getElementById('comparison-list');
                 comparisonList.innerHTML = '';
                 comparisonList.style.display = 'flex';
+                // Build comparison state for save/share
+                currentComparisonData = {
+                    series: results.map((res, i) => ({
+                        name: res.name || `Series ${i+1}`,
+                        scores: Array.isArray(res.scores) ? res.scores : [],
+                        score: parseFloat(res.predictability_score),
+                        color: CHART_COLORS[i % CHART_COLORS.length]
+                    }))
+                };
                 results.forEach((res, i) => {
                     const color = CHART_COLORS[i % CHART_COLORS.length];
                     const div = document.createElement('div');
@@ -769,7 +780,9 @@
                 }
                 if (scoreToSave === null) return alert('Could not calculate a base score to save.');
                 try {
-                    const response = await fetch('/api/analyses', { method: 'POST', headers: {'Content-Type': 'application/json'}, credentials: 'include', body: JSON.stringify({ name, scores, predictability_score: scoreToSave, folder_id: fid || "", k: currentK, notes: notes }) });
+                    const savePayload = { name, scores, predictability_score: scoreToSave, folder_id: fid || "", k: currentK, notes: notes };
+                    if (currentComparisonData) savePayload.comparison_data = currentComparisonData;
+                    const response = await fetch('/api/analyses', { method: 'POST', headers: {'Content-Type': 'application/json'}, credentials: 'include', body: JSON.stringify(savePayload) });
                     const data = await response.json();
                     if (!response.ok) throw new Error(data.error || 'Failed to save analysis');
                     saveFeedback.textContent = 'Saved successfully!';
@@ -900,17 +913,21 @@
                 ctx.fillText('predictability-api.com', newCanvas.width - 15, newCanvas.height - 15);
                 let scoreText = document.getElementById('display-score').textContent;
                 const comparisonList = document.getElementById('comparison-list');
-                if (comparisonList.style.display === 'flex') {
-                    const comparisonDivs = document.querySelectorAll('#comparison-list div');
-                    if (comparisonDivs.length > 0) {
-                        let yPos = 40;
-                        ctx.font = 'bold 24px Arial';
-                        ctx.textAlign = 'left';
-                        comparisonDivs.forEach(div => {
-                            ctx.fillStyle = div.style.color;
-                            ctx.fillText(div.textContent, 20, yPos);
-                            yPos += 30;
-                        });
+                if (comparisonList.style.display === 'flex' && currentComparisonData) {
+                    // Comparison share — show each series name + score in matching color
+                    let yPos = 35;
+                    ctx.textAlign = 'left';
+                    currentComparisonData.series.forEach((s, i) => {
+                        ctx.font = 'bold 22px Arial';
+                        ctx.fillStyle = s.color;
+                        ctx.fillText(`${s.name}  ${s.score.toFixed(2)}%`, 20, yPos);
+                        yPos += 28;
+                    });
+                    // Auto-generate title from series names
+                    const autoTitle = currentComparisonData.series.map(s => s.name).join(' vs ');
+                    const nameInput = document.getElementById('dataset-name');
+                    if (nameInput && !nameInput.value.trim()) {
+                        nameInput.value = autoTitle;
                     }
                 } else {
                     const title = document.getElementById('dataset-name').value || 'Analysis';
@@ -931,7 +948,11 @@
                     }
                 }
                 const link = document.createElement('a');
-                link.download = 'Predictability_Score.png';
+                // Auto filename: use series names for comparisons
+                const filename = currentComparisonData
+                    ? 'Predictability_Score_' + currentComparisonData.series.map(s => s.name).join('_vs_') + '.png'
+                    : 'Predictability_Score.png';
+                link.download = filename;
                 link.href = newCanvas.toDataURL('image/png');
                 link.click();
             });
