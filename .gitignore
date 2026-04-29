@@ -5,6 +5,7 @@ __pycache__/
 .idea/
 .venv/
 venv/
+test_env/
 .DS_Store
 service_account.json
 *.png
@@ -22,5 +23,8 @@ build/
 
 output.json
 
+# Data files
+*.csv
+
 .promptfoo/
-
+

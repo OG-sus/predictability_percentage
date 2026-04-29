@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FSR Game Ticker</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    overflow: hidden;
+    font-family: 'Consolas', 'Courier New', monospace;
+  }
+
+  #ticker-wrap {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    background: rgba(15, 17, 23, 0.92);
+    border-left: 2px solid #39c2ff;
+  }
+
+  #ticker-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: absolute;
+    width: 100%;
+    bottom: 0;
+    animation: scroll-up 1s linear;
+  }
+
+  @keyframes scroll-up {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-100%); }
+  }
+
+  .game-card {
+    width: 100%;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
+  }
+
+  .game-time {
+    font-size: 10px;
+    color: #ffd166;
+    letter-spacing: 0.08em;
+    margin-bottom: 3px;
+  }
+
+  .game-matchup {
+    font-size: 13px;
+    font-weight: bold;
+    color: #f5f7fa;
+    letter-spacing: 0.04em;
+    margin-bottom: 3px;
+  }
+
+  .game-pitchers {
+    font-size: 10px;
+    color: #aab6c4;
+    letter-spacing: 0.02em;
+    margin-bottom: 3px;
+  }
+
+  .game-park {
+    font-size: 9px;
+    color: #6b7a8e;
+    letter-spacing: 0.02em;
+  }
+
+  .game-card.live {
+    background: rgba(57, 194, 255, 0.07);
+    border-left: 2px solid #39c2ff;
+  }
+
+  .game-card.final {
+    opacity: 0.5;
+  }
+
+  #header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 6px 12px;
+    background: rgba(15, 17, 23, 0.98);
+    border-bottom: 1px solid #39c2ff;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  #header-brand {
+    font-size: 10px;
+    font-weight: bold;
+    color: #39c2ff;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  #header-date {
+    font-size: 9px;
+    color: #aab6c4;
+    letter-spacing: 0.5px;
+  }
+
+  #scroll-container {
+    position: absolute;
+    top: 28px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+  }
+
+  #scroll-track {
+    position: absolute;
+    width: 100%;
+    bottom: 0;
+    will-change: transform;
+  }
+
+  .divider {
+    height: 28px;
+    background: rgba(57,194,255,0.04);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: #39c2ff;
+    letter-spacing: 2px;
+    opacity: 0.6;
+  }
+
+  #loading-msg {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #aab6c4;
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+
+<div id="ticker-wrap">
+  <div id="header">
+    <span id="header-brand">FSR™ MLB</span>
+    <span id="header-date"></span>
+  </div>
+  <div id="scroll-container">
+    <div id="scroll-track">
+      <div id="loading-msg">LOADING SCHEDULE...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const MLB_API   = 'https://statsapi.mlb.com/api/v1/schedule';
+const CARD_H    = 82;
+const PAUSE_MS  = 2800;
+const SPEED_PX  = 0.6;
+
+let games      = [];
+let pixelPos   = 0;
+let pausing    = false;
+let rafId      = null;
+let trackEl    = document.getElementById('scroll-track');
+let containerEl = document.getElementById('scroll-container');
+
+function todayStr() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+function utcToET(utcStr) {
+  try {
+    const d = new Date(utcStr);
+    const h = (d.getUTCHours() - 4 + 24) % 24;
+    const min = String(d.getUTCMinutes()).padStart(2,'0');
+    const ampm = h < 12 ? 'AM' : 'PM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${min} ${ampm} ET`;
+  } catch(e) { return 'TBD'; }
+}
+
+function statusLabel(game) {
+  const s = game.status?.detailedState || '';
+  if (s.includes('Final') || s.includes('Completed')) return 'final';
+  if (s.includes('Progress') || s.includes('Live'))   return 'live';
+  return '';
+}
+
+async function fetchGames() {
+  const dateStr = todayStr();
+  document.getElementById('header-date').textContent = dateStr;
+
+  try {
+    const url = `${MLB_API}?sportId=1&date=${dateStr}&hydrate=probablePitcher,team,venue,linescore`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const dates = data.dates || [];
+    if (!dates.length) { showNoGames(); return; }
+
+    games = dates[0].games.map(g => ({
+      away:    g.teams.away.team.abbreviation,
+      home:    g.teams.home.team.abbreviation,
+      awayP:   g.teams.away.probablePitcher?.fullName || 'TBD',
+      homeP:   g.teams.home.probablePitcher?.fullName || 'TBD',
+      park:    g.venue?.name || '',
+      time:    utcToET(g.gameDate),
+      status:  statusLabel(g),
+      score:   g.linescore ? `${g.teams.away.score ?? ''} - ${g.teams.home.score ?? ''}` : '',
+    }));
+
+    buildTrack();
+    startScroll();
+  } catch(e) {
+    document.getElementById('loading-msg').textContent = 'SCHEDULE UNAVAILABLE';
+  }
+}
+
+function gameCardHTML(g, idx) {
+  const cls = g.status ? ` ${g.status}` : '';
+  const scoreStr = g.status === 'live' || g.status === 'final'
+    ? `<span style="color:#00ff88;font-size:11px;font-weight:bold;margin-left:8px">${g.score}</span>`
+    : '';
+  const awayLast = g.awayP !== 'TBD' ? g.awayP.split(' ').pop() : 'TBD';
+  const homeLast = g.homeP !== 'TBD' ? g.homeP.split(' ').pop() : 'TBD';
+  return `
+    <div class="game-card${cls}">
+      <div class="game-time">${g.status === 'live' ? '● LIVE' : g.status === 'final' ? 'FINAL' : g.time}</div>
+      <div class="game-matchup">${g.away} @ ${g.home}${scoreStr}</div>
+      <div class="game-pitchers">${awayLast} vs ${homeLast}</div>
+      <div class="game-park">${g.park}</div>
+    </div>`;
+}
+
+function buildTrack() {
+  const containerH = containerEl.offsetHeight;
+
+  let html = '';
+  games.forEach((g, i) => { html += gameCardHTML(g, i); });
+
+  html += `<div class="divider">● PREDICTABILITY-API.COM ●</div>`;
+
+  games.forEach((g, i) => { html += gameCardHTML(g, i); });
+  html += `<div class="divider">● PREDICTABILITY-API.COM ●</div>`;
+
+  document.getElementById('loading-msg')?.remove();
+  trackEl.innerHTML = html;
+
+  pixelPos = 0;
+  trackEl.style.transform = `translateY(0px)`;
+}
+
+function startScroll() {
+  if (rafId) cancelAnimationFrame(rafId);
+  const totalH = trackEl.scrollHeight / 2;
+
+  function step() {
+    if (!pausing) {
+      pixelPos += SPEED_PX;
+      if (pixelPos >= totalH) pixelPos = 0;
+      trackEl.style.transform = `translateY(-${pixelPos}px)`;
+    }
+    rafId = requestAnimationFrame(step);
+  }
+  rafId = requestAnimationFrame(step);
+}
+
+function showNoGames() {
+  trackEl.innerHTML = `<div class="game-card"><div class="game-matchup" style="color:#aab6c4">NO GAMES TODAY</div></div>`;
+}
+
+fetchGames();
+setInterval(fetchGames, 5 * 60 * 1000);
+</script>
+</body>
+</html>
