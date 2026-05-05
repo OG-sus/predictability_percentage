@@ -294,11 +294,15 @@ function startRotation() {
   timer = setInterval(advance, DISPLAY_MS);
 }
 
+let failCount = 0;
+const MAX_FAILS = 3;
+
 // ── Fetch chart list ──────────────────────────────────────────────────────────
 async function fetchCharts() {
   try {
     const res = await fetch(`/stream/charts/data?date=${DATE_STR}`);
     const data = await res.json();
+    failCount = 0;
     if (data.charts && data.charts.length) {
       const prevCount = charts.length;
       charts = data.charts;
@@ -310,10 +314,11 @@ async function fetchCharts() {
         document.getElementById('wrapper').style.display = 'flex';
         startRotation();
       }
-      // If new charts were added mid-stream, list updates automatically next cycle
     }
   } catch (e) {
-    console.error('Chart fetch error:', e);
+    failCount++;
+    console.warn(`Chart fetch failed (${failCount}/${MAX_FAILS})`);
+    if (failCount >= MAX_FAILS) location.reload();
   }
 }
 
