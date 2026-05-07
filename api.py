@@ -20,6 +20,7 @@ from flask_migrate import Migrate
 import re
 from flasgger import Swagger
 import time
+import threading
 from datetime import datetime
 import requests
 
@@ -1536,6 +1537,68 @@ def stream_charts_data():
         return jsonify({'date': date_str, 'charts': charts, 'count': len(charts)})
     except Exception as exc:
         return jsonify({'error': str(exc)}), 400
+
+
+# ── Live Ticker Dashboard ──────────────────────────────────────────────────────
+_TICKER_CORE = ['NVDA','META','AAPL','MSFT','AMZN','GOOGL','SPY','QQQ','BTC-USD','ETH-USD','VIX']
+_TICKER_MOVERS = ['TSLA','AMD','NFLX','CRM','COIN','MSTR','PLTR','ARM','SMCI','GME','HOOD','SOFI','RIVN','NIO','UBER']
+
+_ticker_store = {'core': [], 'movers': {'gainers': [], 'losers': []}, 'last_updated': 0, 'ready': False}
+
+def _ticker_bg():
+    import yfinance as yf
+    fsr_cache = {}
+    last_fsr = 0
+    while True:
+        try:
+            now = time.time()
+            all_syms = _TICKER_CORE + _TICKER_MOVERS
+            prices = {}
+            tickers_obj = yf.Tickers(' '.join(all_syms))
+            for sym in all_syms:
+                try:
+                    fi = tickers_obj.tickers[sym].fast_info
+                    p = fi.last_price
+                    pc = fi.previous_close
+                    if p and pc and pc != 0:
+                        prices[sym] = {'price': round(float(p), 2), 'change_pct': round(((p - pc) / pc) * 100, 2)}
+                except Exception:
+                    pass
+
+            if now - last_fsr > 600:
+                for sym in _TICKER_CORE:
+                    try:
+                        hist = yf.Ticker(sym).history(period='30d', interval='1d')
+                        closes = hist['Close'].dropna().tolist()
+                        if len(closes) >= 5:
+                            fsr_cache[sym] = round(calculate_predictability(closes), 1)
+                    except Exception:
+                        pass
+                last_fsr = now
+
+            core = [{'symbol': s, **prices.get(s, {'price': 0, 'change_pct': 0}), 'fsr': fsr_cache.get(s)} for s in _TICKER_CORE]
+
+            mover_list = sorted([(s, prices[s]['change_pct']) for s in _TICKER_MOVERS if s in prices], key=lambda x: x[1], reverse=True)
+            gainers = [{'symbol': s, 'change_pct': round(p, 2)} for s, p in mover_list[:5]]
+            losers  = [{'symbol': s, 'change_pct': round(p, 2)} for s, p in mover_list[-5:]]
+
+            _ticker_store.update({'core': core, 'movers': {'gainers': gainers, 'losers': losers}, 'last_updated': int(now), 'ready': True})
+        except Exception as e:
+            logging.warning(f"Ticker BG error: {e}")
+        time.sleep(60)
+
+_t = threading.Thread(target=_ticker_bg, daemon=True)
+_t.start()
+
+
+@app.route('/stream/ticker')
+def stream_ticker_page():
+    return render_template('stream_ticker.html')
+
+
+@app.route('/stream/ticker/data')
+def stream_ticker_data():
+    return jsonify(_ticker_store)
 
 
 if __name__ == '__main__':

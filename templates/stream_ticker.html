@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FSR Live Ticker</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: #0f1117;
+    font-family: 'Consolas', 'Courier New', monospace;
+    color: #f5f7fa;
+    overflow: hidden;
+  }
+
+  #wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 12px 16px 0;
+    gap: 10px;
+  }
+
+  /* ── Header ── */
+  #hud {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #39c2ff;
+    padding-bottom: 6px;
+    flex-shrink: 0;
+  }
+  #hud-brand { font-size: 13px; font-weight: bold; color: #39c2ff; letter-spacing: 1.5px; }
+  #hud-time  { font-size: 11px; color: #aab6c4; }
+  #hud-dot   { width: 7px; height: 7px; border-radius: 50%; background: #00ff88; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* ── Core watchlist grid ── */
+  #core-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .ticker-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .ticker-card.up   { border-left: 2px solid #00ff88; }
+  .ticker-card.down { border-left: 2px solid #ff4d4d; }
+
+  .tc-symbol { font-size: 12px; font-weight: bold; color: #39c2ff; letter-spacing: 1px; }
+  .tc-price  { font-size: 16px; font-weight: bold; color: #f5f7fa; }
+  .tc-change { font-size: 11px; font-weight: bold; }
+  .tc-change.up   { color: #00ff88; }
+  .tc-change.down { color: #ff4d4d; }
+  .tc-fsr { font-size: 10px; margin-top: 2px; }
+  .fsr-high   { color: #00ff88; }
+  .fsr-mid    { color: #ffd166; }
+  .fsr-low    { color: #ff4d4d; }
+  .fsr-none   { color: #6b7a8e; }
+
+  /* ── Movers section ── */
+  #movers {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .movers-panel { background: rgba(255,255,255,0.03); border-radius: 6px; padding: 8px 10px; }
+  .movers-title { font-size: 10px; letter-spacing: 1.5px; margin-bottom: 6px; }
+  .movers-title.g { color: #00ff88; }
+  .movers-title.l { color: #ff4d4d; }
+
+  .mover-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 11px;
+  }
+  .mover-row:last-child { border-bottom: none; }
+  .mover-sym { color: #f5f7fa; font-weight: bold; }
+  .mover-pct.up   { color: #00ff88; }
+  .mover-pct.down { color: #ff4d4d; }
+
+  /* ── Scrolling ticker bar ── */
+  #ticker-bar {
+    margin-top: auto;
+    background: rgba(57,194,255,0.08);
+    border-top: 1px solid #39c2ff;
+    height: 32px;
+    overflow: hidden;
+    flex-shrink: 0;
+    position: relative;
+  }
+  #ticker-track {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    white-space: nowrap;
+    position: absolute;
+    will-change: transform;
+  }
+  .tick-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 20px;
+    font-size: 11px;
+    border-right: 1px solid rgba(57,194,255,0.2);
+  }
+  .tick-sym { color: #39c2ff; font-weight: bold; }
+  .tick-price { color: #f5f7fa; }
+  .tick-pct.up   { color: #00ff88; }
+  .tick-pct.down { color: #ff4d4d; }
+
+  #loading-screen {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px; background: #0f1117;
+  }
+  #loading-screen span { color: #39c2ff; font-size: 13px; letter-spacing: 2px; }
+  .spinner {
+    width: 28px; height: 28px;
+    border: 2px solid rgba(57,194,255,0.2);
+    border-top-color: #39c2ff;
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="spinner"></div>
+  <span>FETCHING LIVE DATA...</span>
+</div>
+
+<div id="wrapper" style="display:none">
+  <div id="hud">
+    <span id="hud-brand">FSR™ LIVE MARKETS</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div id="hud-dot"></div>
+      <span id="hud-time"></span>
+    </div>
+  </div>
+
+  <div id="core-grid"></div>
+
+  <div id="movers">
+    <div class="movers-panel">
+      <div class="movers-title g">▲ TOP GAINERS</div>
+      <div id="gainers-list"></div>
+    </div>
+    <div class="movers-panel">
+      <div class="movers-title l">▼ TOP LOSERS</div>
+      <div id="losers-list"></div>
+    </div>
+  </div>
+
+  <div id="ticker-bar">
+    <div id="ticker-track"></div>
+  </div>
+</div>
+
+<script>
+const REFRESH_MS = 60000;
+let tickerRaf = null;
+let tickerPos = 0;
+let failCount = 0;
+
+function fsrClass(v) {
+  if (v == null) return 'fsr-none';
+  if (v >= 80)   return 'fsr-high';
+  if (v >= 60)   return 'fsr-mid';
+  return 'fsr-low';
+}
+
+function pctClass(v) { return v >= 0 ? 'up' : 'down'; }
+function pctStr(v)   { return (v >= 0 ? '+' : '') + v.toFixed(2) + '%'; }
+function priceStr(v, sym) {
+  if (v === 0) return '--';
+  return sym.includes('BTC') || sym.includes('ETH')
+    ? '$' + v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})
+    : '$' + v.toFixed(2);
+}
+
+function renderCore(items) {
+  const grid = document.getElementById('core-grid');
+  grid.innerHTML = items.map(t => `
+    <div class="ticker-card ${pctClass(t.change_pct)}">
+      <span class="tc-symbol">${t.symbol}</span>
+      <span class="tc-price">${priceStr(t.price, t.symbol)}</span>
+      <span class="tc-change ${pctClass(t.change_pct)}">${pctStr(t.change_pct)}</span>
+      <span class="tc-fsr ${fsrClass(t.fsr)}">FSR ${t.fsr != null ? t.fsr + '%' : '—'}</span>
+    </div>`).join('');
+}
+
+function renderMovers(movers) {
+  document.getElementById('gainers-list').innerHTML = movers.gainers.map(m => `
+    <div class="mover-row">
+      <span class="mover-sym">${m.symbol}</span>
+      <span class="mover-pct up">${pctStr(m.change_pct)}</span>
+    </div>`).join('');
+  document.getElementById('losers-list').innerHTML = movers.losers.map(m => `
+    <div class="mover-row">
+      <span class="mover-sym">${m.symbol}</span>
+      <span class="mover-pct down">${pctStr(m.change_pct)}</span>
+    </div>`).join('');
+}
+
+function buildTickerTrack(items) {
+  const all = [...items, ...items];
+  document.getElementById('ticker-track').innerHTML = all.map(t => `
+    <span class="tick-item">
+      <span class="tick-sym">${t.symbol}</span>
+      <span class="tick-price">${priceStr(t.price, t.symbol)}</span>
+      <span class="tick-pct ${pctClass(t.change_pct)}">${pctStr(t.change_pct)}</span>
+    </span>`).join('');
+
+  if (tickerRaf) cancelAnimationFrame(tickerRaf);
+  tickerPos = 0;
+  const track = document.getElementById('ticker-track');
+  const halfW = track.scrollWidth / 2;
+
+  function step() {
+    tickerPos += 0.5;
+    if (tickerPos >= halfW) tickerPos = 0;
+    track.style.transform = `translateX(-${tickerPos}px)`;
+    tickerRaf = requestAnimationFrame(step);
+  }
+  tickerRaf = requestAnimationFrame(step);
+}
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('hud-time').textContent =
+    now.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+async function fetchData() {
+  try {
+    const res = await fetch('/stream/ticker/data');
+    const data = await res.json();
+    failCount = 0;
+
+    if (!data.ready) return;
+
+    renderCore(data.core);
+    renderMovers(data.movers);
+    buildTickerTrack(data.core);
+
+    document.getElementById('loading-screen').style.display = 'none';
+    document.getElementById('wrapper').style.display = 'flex';
+  } catch (e) {
+    failCount++;
+    if (failCount >= 3) location.reload();
+  }
+}
+
+fetchData();
+setInterval(fetchData, REFRESH_MS);
+</script>
+</body>
+</html>
