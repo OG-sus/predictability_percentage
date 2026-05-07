@@ -1540,10 +1540,10 @@ def stream_charts_data():
 
 
 # ── Live Ticker Dashboard ──────────────────────────────────────────────────────
-_TICKER_CORE = ['NVDA','META','AAPL','MSFT','AMZN','GOOGL','SPY','QQQ','BTC-USD','ETH-USD','VIX']
+_TICKER_CORE = ['NVDA','META','AAPL','MSFT','AMZN','GOOGL','SPY','QQQ','BTC-USD','ETH-USD','^VIX']
 _TICKER_MOVERS = ['TSLA','AMD','NFLX','CRM','COIN','MSTR','PLTR','ARM','SMCI','GME','HOOD','SOFI','RIVN','NIO','UBER']
 
-_ticker_store = {'core': [], 'movers': {'gainers': [], 'losers': []}, 'last_updated': 0, 'ready': False}
+_ticker_store = {'core': [], 'movers': {'gainers': [], 'losers': []}, 'last_updated': 0, 'ready': True}
 
 def _ticker_bg():
     import yfinance as yf
