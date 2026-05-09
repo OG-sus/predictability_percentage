@@ -46,8 +46,8 @@ ELITE    = "#00ff88"
 VOLATILE = "#ffaa00"
 DANGER   = "#ff4d4d"
 
-SEASON_START = "2025-03-01"
-SEASON_END   = "2025-11-30"
+SEASON_START = "2026-03-01"
+SEASON_END   = "2026-11-30"
 
 # ── Known MLBAM IDs (accent/encoding-safe) ────────────────────────────────────
 PLAYER_IDS: dict[str, int] = {
@@ -533,7 +533,7 @@ def build_batter_duel_chart(
     plt.subplots_adjust(hspace=0.45, wspace=0.35,
                         left=0.06, right=0.96, top=0.97, bottom=0.04)
     fig.text(0.5, 0.005,
-             "predictability-api.com  ·  @PredictabilityC  ·  FSR = Field Stability Rating™  ·  Data: Statcast 2025",
+             "predictability-api.com  ·  @PredictabilityC  ·  FSR = Field Stability Rating™  ·  Data: Statcast 2026",
              ha="center", va="bottom", fontsize=6.5, color=SUB, alpha=0.8)
 
     _stamp_watermark(fig)
@@ -571,7 +571,7 @@ def build_closer_duel_chart(
 
     plt.subplots_adjust(wspace=0.4, left=0.07, right=0.95, top=0.93, bottom=0.08)
     fig.text(0.5, 0.01,
-             "predictability-api.com  ·  @PredictabilityC  ·  Data: Statcast 2025",
+             "predictability-api.com  ·  @PredictabilityC  ·  Data: Statcast 2026",
              ha="center", va="bottom", fontsize=6.5, color=SUB, alpha=0.8)
 
     _stamp_watermark(fig)
@@ -596,7 +596,7 @@ def build_solo_batter_chart(
 
     color = TEAM_COLORS.get(team, (ACCENT, PANEL))[0]
     fig.suptitle(
-        f"{name.title()}  [{team}]  ·  2025 Season Consistency  ·  FSR",
+        f"{name.title()}  [{team}]  ·  2026 Season Consistency  ·  FSR",
         color=TEXT, fontsize=13, fontweight="bold", y=1.01,
     )
     if game_label:
@@ -613,7 +613,7 @@ def build_solo_batter_chart(
 
     plt.subplots_adjust(wspace=0.38, left=0.06, right=0.96, top=0.92, bottom=0.08)
     fig.text(0.5, 0.01,
-             "predictability-api.com  ·  @PredictabilityC  ·  Data: Statcast 2025",
+             "predictability-api.com  ·  @PredictabilityC  ·  Data: Statcast 2026",
              ha="center", va="bottom", fontsize=6.5, color=SUB, alpha=0.8)
 
     _stamp_watermark(fig)
@@ -636,7 +636,7 @@ def build_bullpen_chart(
     """Side-by-side bullpen K-consistency FSR chart for two teams.
 
     Pre-fetches all data, drops players with no results, then builds
-    a clean grid with only players who have 2025 Statcast data.
+    a clean grid with only players who have 2026 Statcast data.
     """
     away_color = TEAM_COLORS.get(away_team, (ACCENT, PANEL))[0]
     home_color  = TEAM_COLORS.get(home_team,  (ACCENT, PANEL))[0]
@@ -715,7 +715,7 @@ def build_bullpen_chart(
                  fontsize=9, color=SUB)
 
     fig.text(0.5, 0.005,
-             "predictability-api.com  |  @PredictabilityC  |  Data: Statcast 2025",
+             "predictability-api.com  |  @PredictabilityC  |  Data: Statcast 2026",
              ha="center", va="bottom", fontsize=6.5, color=SUB, alpha=0.8)
 
     plt.subplots_adjust(hspace=0.48, wspace=0.32,

@@ -54,7 +54,7 @@ GAME_DATE_STR = "2026-03-26"
 OUTPUT_DIR = os.path.join("static", "images", "mlb_preview", "2026", "03-26")
 
 # Use last completed season for meaningful FSR history
-SEASON_START = "2025-03-01"
+SEASON_START = "2026-03-01"
 SEASON_END   = datetime.today().strftime("%Y-%m-%d")  # Through today — picks up 2026 starts
 
 SPORTS_K = 0.5
@@ -455,7 +455,7 @@ def _plot_pitcher_panel(
     ax_fsr.axhline(60, color=VOLATILE, linestyle=":", linewidth=1.0, label="Volatile (60)")
     ax_fsr.set_title("FSR Predictability Score™", color=TEXT, fontsize=12, pad=8)
     ax_fsr.set_ylabel("Score (0-100)", color=TEXT)
-    ax_fsr.set_xlabel("2025 start date", color=TEXT)
+    ax_fsr.set_xlabel("2026 start date", color=TEXT)
     ax_fsr.set_ylim(0, 108)
     ax_fsr.legend(facecolor=PANEL, edgecolor=GRID, labelcolor=TEXT, framealpha=0.6,
                   fontsize=9)
@@ -497,7 +497,7 @@ def save_pitcher_matchup_chart(game: dict) -> str:
     path = os.path.join(OUTPUT_DIR, f"pitcher_{_game_slug(game)}.png")
 
     if away_series is None and home_series is None:
-        return _save_no_data_chart(f"{away_p}  vs  {home_p}\n\nNo 2025 Statcast data available.", path)
+        return _save_no_data_chart(f"{away_p}  vs  {home_p}\n\nNo 2026 Statcast data available.", path)
 
     fig, axes = plt.subplots(2, 2, figsize=(15, 9.5))
     for ax in axes.flatten():
@@ -628,7 +628,7 @@ def save_pitcher_gbfb_chart(game: dict) -> str:
             + (f"  |  MORE CONSISTENT: {winner} (+{abs(diff):.1f})" if abs(diff) >= 1.0 else "  |  EVEN MATCH")
         )
     else:
-        sub = "Ground-ball rate consistency -- 2025 season"
+        sub = "Ground-ball rate consistency -- 2026 season"
 
     fig.text(0.5, 0.975, sub, ha="center", color=GOLD, fontsize=12, fontweight="bold")
     fig.text(
@@ -840,7 +840,7 @@ def save_city_vpd_chart(game: dict, end_date: date) -> Optional[str]:
 # ── Fallback charts ───────────────────────────────────────────────────────────
 def _draw_unavailable(ax: plt.Axes, label: str) -> None:
     _style_axes(ax)
-    ax.text(0.5, 0.5, f"{label}\n\nNo 2025 Statcast data",
+    ax.text(0.5, 0.5, f"{label}\n\nNo 2026 Statcast data",
             transform=ax.transAxes, ha="center", va="center",
             color=SUB, fontsize=11)
 
@@ -899,7 +899,7 @@ def save_fsr_summary_chart(results: list[dict]) -> str:
                  color=TEXT, fontsize=15, pad=12, fontweight="bold")
     ax.legend(facecolor=PANEL, edgecolor=GRID, labelcolor=TEXT, framealpha=0.7)
     ax.text(0.5, -0.09,
-            "Based on 2025 season K-rate consistency (k=0.5).  Higher = more predictable across starts.",
+            "Based on 2026 season K-rate consistency (k=0.5).  Higher = more predictable across starts.",
             transform=ax.transAxes, ha="center", color=SUB, fontsize=9.5)
 
     path = os.path.join(OUTPUT_DIR, "summary_fsr_starters.png")

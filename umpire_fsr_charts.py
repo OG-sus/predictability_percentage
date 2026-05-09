@@ -64,8 +64,8 @@ VOLATILE = "#ffaa00"
 DANGER   = "#ff4d4d"
 
 # Default season window (last full season for meaningful FSR history)
-SEASON_START = "2025-03-01"
-SEASON_END   = "2025-11-30"
+SEASON_START = "2026-03-01"
+SEASON_END   = "2026-11-30"
 
 # Strike zone horizontal boundary in feet (±0.83 ≈ plate half-width + ball radius)
 ZONE_X = 0.83
@@ -465,7 +465,7 @@ def build_umpire_leaderboard(
         col = _fsr_color(score)
         ax.text(score, -1.2, label, ha="center", fontsize=6.5, color=col, fontweight="bold")
 
-    window_label = f"Last {days} days" if days else "2025 Season"
+    window_label = f"Last {days} days" if days else "2026 Season"
     fig.suptitle(
         f"⚾  MLB Umpire Consistency Leaderboard  ·  Predictability Score™  ·  {window_label}",
         color=TEXT, fontsize=13, fontweight="bold", y=1.01
@@ -480,7 +480,7 @@ def build_umpire_leaderboard(
     plt.tight_layout()
 
     if not out_path:
-        tag = f"last{days}d" if days else "season2025"
+        tag = f"last{days}d" if days else "season2026"
         out_path = os.path.join(OUTPUT_DIR, f"umpire_leaderboard_{tag}.png")
 
     fig.savefig(out_path, dpi=150, bbox_inches="tight",
@@ -533,7 +533,7 @@ if __name__ == "__main__":
     parser.add_argument("--leaderboard", action="store_true",
                         help="Build full umpire leaderboard chart")
     parser.add_argument("--days", type=int, default=None,
-                        help="Leaderboard window in days (default: full 2025 season)")
+                        help="Leaderboard window in days (default: full 2026 season)")
     parser.add_argument("--top", type=int, default=12,
                         help="Number of top/bottom umpires to show (default: 12)")
 
