@@ -235,10 +235,14 @@ function buildTickerTrack(items) {
   const track = document.getElementById('ticker-track');
   const halfW = track.scrollWidth / 2;
 
-  function step() {
-    tickerPos += 0.5;
-    if (tickerPos >= halfW) tickerPos = 0;
-    track.style.transform = `translateX(-${tickerPos}px)`;
+  let last = 0;
+  function step(ts) {
+    if (ts - last >= 33) {
+      tickerPos += 0.5;
+      if (tickerPos >= halfW) tickerPos = 0;
+      track.style.transform = `translateX(-${tickerPos}px)`;
+      last = ts;
+    }
     tickerRaf = requestAnimationFrame(step);
   }
   tickerRaf = requestAnimationFrame(step);
