@@ -18,8 +18,8 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
-    padding: 12px 16px 0;
-    gap: 10px;
+    padding: 10px 14px 10px;
+    gap: 8px;
   }
 
   /* ── Header ── */
@@ -31,98 +31,86 @@
     padding-bottom: 6px;
     flex-shrink: 0;
   }
-  #hud-brand { font-size: 13px; font-weight: bold; color: #39c2ff; letter-spacing: 1.5px; }
-  #hud-time  { font-size: 11px; color: #aab6c4; }
-  #hud-dot   { width: 7px; height: 7px; border-radius: 50%; background: #00ff88; animation: pulse 2s infinite; }
+  #hud-brand  { font-size: 13px; font-weight: bold; color: #39c2ff; letter-spacing: 1.5px; }
+  #hud-group  { font-size: 12px; font-weight: bold; color: #ffd166; letter-spacing: 1px; }
+  #hud-right  { display: flex; align-items: center; gap: 10px; }
+  #hud-time   { font-size: 11px; color: #aab6c4; }
+  #hud-dot    { width: 7px; height: 7px; border-radius: 50%; background: #00ff88; animation: pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-  /* ── Core watchlist grid ── */
-  #core-grid {
+  /* ── Progress bar ── */
+  #progress-bar {
+    height: 2px;
+    background: rgba(57,194,255,0.15);
+    flex-shrink: 0;
+    border-radius: 1px;
+    overflow: hidden;
+  }
+  #progress-fill {
+    height: 100%;
+    width: 0%;
+    background: #39c2ff;
+    transition: width 20s linear;
+  }
+
+  /* ── Card grid ── */
+  #grid-wrap {
+    flex: 1;
+    min-height: 0;
+    transition: opacity 0.5s ease;
+  }
+  #grid-wrap.fading { opacity: 0; }
+
+  #card-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(5, 1fr);
     gap: 6px;
-    flex-shrink: 0;
+    height: 100%;
   }
 
   .ticker-card {
     background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.07);
     border-radius: 6px;
     padding: 8px 10px;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    justify-content: space-between;
   }
   .ticker-card.up   { border-left: 2px solid #00ff88; }
   .ticker-card.down { border-left: 2px solid #ff4d4d; }
+  .ticker-card.flat { border-left: 2px solid #aab6c4; }
 
-  .tc-symbol { font-size: 12px; font-weight: bold; color: #39c2ff; letter-spacing: 1px; }
-  .tc-price  { font-size: 16px; font-weight: bold; color: #f5f7fa; }
+  .tc-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .tc-symbol { font-size: 11px; font-weight: bold; color: #39c2ff; letter-spacing: 0.8px; }
+  .tc-fsr { font-size: 10px; font-weight: bold; }
+  .fsr-high { color: #00ff88; }
+  .fsr-mid  { color: #ffd166; }
+  .fsr-low  { color: #ff4d4d; }
+  .fsr-none { color: #4a5568; }
+
+  .tc-price  { font-size: 15px; font-weight: bold; color: #f5f7fa; line-height: 1; }
   .tc-change { font-size: 11px; font-weight: bold; }
   .tc-change.up   { color: #00ff88; }
   .tc-change.down { color: #ff4d4d; }
-  .tc-fsr { font-size: 10px; margin-top: 2px; }
-  .fsr-high   { color: #00ff88; }
-  .fsr-mid    { color: #ffd166; }
-  .fsr-low    { color: #ff4d4d; }
-  .fsr-none   { color: #6b7a8e; }
+  .tc-change.flat { color: #aab6c4; }
 
-  /* ── Movers section ── */
-  #movers {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-
-  .movers-panel { background: rgba(255,255,255,0.03); border-radius: 6px; padding: 8px 10px; }
-  .movers-title { font-size: 10px; letter-spacing: 1.5px; margin-bottom: 6px; }
-  .movers-title.g { color: #00ff88; }
-  .movers-title.l { color: #ff4d4d; }
-
-  .mover-row {
+  /* ── Group dots ── */
+  #group-dots {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 3px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    font-size: 11px;
-  }
-  .mover-row:last-child { border-bottom: none; }
-  .mover-sym { color: #f5f7fa; font-weight: bold; }
-  .mover-pct.up   { color: #00ff88; }
-  .mover-pct.down { color: #ff4d4d; }
-
-  /* ── Scrolling ticker bar ── */
-  #ticker-bar {
-    margin-top: auto;
-    background: rgba(57,194,255,0.08);
-    border-top: 1px solid #39c2ff;
-    height: 32px;
-    overflow: hidden;
-    flex-shrink: 0;
-    position: relative;
-  }
-  #ticker-track {
-    display: flex;
-    align-items: center;
-    height: 100%;
-    white-space: nowrap;
-    position: absolute;
-    will-change: transform;
-  }
-  .tick-item {
-    display: inline-flex;
-    align-items: center;
+    justify-content: center;
     gap: 6px;
-    padding: 0 20px;
-    font-size: 11px;
-    border-right: 1px solid rgba(57,194,255,0.2);
+    flex-shrink: 0;
+    padding-top: 2px;
   }
-  .tick-sym { color: #39c2ff; font-weight: bold; }
-  .tick-price { color: #f5f7fa; }
-  .tick-pct.up   { color: #00ff88; }
-  .tick-pct.down { color: #ff4d4d; }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: rgba(57,194,255,0.25);
+    transition: background 0.3s;
+  }
+  .dot.active { background: #39c2ff; }
 
   #loading-screen {
     position: fixed; inset: 0;
@@ -151,35 +139,31 @@
 <div id="wrapper" style="display:none">
   <div id="hud">
     <span id="hud-brand">FSR™ LIVE MARKETS</span>
-    <div style="display:flex;align-items:center;gap:8px">
+    <span id="hud-group"></span>
+    <div id="hud-right">
       <div id="hud-dot"></div>
       <span id="hud-time"></span>
     </div>
   </div>
 
-  <div id="core-grid"></div>
+  <div id="progress-bar"><div id="progress-fill"></div></div>
 
-  <div id="movers">
-    <div class="movers-panel">
-      <div class="movers-title g">▲ TOP GAINERS</div>
-      <div id="gainers-list"></div>
-    </div>
-    <div class="movers-panel">
-      <div class="movers-title l">▼ TOP LOSERS</div>
-      <div id="losers-list"></div>
-    </div>
+  <div id="grid-wrap">
+    <div id="card-grid"></div>
   </div>
 
-  <div id="ticker-bar">
-    <div id="ticker-track"></div>
-  </div>
+  <div id="group-dots"></div>
 </div>
 
 <script>
+const ROTATE_MS  = 20000;
 const REFRESH_MS = 60000;
-let tickerRaf = null;
-let tickerPos = 0;
-let failCount = 0;
+const FADE_MS    = 500;
+
+let groups     = [];
+let groupIdx   = 0;
+let rotateTimer = null;
+let failCount  = 0;
 
 function fsrClass(v) {
   if (v == null) return 'fsr-none';
@@ -187,89 +171,98 @@ function fsrClass(v) {
   if (v >= 60)   return 'fsr-mid';
   return 'fsr-low';
 }
-
-function pctClass(v) { return v >= 0 ? 'up' : 'down'; }
-function pctStr(v)   { return (v >= 0 ? '+' : '') + v.toFixed(2) + '%'; }
+function dirClass(v) { return v > 0.05 ? 'up' : v < -0.05 ? 'down' : 'flat'; }
+function pctStr(v)   { return (v > 0 ? '+' : '') + v.toFixed(2) + '%'; }
 function priceStr(v, sym) {
-  if (v === 0) return '--';
-  return sym.includes('BTC') || sym.includes('ETH')
-    ? '$' + v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})
-    : '$' + v.toFixed(2);
+  if (!v) return '--';
+  if (sym === 'BTC' || sym === 'ETH' || sym === 'SOL')
+    return '$' + v.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  return '$' + v.toFixed(2);
 }
 
-function renderCore(items) {
-  const grid = document.getElementById('core-grid');
-  grid.innerHTML = items.map(t => `
-    <div class="ticker-card ${pctClass(t.change_pct)}">
-      <span class="tc-symbol">${t.symbol}</span>
-      <span class="tc-price">${priceStr(t.price, t.symbol)}</span>
-      <span class="tc-change ${pctClass(t.change_pct)}">${pctStr(t.change_pct)}</span>
-      <span class="tc-fsr ${fsrClass(t.fsr)}">FSR ${t.fsr != null ? t.fsr + '%' : '—'}</span>
-    </div>`).join('');
+function buildDots() {
+  const el = document.getElementById('group-dots');
+  el.innerHTML = groups.map((_, i) => `<div class="dot${i === groupIdx ? ' active' : ''}" id="dot-${i}"></div>`).join('');
 }
 
-function renderMovers(movers) {
-  document.getElementById('gainers-list').innerHTML = movers.gainers.map(m => `
-    <div class="mover-row">
-      <span class="mover-sym">${m.symbol}</span>
-      <span class="mover-pct up">${pctStr(m.change_pct)}</span>
-    </div>`).join('');
-  document.getElementById('losers-list').innerHTML = movers.losers.map(m => `
-    <div class="mover-row">
-      <span class="mover-sym">${m.symbol}</span>
-      <span class="mover-pct down">${pctStr(m.change_pct)}</span>
-    </div>`).join('');
+function updateDots() {
+  groups.forEach((_, i) => {
+    const d = document.getElementById(`dot-${i}`);
+    if (d) d.className = 'dot' + (i === groupIdx ? ' active' : '');
+  });
 }
 
-function buildTickerTrack(items) {
-  const all = [...items, ...items];
-  document.getElementById('ticker-track').innerHTML = all.map(t => `
-    <span class="tick-item">
-      <span class="tick-sym">${t.symbol}</span>
-      <span class="tick-price">${priceStr(t.price, t.symbol)}</span>
-      <span class="tick-pct ${pctClass(t.change_pct)}">${pctStr(t.change_pct)}</span>
-    </span>`).join('');
+function renderGroup(idx) {
+  const g = groups[idx];
+  if (!g) return;
+  document.getElementById('hud-group').textContent = g.label;
+  const grid = document.getElementById('card-grid');
+  grid.innerHTML = g.cards.map(t => {
+    const dir = dirClass(t.change_pct);
+    return `
+      <div class="ticker-card ${dir}">
+        <div class="tc-top">
+          <span class="tc-symbol">${t.symbol}</span>
+          <span class="tc-fsr ${fsrClass(t.fsr)}">${t.fsr != null ? t.fsr + '%' : '—'}</span>
+        </div>
+        <span class="tc-price">${priceStr(t.price, t.symbol)}</span>
+        <span class="tc-change ${dir}">${pctStr(t.change_pct)}</span>
+      </div>`;
+  }).join('');
+}
 
-  if (tickerRaf) cancelAnimationFrame(tickerRaf);
-  tickerPos = 0;
-  const track = document.getElementById('ticker-track');
-  const halfW = track.scrollWidth / 2;
+function startProgress() {
+  const fill = document.getElementById('progress-fill');
+  fill.style.transition = 'none';
+  fill.style.width = '0%';
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    fill.style.transition = `width ${ROTATE_MS}ms linear`;
+    fill.style.width = '100%';
+  }));
+}
 
-  let last = 0;
-  function step(ts) {
-    if (ts - last >= 33) {
-      tickerPos += 0.5;
-      if (tickerPos >= halfW) tickerPos = 0;
-      track.style.transform = `translateX(-${tickerPos}px)`;
-      last = ts;
-    }
-    tickerRaf = requestAnimationFrame(step);
-  }
-  tickerRaf = requestAnimationFrame(step);
+function rotate() {
+  const wrap = document.getElementById('grid-wrap');
+  wrap.classList.add('fading');
+  setTimeout(() => {
+    groupIdx = (groupIdx + 1) % groups.length;
+    renderGroup(groupIdx);
+    updateDots();
+    wrap.classList.remove('fading');
+    startProgress();
+  }, FADE_MS);
+}
+
+function startRotation() {
+  if (rotateTimer) clearInterval(rotateTimer);
+  renderGroup(groupIdx);
+  startProgress();
+  rotateTimer = setInterval(rotate, ROTATE_MS);
 }
 
 function updateClock() {
-  const now = new Date();
   document.getElementById('hud-time').textContent =
-    now.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
 }
 setInterval(updateClock, 1000);
 updateClock();
 
 async function fetchData() {
   try {
-    const res = await fetch('/stream/ticker/data');
+    const res  = await fetch('/stream/ticker/data');
     const data = await res.json();
     failCount = 0;
+    if (!data.ready || !data.groups || !data.groups.length) return;
 
-    if (!data.ready) return;
+    const wasEmpty = groups.length === 0;
+    groups = data.groups;
 
-    renderCore(data.core);
-    renderMovers(data.movers);
-    buildTickerTrack(data.core);
-
-    document.getElementById('loading-screen').style.display = 'none';
-    document.getElementById('wrapper').style.display = 'flex';
+    if (wasEmpty) {
+      buildDots();
+      startRotation();
+      document.getElementById('loading-screen').style.display = 'none';
+      document.getElementById('wrapper').style.display = 'flex';
+    }
   } catch (e) {
     failCount++;
     if (failCount >= 3) location.reload();

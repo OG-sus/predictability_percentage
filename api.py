@@ -1540,10 +1540,15 @@ def stream_charts_data():
 
 
 # ── Live Ticker Dashboard ──────────────────────────────────────────────────────
-_TICKER_CORE = ['NVDA','META','AAPL','MSFT','AMZN','GOOGL','SPY','QQQ','BTC-USD','ETH-USD','^VIX']
-_TICKER_MOVERS = ['TSLA','AMD','NFLX','CRM','COIN','MSTR','PLTR','ARM','SMCI','GME','HOOD','SOFI','RIVN','NIO','UBER']
+_TICKER_GROUPS = [
+    {'label': 'MEGA CAP TECH',        'tickers': ['NVDA','AAPL','MSFT','GOOGL','META','AMZN','TSLA','NFLX','AMD','INTC','ORCL','CRM','ADBE','QCOM','AVGO','MU','NOW','UBER','SHOP','SNOW']},
+    {'label': 'CRYPTO · ETFs',         'tickers': ['BTC-USD','ETH-USD','SOL-USD','DOGE-USD','XRP-USD','SPY','QQQ','IWM','DIA','VTI','GLD','SLV','^VIX','TLT','HYG','ARKK','XLF','XLE','XLK','IBIT']},
+    {'label': 'GROWTH · MOMENTUM',     'tickers': ['PLTR','ARM','SMCI','MSTR','COIN','HOOD','SOFI','RIVN','NIO','RBLX','SNAP','LYFT','DKNG','CHWY','ABNB','DASH','HIMS','RDDT','IONQ','SOUN']},
+    {'label': 'FINANCE · ENERGY',      'tickers': ['JPM','GS','BAC','C','WFC','MS','V','MA','AXP','BLK','XOM','CVX','COP','EOG','SLB','PSX','MPC','OXY','KMI','WMB']},
+    {'label': 'HEALTHCARE · CONSUMER', 'tickers': ['JNJ','PFE','UNH','ABBV','MRK','LLY','CVS','WMT','COST','TGT','HD','LOW','NKE','SBUX','MCD','DIS','CMCSA','T','VZ','AMGN']},
+]
 
-_ticker_store = {'core': [], 'movers': {'gainers': [], 'losers': []}, 'last_updated': 0, 'ready': True}
+_ticker_store = {'groups': [], 'last_updated': 0, 'ready': True}
 
 def _ticker_bg():
     import yfinance as yf
@@ -1552,37 +1557,50 @@ def _ticker_bg():
     while True:
         try:
             now = time.time()
-            all_syms = _TICKER_CORE + _TICKER_MOVERS
-            prices = {}
-            tickers_obj = yf.Tickers(' '.join(all_syms))
-            for sym in all_syms:
-                try:
-                    fi = tickers_obj.tickers[sym].fast_info
-                    p = fi.last_price
-                    pc = fi.previous_close
-                    if p and pc and pc != 0:
-                        prices[sym] = {'price': round(float(p), 2), 'change_pct': round(((p - pc) / pc) * 100, 2)}
-                except Exception:
-                    pass
+            all_syms = [s for g in _TICKER_GROUPS for s in g['tickers']]
 
-            if now - last_fsr > 600:
-                for sym in _TICKER_CORE:
+            # Batch price fetch — one request for all 100 tickers
+            prices = {}
+            try:
+                raw = yf.download(all_syms, period='2d', interval='1d', progress=False, threads=True, auto_adjust=True)
+                close_df = raw['Close'] if hasattr(raw['Close'], 'columns') else raw[['Close']]
+                for sym in all_syms:
                     try:
-                        hist = yf.Ticker(sym).history(period='30d', interval='1d')
-                        closes = hist['Close'].dropna().tolist()
-                        if len(closes) >= 5:
-                            fsr_cache[sym] = round(calculate_predictability(closes), 1)
+                        col = close_df[sym].dropna()
+                        if len(col) >= 2:
+                            p, pc = float(col.iloc[-1]), float(col.iloc[-2])
+                            prices[sym] = {'price': round(p, 2), 'change_pct': round(((p - pc) / pc) * 100, 2)}
                     except Exception:
                         pass
+            except Exception as e:
+                logging.warning(f"Price batch error: {e}")
+
+            # FSR refresh every 10 min
+            if now - last_fsr > 600:
+                try:
+                    hist_raw = yf.download(all_syms, period='30d', interval='1d', progress=False, threads=True, auto_adjust=True)
+                    hist_close = hist_raw['Close'] if hasattr(hist_raw['Close'], 'columns') else hist_raw[['Close']]
+                    for sym in all_syms:
+                        try:
+                            closes = hist_close[sym].dropna().tolist()
+                            if len(closes) >= 5:
+                                fsr_cache[sym] = round(calculate_predictability(closes), 1)
+                        except Exception:
+                            pass
+                except Exception as e:
+                    logging.warning(f"FSR batch error: {e}")
                 last_fsr = now
 
-            core = [{'symbol': s, **prices.get(s, {'price': 0, 'change_pct': 0}), 'fsr': fsr_cache.get(s)} for s in _TICKER_CORE]
+            groups = []
+            for g in _TICKER_GROUPS:
+                cards = []
+                for sym in g['tickers']:
+                    p = prices.get(sym, {})
+                    display = sym.replace('^', '').replace('-USD', '')
+                    cards.append({'symbol': display, 'price': p.get('price', 0), 'change_pct': p.get('change_pct', 0), 'fsr': fsr_cache.get(sym)})
+                groups.append({'label': g['label'], 'cards': cards})
 
-            mover_list = sorted([(s, prices[s]['change_pct']) for s in _TICKER_MOVERS if s in prices], key=lambda x: x[1], reverse=True)
-            gainers = [{'symbol': s, 'change_pct': round(p, 2)} for s, p in mover_list[:5]]
-            losers  = [{'symbol': s, 'change_pct': round(p, 2)} for s, p in mover_list[-5:]]
-
-            _ticker_store.update({'core': core, 'movers': {'gainers': gainers, 'losers': losers}, 'last_updated': int(now), 'ready': True})
+            _ticker_store.update({'groups': groups, 'last_updated': int(now), 'ready': True})
         except Exception as e:
             logging.warning(f"Ticker BG error: {e}")
         time.sleep(60)
