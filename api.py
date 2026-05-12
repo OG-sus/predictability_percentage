@@ -1591,14 +1591,24 @@ def _ticker_bg():
                     logging.warning(f"FSR batch error: {e}")
                 last_fsr = now
 
+            # Build top 20 movers dynamically from all tickers
+            top_movers = sorted(
+                [(sym, prices[sym]) for sym in all_syms if sym in prices],
+                key=lambda x: abs(x[1]['change_pct']), reverse=True
+            )[:20]
+
             groups = []
             for g in _TICKER_GROUPS:
-                cards = []
-                for sym in g['tickers']:
-                    p = prices.get(sym, {})
-                    display = sym.replace('^', '').replace('-USD', '')
-                    cards.append({'symbol': display, 'price': p.get('price', 0), 'change_pct': p.get('change_pct', 0), 'fsr': fsr_cache.get(sym)})
-                groups.append({'label': g['label'], 'cards': cards})
+                if g['label'] == 'GROWTH · MOMENTUM':
+                    cards = [{'symbol': sym.replace('^','').replace('-USD',''), 'price': p['price'], 'change_pct': p['change_pct'], 'fsr': fsr_cache.get(sym)} for sym, p in top_movers]
+                    groups.append({'label': "TODAY'S TOP MOVERS", 'cards': cards})
+                else:
+                    cards = []
+                    for sym in g['tickers']:
+                        p = prices.get(sym, {})
+                        display = sym.replace('^', '').replace('-USD', '')
+                        cards.append({'symbol': display, 'price': p.get('price', 0), 'change_pct': p.get('change_pct', 0), 'fsr': fsr_cache.get(sym)})
+                    groups.append({'label': g['label'], 'cards': cards})
 
             _ticker_store.update({'groups': groups, 'last_updated': int(now), 'ready': True})
         except Exception as e:
