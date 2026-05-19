@@ -77,6 +77,7 @@ Reply directly to {lead.get('email')} to follow up.
     threading.Thread(target=_send, daemon=True).start()
 
 from fsr import calculate_predictability # THE SOURCE OF TRUTH
+import numpy as np
 
 # --- Network Stability State for Ticker/HUB ---
 class NetworkState:
@@ -675,6 +676,152 @@ def sdk_redirect():
     """Redirects /sdk to the contact page or a specific SDK page if you have one"""
     # Since you don't have a public SDK page yet, pointing to contact or docs is best
     return redirect('/contact')
+
+# --- Blockchain Gas Stability ---
+_gas_cache = {"data": None, "ts": 0}
+_GAS_TTL   = 60  # seconds between RPC refreshes
+
+_ETH_RPCS = [
+    'https://rpc.ankr.com/eth',
+    'https://ethereum.publicnode.com',
+    'https://eth-mainnet.public.blastapi.io',
+    'https://1rpc.io/eth',
+    'https://cloudflare-eth.com',
+]
+_gas_session = requests.Session()
+_gas_session.headers.update({'Content-Type': 'application/json'})
+
+def _eth_rpc(method, params=None, url=None):
+    payload = {'jsonrpc': '2.0', 'method': method, 'params': params or [], 'id': 1}
+    r = _gas_session.post(url, json=payload, timeout=8)
+    r.raise_for_status()
+    data = r.json()
+    if 'error' in data:
+        raise ValueError(data['error'])
+    return data['result']
+
+def _fetch_eth_gas(num_blocks=100):
+    rpc_url = None
+    for url in _ETH_RPCS:
+        try:
+            result = _eth_rpc('eth_blockNumber', url=url)
+            if result:
+                rpc_url = url
+                tip = int(result, 16)
+                break
+        except Exception:
+            continue
+    if not rpc_url:
+        raise ConnectionError("All ETH RPC endpoints unavailable.")
+
+    gwei_series = []
+    for i in range(num_blocks):
+        bn = tip - (num_blocks - 1 - i)
+        try:
+            blk = _eth_rpc('eth_getBlockByNumber', [hex(bn), False], url=rpc_url)
+            if blk and blk.get('baseFeePerGas'):
+                gwei_series.append(round(int(blk['baseFeePerGas'], 16) / 1e9, 4))
+        except Exception:
+            pass
+        time.sleep(0.05)
+
+    if len(gwei_series) < 10:
+        raise ValueError("Insufficient block data from RPC.")
+
+    score  = calculate_predictability(gwei_series, k=2.0)
+    mean_g = sum(gwei_series) / len(gwei_series)
+    std_g  = float(np.std(gwei_series))
+
+    if score >= 90:   label = "ELITE"
+    elif score >= 75: label = "STABLE"
+    elif score >= 60: label = "MODERATE"
+    elif score >= 40: label = "VOLATILE"
+    else:             label = "CHAOTIC"
+
+    return {
+        "score":         round(score, 2),
+        "label":         label,
+        "mean_gwei":     round(mean_g, 4),
+        "std_gwei":      round(std_g, 4),
+        "min_gwei":      round(min(gwei_series), 4),
+        "max_gwei":      round(max(gwei_series), 4),
+        "blocks_sampled": len(gwei_series),
+        "latest_block":  tip,
+        "chain":         "ethereum-mainnet",
+        "cached":        False,
+        "updated_at":    datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+    }
+
+@app.route('/api/v1/blockchain/gas', methods=['GET'])
+@api_key_required
+def blockchain_gas_stability():
+    """
+    Live Ethereum gas fee predictability score via FSR algorithm.
+    ---
+    tags:
+      - Blockchain
+    parameters:
+      - name: blocks
+        in: query
+        type: integer
+        default: 100
+        description: Number of recent blocks to sample (10–200)
+    responses:
+      200:
+        description: FSR predictability score for ETH base fee
+        schema:
+          properties:
+            score:
+              type: number
+              example: 82.97
+            label:
+              type: string
+              example: STABLE
+            mean_gwei:
+              type: number
+            std_gwei:
+              type: number
+            min_gwei:
+              type: number
+            max_gwei:
+              type: number
+            blocks_sampled:
+              type: integer
+            latest_block:
+              type: integer
+            chain:
+              type: string
+            cached:
+              type: boolean
+            updated_at:
+              type: string
+      503:
+        description: RPC unavailable
+    """
+    global _gas_cache
+    now = time.time()
+    try:
+        blocks = max(10, min(200, int(request.args.get('blocks', 100))))
+    except (ValueError, TypeError):
+        blocks = 100
+
+    if _gas_cache["data"] and (now - _gas_cache["ts"]) < _GAS_TTL:
+        resp = dict(_gas_cache["data"])
+        resp["cached"] = True
+        return jsonify(resp)
+
+    try:
+        result = _fetch_eth_gas(blocks)
+        _gas_cache = {"data": result, "ts": now}
+        return jsonify(result)
+    except Exception as e:
+        if _gas_cache["data"]:
+            resp = dict(_gas_cache["data"])
+            resp["cached"] = True
+            resp["warning"] = "Serving stale cache — RPC temporarily unavailable."
+            return jsonify(resp)
+        return jsonify({"error": str(e)}), 503
+
 
 # --- Admin Routes ---
 @app.route('/api/v1/network/stability', methods=['GET'])
