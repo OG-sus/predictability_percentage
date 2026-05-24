@@ -4,7 +4,7 @@ import numpy as np
 
 from series_generator_utils import analyze_series, prompt_csv_series, prompt_manual_series
 
-K_TENNIS = 0.7
+K_TENNIS = 0.5  # Sports standard
 OUT_DIR = os.path.join("static", "images", "tennis_charts")
 
 

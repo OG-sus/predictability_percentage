@@ -21,7 +21,7 @@ from sliding_window import calculate_sliding_window
 import requests
 import re
 
-K_SOCIAL = 0.8  # Social metrics are moderately volatile
+K_SOCIAL = 2.0  # Finance standard — matches calculator Finance mode
 
 try:
     import praw

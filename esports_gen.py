@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from fsr import calculate_predictability
 from sliding_window import calculate_sliding_window
 
-K_ESPORTS = 0.6  # Forgiving k-factor — esports is naturally volatile
+K_ESPORTS = 0.5  # Sports standard
 
 
 # ---------------------------------------------------------------------------

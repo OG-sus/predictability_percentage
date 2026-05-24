@@ -1731,7 +1731,7 @@ def _ticker_bg():
                         try:
                             closes = hist_close[sym].dropna().tolist()
                             if len(closes) >= 5:
-                                fsr_cache[sym] = round(calculate_predictability(closes), 1)
+                                fsr_cache[sym] = round(calculate_predictability(closes, k=2.0), 1)
                         except Exception:
                             pass
                 except Exception as e:

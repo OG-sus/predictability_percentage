@@ -37,7 +37,7 @@ def analyze_simulation():
 
     # 2. Run Predictability Engine
     window_size = 15
-    k_factor = 1.0
+    k_factor = 0.5  # Sports standard
     results = calculate_sliding_window(rally_lengths, window_size, k=k_factor)
     
     scores = [r['score'] for r in results]

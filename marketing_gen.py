@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from fsr import calculate_predictability
 from sliding_window import calculate_sliding_window
 
-K_MARKETING = 0.8  # Moderate k-factor for marketing metrics
+K_MARKETING = 2.0  # Finance standard — matches calculator Finance mode
 
 try:
     import yfinance as yf
