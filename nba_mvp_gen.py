@@ -8,7 +8,7 @@ Each chart = 2x2 grid:
   Top row    = raw PTS-per-game series + golden avg line + FSR badge
   Bottom row = sliding 10-game FSR Predictability Score™ window
 
-Run: python nba_mvp_fsr.py
+Run: python nba_mvp_gen.py
 Output: static/images/nba_charts/mvp_sga_jokic_2026.png
         static/images/nba_charts/mvp_wemby_luka_2026.png
 """
