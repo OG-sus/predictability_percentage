@@ -1,0 +1,38 @@
+<#
+register_digest_task.ps1 - runs morning_digest.py every day at 7:00 AM and 5:00 PM.
+
+If the laptop is asleep or off at a scheduled time, it runs as soon as it's available
+(StartWhenAvailable). Digests land in output\digest\YYYY-MM-DD_am.md / _pm.md.
+
+Run once (no admin needed):
+    powershell -File register_digest_task.ps1
+Change the times: edit $RunAt below and run this again (-Force overwrites).
+Remove it:
+    Unregister-ScheduledTask -TaskName "FSR Morning Digest" -Confirm:$false
+#>
+
+$ErrorActionPreference = "Stop"
+$RunAt    = @("7:00AM", "5:00PM")
+$TaskName = "FSR Morning Digest"
+$Repo     = $PSScriptRoot
+$Python   = Join-Path $Repo ".venv\Scripts\python.exe"
+$Script   = Join-Path $Repo "morning_digest.py"
+$Log      = Join-Path $Repo "output\digest\last_run.log"
+
+New-Item -ItemType Directory -Force (Split-Path $Log) | Out-Null
+
+# cmd wrapper so stdout/stderr land in a log you can check if a morning's digest is missing
+$action = New-ScheduledTaskAction -Execute "cmd.exe" `
+    -Argument "/c set PYTHONIOENCODING=utf-8&& set MPLBACKEND=Agg&& `"$Python`" `"$Script`" > `"$Log`" 2>&1" `
+    -WorkingDirectory $Repo
+$trigger  = $RunAt | ForEach-Object { New-ScheduledTaskTrigger -Daily -At $_ }
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries `
+    -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 30) `
+    -RunOnlyIfNetworkAvailable
+
+Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings `
+    -Description "Daily FSR morning digest (scanner, storms, markets, FRED, Netflix, robotaxis, anime)." `
+    -Force | Out-Null
+
+Write-Output "Registered '$TaskName' - daily at $($RunAt -join ' and ')."
+Write-Output "Run it now:  Start-ScheduledTask -TaskName '$TaskName'"

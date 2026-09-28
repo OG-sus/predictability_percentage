@@ -151,6 +151,25 @@ def scan_anime(top_n):
             log(f"  skip anime '{name}': {e}")
 
 
+def scan(sources=None, extra_wiki=()):
+    """Run the scan and return every result, biggest crack first (used by morning_digest.py)."""
+    sources = set(sources or ["wiki", "fred", "market", "anime"])
+    scanners = []
+    if "wiki" in sources:
+        scanners.append(("Wikipedia", scan_wiki(WIKI_ARTICLES + list(extra_wiki))))
+    if "fred" in sources:
+        scanners.append(("FRED", scan_fred(FRED_SERIES)))
+    if "market" in sources:
+        scanners.append(("markets", scan_market(MARKET_TICKERS)))
+    if "anime" in sources:
+        scanners.append(("AniList", scan_anime(ANIME_TOP_N)))
+    results = []
+    for name, gen in scanners:
+        log(f"Scanning {name}...")
+        results.extend(r for r in gen if r)
+    return sorted(results, key=lambda r: r["crack"], reverse=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Rank real series by how hard their stability cracked recently")
     parser.add_argument("--top", type=int, default=10, help="how many results to show (default 10)")
@@ -161,26 +180,11 @@ def main():
     parser.add_argument("--csv", action="store_true", help="also save every result to scan_results.csv")
     args = parser.parse_args()
 
-    sources = set(args.only or ["wiki", "fred", "market", "anime"])
-    scanners = []
-    if "wiki" in sources:
-        scanners.append(("Wikipedia", scan_wiki(WIKI_ARTICLES + args.add_wiki)))
-    if "fred" in sources:
-        scanners.append(("FRED", scan_fred(FRED_SERIES)))
-    if "market" in sources:
-        scanners.append(("markets", scan_market(MARKET_TICKERS)))
-    if "anime" in sources:
-        scanners.append(("AniList", scan_anime(ANIME_TOP_N)))
-
-    results = []
-    for name, gen in scanners:
-        log(f"Scanning {name}...")
-        results.extend(r for r in gen if r)
+    results = scan(args.only, args.add_wiki)
     if not results:
         print("Nothing scanned successfully - check your internet connection / API keys.")
         return
 
-    results.sort(key=lambda r: r["crack"], reverse=True)
     print(f"\nScanned {len(results)} series. Biggest recent stability cracks:\n")
     print(f"{'#':>2}  {'source':<7} {'series':<46} {'normal':>6} {'now':>6} {'crack':>6}  cracked on")
     for i, r in enumerate(results[:args.top], 1):

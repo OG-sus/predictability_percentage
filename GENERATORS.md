@@ -13,6 +13,21 @@ k-factor standards: **2.0** finance · **1.0** general · **0.5** sports
 
 ---
 
+## Morning digest — runs automatically every day at 7:00 AM and 5:00 PM
+
+`morning_digest.py` writes `output/digest/YYYY-MM-DD_am.md` / `_pm.md`: engine picks (scanner), active storms,
+market moves, fresh FRED releases, Netflix Top 10, Texas robotaxis, AniList trending.
+```
+python morning_digest.py             # run it now (~3 min)
+python morning_digest.py --quick     # skip the slow Wikipedia/anime scan
+powershell -File register_digest_task.ps1   # (re)schedule; edit $RunAt to change the times
+```
+Add topics: `WIKI_ARTICLES` / `FRED_SERIES` / `MARKET_TICKERS` in scanner_gen.py (engine picks),
+`MARKET_WATCH` / `FRED_WATCH` in morning_digest.py (markets table, fresh FRED). If a morning's digest
+is missing, check `output/digest/last_run.log`.
+
+---
+
 ## 0. scanner_gen.py — let the engine pick the topic · REAL
 
 Runs a sliding window over ~55 real series (Wikipedia attention, FRED, stocks/crypto, top airing anime)
