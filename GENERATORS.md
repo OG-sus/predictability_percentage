@@ -117,7 +117,9 @@ python eth_yt_chart.py 150        # custom block count
 | `python demographics_gen.py` | US birth rate + divorce rate | World Bank | 3 PNGs |
 | `python census_gen.py` | Monthly retail trade, 2000–now (needs CENSUS_API_KEY) | Census Bureau | prints table |
 | `python nasadonki_gen.py` | Geomagnetic storm Kp index, 10 years (needs NASA_API_KEY) | NASA DONKI | prints score |
-| `python hurricane_gen.py` | Atlantic hurricane seasons, 10-yr window | NOAA (embedded) | hurricane_gen.png |
+| `python hurricane_gen.py` | Atlantic hurricane seasons 1980–2025, 10-yr window | NOAA (embedded) | hurricane_gen.png |
+| `python hurricane_gen.py --active` | Storms active right now (all basins) | NHC live | prints list |
+| `python hurricane_gen.py --storm Polo --csv` | One storm's 6-hourly wind + pressure, rapid-intensification check, 24h window | NHC best track | `<id>_track.csv` |
 | `python analyze_mortgage_data.py` | 30-yr mortgage rate | MORTGAGE30US.csv | mortgage_stability_analysis.png |
 | `python lol_msi_gen.py` | League of Legends MSI 2025 series/games | lol.fandom.com | lol_msi_fsr_results.csv |
 

@@ -1,11 +1,18 @@
 """
 hurricane_gen.py — Atlantic Hurricane Season FSR
 =================================================
-NOAA historical storm data (1980-2024), 2-panel YouTube chart.
+NOAA historical storm data (1980-2025), 2-panel YouTube chart.
 Left: bar chart with rolling FSR overlay.
 Right: score card.
 
-Usage:  python hurricane_gen.py
+Live mode: any active storm's 6-hourly NHC best track (wind + pressure),
+scored with a 24-hour sliding window, printed for the website calculator.
+
+Usage:
+    python hurricane_gen.py                    # season chart, 1980-2025
+    python hurricane_gen.py --active           # list storms active right now
+    python hurricane_gen.py --storm Polo       # one storm's track + rapid intensification
+    python hurricane_gen.py --storm ep172026 --csv   # by NHC id, save CSV
 """
 
 import math
@@ -19,7 +26,7 @@ from datetime import datetime
 from fsr import calculate_predictability
 from sliding_window import calculate_sliding_window
 
-# ── DATA: NOAA Atlantic Basin Annual Summary 1980-2024 ────────────────────────
+# ── DATA: NOAA Atlantic Basin Annual Summary 1980-2025 ────────────────────────
 # Source: NOAA/NHC historical records (public domain)
 # Columns: year, named_storms, hurricanes, major_hurricanes (Cat 3+)
 NOAA_DATA = [
@@ -34,7 +41,7 @@ NOAA_DATA = [
     (2012, 19,10, 2), (2013,  2, 2, 0), (2014,  8, 6, 2), (2015, 11, 4, 2),
     (2016, 15, 7, 4), (2017, 17,10, 6), (2018, 15, 8, 2), (2019, 18, 6, 3),
     (2020, 30,14, 7), (2021, 21, 7, 4), (2022, 14, 7, 2), (2023, 20, 7, 3),
-    (2024, 18,11, 5),
+    (2024, 18,11, 5), (2025, 13, 5, 4),   # 2025: NOAA season recap (3 Cat 5s)
 ]
 
 YEARS          = [r[0] for r in NOAA_DATA]
@@ -147,7 +154,7 @@ def build_chart():
     ax_bars.set_xlim(-0.8, len(YEARS) - 0.2)
     ax_bars.set_ylim(0, 36)
     ax_bars.set_ylabel('Storms Per Season', color=TEXT, fontsize=10, fontfamily='monospace')
-    ax_bars.set_title('Atlantic Hurricane Season — Annual Activity (1980–2024)',
+    ax_bars.set_title(f'Atlantic Hurricane Season — Annual Activity ({YEARS[0]}–{YEARS[-1]})',
                       color=WHITE, fontsize=13, fontfamily='monospace', pad=10)
 
     leg = ax_bars.legend(facecolor=PANEL, edgecolor=GRID, labelcolor=TEXT,
@@ -201,7 +208,7 @@ def build_chart():
 
     ax_score.text(0.5, 0.975, 'FSR VERDICT', ha='center', va='top',
                   fontsize=11, color=DIM, fontfamily='monospace', fontweight='bold')
-    ax_score.text(0.5, 0.935, '1980 – 2024', ha='center', va='top',
+    ax_score.text(0.5, 0.935, f'{YEARS[0]} – {YEARS[-1]}', ha='center', va='top',
                   fontsize=9, color=DIM, fontfamily='monospace')
 
     badges = [
@@ -257,8 +264,111 @@ def build_chart():
     print(f'Saved: {OUT}')
     plt.show()
 
+# ── LIVE STORMS (NHC) ─────────────────────────────────────────────────────────
+NHC_CURRENT = "https://www.nhc.noaa.gov/CurrentStorms.json"
+NHC_BTK     = "https://ftp.nhc.noaa.gov/atcf/btk/b{id}.dat"   # best track, updated every 6 h
+RI_KT_24H   = 30   # NHC's rapid-intensification threshold: +30 kt in 24 h
+STORM_WINDOW = 4   # 4 six-hourly points = 24-hour sliding window
+
+
+def _get(url):
+    import requests
+    resp = requests.get(url, headers={"User-Agent": "predictability-api.com FSR script"}, timeout=30)
+    resp.raise_for_status()
+    return resp
+
+
+def active_storms():
+    return _get(NHC_CURRENT).json().get("activeStorms", [])
+
+
+def print_active():
+    storms = active_storms()
+    if not storms:
+        print("No active storms right now.")
+        return
+    print(f"\n{len(storms)} active storm(s):\n")
+    for s in storms:
+        mph = round(int(s["intensity"]) * 1.15078)
+        print(f"  {s['name']:<12} {s['classification']:<3} {s['intensity']:>4} kt ({mph} mph)  "
+              f"{s['pressure']} mb  id={s['id']}  updated {s['lastUpdate'][:16]}Z")
+    print("\nDig into one with: python hurricane_gen.py --storm <name or id>")
+
+
+def storm_track(name_or_id):
+    """6-hourly best track for an active storm (by name) or any NHC id like ep172026."""
+    key = name_or_id.lower()
+    storm_id = key if key[:2] in ("al", "ep", "cp") and key[2:].isdigit() else None
+    if storm_id is None:
+        match = [s for s in active_storms() if s["name"].lower() == key]
+        if not match:
+            raise SystemExit(f"No active storm named '{name_or_id}' - try --active, or pass an id like ep172026.")
+        storm_id = match[0]["id"]
+    points = {}
+    for line in _get(NHC_BTK.format(id=storm_id)).text.splitlines():
+        f = [x.strip() for x in line.split(",")]
+        # b-deck repeats each time for every wind-radii row; keep one per timestamp
+        if len(f) > 10 and f[8]:
+            points[f[2]] = (int(f[8]), int(f[9]) if f[9] else None, f[10])
+    times = sorted(points)
+    return storm_id, times, points
+
+
+def run_storm(name_or_id, save_csv):
+    storm_id, times, pts = storm_track(name_or_id)
+    wind = [pts[t][0] for t in times]
+    pres = [pts[t][1] for t in times]
+    stamp = lambda t: f"{t[:4]}-{t[4:6]}-{t[6:8]} {t[8:10]}Z"
+
+    peak = wind.index(max(wind))
+    low_p = pres.index(min(p for p in pres if p))
+    print(f"\n{storm_id.upper()}: {len(times)} six-hourly points, {stamp(times[0])} -> {stamp(times[-1])}")
+    print(f"  Latest: {wind[-1]} kt ({round(wind[-1] * 1.15078)} mph), {pres[-1]} mb, type {pts[times[-1]][2]}")
+    print(f"  Peak wind: {wind[peak]} kt ({round(wind[peak] * 1.15078)} mph) at {stamp(times[peak])}")
+    print(f"  Lowest pressure: {pres[low_p]} mb at {stamp(times[low_p])}")
+
+    if len(wind) > 4:
+        gains = [(wind[i] - wind[i - 4], i) for i in range(4, len(wind))]
+        best, i = max(gains)
+        print(f"  Biggest 24h gain: +{best} kt ({wind[i - 4]} -> {wind[i]}) ending {stamp(times[i])}"
+              + (f"  = {best / RI_KT_24H:.1f}x the rapid-intensification threshold" if best >= RI_KT_24H else ""))
+
+    if len(wind) >= STORM_WINDOW:
+        sw = [r["score"] for r in calculate_sliding_window(wind, STORM_WINDOW, k=K)]
+        low = sw.index(min(sw))
+        print(f"  24h stability (k={K}): start {sw[0]:.0f}%, lowest {sw[low]:.0f}% "
+              f"(window ending {stamp(times[low + STORM_WINDOW - 1])}), latest {sw[-1]:.0f}%")
+
+    print("\n--- Wind, knots (copy for a chart; window 4 = 24 h) ---")
+    print(", ".join(map(str, wind)))
+    print("\n--- Pressure, mb ---")
+    print(", ".join(str(p) for p in pres))
+
+    if save_csv:
+        import csv
+        path = f"{storm_id}_track.csv"
+        with open(path, "w", newline="") as fh:
+            w = csv.writer(fh)
+            w.writerow(["time_utc", "wind_kt", "pressure_mb", "type"])
+            w.writerows((stamp(t), pts[t][0], pts[t][1], pts[t][2]) for t in times)
+        print(f"\nSaved {path}")
+
+
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description="Hurricane FSR: season history chart, or a live storm's track")
+    parser.add_argument("--active", action="store_true", help="list storms active right now (NHC)")
+    parser.add_argument("--storm", metavar="NAME_OR_ID", help="one storm's 6-hourly track, e.g. Polo or ep172026")
+    parser.add_argument("--csv", action="store_true", help="with --storm: save <id>_track.csv")
+    args = parser.parse_args()
+    if args.active:
+        print_active()
+        raise SystemExit
+    if args.storm:
+        run_storm(args.storm, args.csv)
+        raise SystemExit
+
     print('Hurricane Season FSR — YouTube Chart')
     print('=' * 40)
 
