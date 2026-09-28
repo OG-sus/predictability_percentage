@@ -28,3 +28,14 @@ output.json
 
 .promptfoo/
 
+# Stream music files (large binaries, keep licensed tracks local only)
+stream_infra/music/*/
+stream_infra/music/**/*.mp3
+stream_infra/music/**/*.wav
+stream_infra/playlist.txt
+stream_infra/consola.ttf
+ticker.txt
+
+# Calculator data dumps + render previews (regenerate anytime)
+output/
+preview.mp4
