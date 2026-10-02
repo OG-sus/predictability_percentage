@@ -146,6 +146,46 @@ def _price(q):
             f"`python FRED_gen.py {s['id']} --since 2006`") if s else None
 
 
+def _quake(q):
+    m = re.search(r"(.*?)\s*earthquakes?\s*(?:in\s+)?(.*)", q, re.I)
+    if not m:
+        return None
+    place = _clean(m.group(1) or m.group(2) or "").strip(" -,")   # "earthquake today" -> worldwide
+    if not place:
+        return "USGS earthquake counts - `python quake_gen.py --world --minmag 5 --years 20`"
+    return f"USGS earthquake counts near {place} - `python quake_gen.py --place \"{place}\"`"
+
+
+def _fda(q):
+    m = re.search(r"(.*?)\s*(recall|recalled|fda|adverse|side effects?)\b", q, re.I)
+    if not m:
+        return None
+    item = _clean(m.group(1)).strip()
+    if m.group(2).lower().startswith(("adverse", "side")) and item:
+        return f"FDA adverse-event reports for {item} - `python fda_gen.py --events --search \"{item}\"`"
+    if item:
+        return f"FDA recalls mentioning {item} - `python fda_gen.py --search \"{item}\"`"
+    return "FDA drug recalls per month - `python fda_gen.py`"
+
+
+ENERGY = re.compile(r"\b(oil|gas|natural gas|crude|drilling|rig|well|power grid|electricity|coal|refinery)\b", re.I)
+
+
+def _energy(q):
+    """Energy/drilling searches -> a matching long FRED series (title must contain the words)."""
+    if not ENERGY.search(q):
+        return None
+    from FRED_gen import fred
+    words = [w for w in re.findall(r"[a-z]+", _clean(q).lower()) if w not in ("the", "us", "in", "of", "and")]
+    found = fred("series/search", search_text=" ".join(words), order_by="popularity", sort_order="desc",
+                 limit=20).get("seriess", [])
+    ok = [s for s in found if s["observation_start"] <= "2016-01-01" and all(w in s["title"].lower() for w in words)]
+    us = [s for s in ok if re.search(r"united states|\bu\.s\.|\bus\b", s["title"], re.I)]   # prefer US series
+    s = (us or ok or [None])[0]
+    return (f"FRED energy series {s['id']} ({s['title'][:50]}, since {s['observation_start'][:4]}) - "
+            f"`python FRED_gen.py {s['id']} --since 2006`") if s else None
+
+
 def _wiki(q):
     from pageviews_gen import resolve_title
     try:
@@ -157,7 +197,7 @@ def _wiki(q):
 
 def match(query):
     """First real long-data source that fits this search, or None (news with nothing to chart)."""
-    for fn in (_mlb, _netflix, _price, _wiki):
+    for fn in (_mlb, _quake, _fda, _netflix, _price, _energy, _wiki):
         try:
             hit = fn(query)
             if hit:
