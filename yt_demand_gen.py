@@ -171,6 +171,20 @@ def _fda(q):
 ENERGY = re.compile(r"\b(oil|gas|natural gas|crude|drilling|rig|well|power grid|electricity|coal|refinery)\b", re.I)
 
 
+def _eia(q):
+    """Energy searches FRED can't serve well -> EIA presets (needs EIA_API_KEY)."""
+    t = q.lower()
+    grids = {"texas": "ERCO", "ercot": "ERCO", "california": "CISO", "pjm": "PJM", "new york": "NYIS", "miso": "MISO"}
+    if re.search(r"power grid|grid (failure|outage|demand)|blackout|electricity demand", t):
+        region = next((code for name, code in grids.items() if name in t), "US48")
+        return f"EIA daily grid demand ({region}) - `python eia_gen.py --preset grid --region {region} --since 2022`"
+    if re.search(r"crude (oil )?production|oil production|drilling|oil well|shale", t):
+        return "EIA U.S. crude oil production - `python eia_gen.py --preset crude --since 2000`"
+    if "gas storage" in t or "natural gas storage" in t:
+        return "EIA natural gas storage - `python eia_gen.py --preset gas_storage`"
+    return None
+
+
 def _energy(q):
     """Energy/drilling searches -> a matching long FRED series (title must contain the words)."""
     if not ENERGY.search(q):
@@ -197,7 +211,7 @@ def _wiki(q):
 
 def match(query):
     """First real long-data source that fits this search, or None (news with nothing to chart)."""
-    for fn in (_mlb, _quake, _fda, _netflix, _price, _energy, _wiki):
+    for fn in (_mlb, _quake, _fda, _eia, _netflix, _price, _energy, _wiki):
         try:
             hit = fn(query)
             if hit:
