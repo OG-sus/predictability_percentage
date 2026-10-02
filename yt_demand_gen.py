@@ -25,7 +25,19 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-DEFAULT_SEEDS = ["price", "prices", "crash", "collapse", "record", "economy", "stock", "game", "shortage"]
+# Broad on purpose: the FSR engine applies to ANY time series that needs stability.
+DEFAULT_SEEDS = [
+    # money / markets
+    "price", "prices", "crash", "collapse", "record", "economy", "stock", "shortage",
+    # sports
+    "nfl", "nba", "mlb", "playoffs",
+    # tech / AI / gaming
+    "ai", "outage", "steam", "ps5",
+    # engineering / sensors / infrastructure / energy
+    "failure", "earthquake", "hurricane", "oil well", "drilling", "power grid",
+    # health / pharma
+    "drug", "recall", "fda",
+]
 ANCHOR = "gas prices"
 
 
