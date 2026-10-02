@@ -17,7 +17,8 @@ yfinance for markets, so nothing new to install.
 Run:
     python scanner_gen.py                        # scan everything, show top 10
     python scanner_gen.py --top 20
-    python scanner_gen.py --only wiki fred       # just some sources (wiki, fred, market, anime)
+    python scanner_gen.py --only wiki fred       # just some sources (wiki, fred, market, anime, trending, fresh_fred)
+    python scanner_gen.py --only trending fresh_fred   # discovery only: today's top Wikipedia + fresh FRED
     python scanner_gen.py --add-wiki "Hollow Knight: Silksong" "Clair Obscur: Expedition 33"
     python scanner_gen.py --csv                  # also save scan_results.csv
 """
@@ -151,10 +152,53 @@ def scan_anime(top_n):
             log(f"  skip anime '{name}': {e}")
 
 
+# ---- Discovery sources: what's moving TODAY, not a fixed watchlist ----------
+WIKI_SKIP = ("Main_Page", "Special:", "Wikipedia:", "Portal:", "File:", "Help:", "Talk:",
+             "User:", "Template:", "Category:", "Deaths_in", "List_of")
+
+
+def wiki_trending(n=40):
+    """Yesterday's most-viewed English Wikipedia articles (any topic)."""
+    import datetime as dt
+    import requests
+    from pageviews_gen import HEADERS
+    day = dt.date.today() - dt.timedelta(days=1)
+    top = requests.get("https://wikimedia.org/api/rest_v1/metrics/pageviews/top/en.wikipedia/all-access/"
+                       f"{day:%Y/%m/%d}", headers=HEADERS, timeout=30).json()["items"][0]["articles"]
+    return [a["article"].replace("_", " ") for a in top if not a["article"].startswith(WIKI_SKIP)][:n]
+
+
+def fred_fresh(n=40):
+    """Most popular FRED series updated recently - one per family, so 20 near-identical
+    credit-spread variants don't crowd everything else out."""
+    from FRED_gen import fred
+    seen_family, picks = set(), []
+    for s in sorted(fred("series/updates", limit=1000, filter_value="all")["seriess"],
+                    key=lambda s: -s.get("popularity", 0)):
+        family = s["id"][:6]
+        if family in seen_family or s["frequency_short"] not in FREQ_SETTINGS:
+            continue
+        seen_family.add(family)
+        picks.append(s["id"])
+        if len(picks) == n:
+            break
+    return picks
+
+
 def scan(sources=None, extra_wiki=()):
     """Run the scan and return every result, biggest crack first (used by morning_digest.py)."""
-    sources = set(sources or ["wiki", "fred", "market", "anime"])
+    sources = set(sources or ["wiki", "fred", "market", "anime", "trending", "fresh_fred"])
     scanners = []
+    if "trending" in sources:
+        try:
+            scanners.append(("Wikipedia trending today", scan_wiki(wiki_trending())))
+        except Exception as e:
+            log(f"  skip trending: {e}")
+    if "fresh_fred" in sources:
+        try:
+            scanners.append(("FRED freshly updated", scan_fred(fred_fresh())))
+        except Exception as e:
+            log(f"  skip fresh FRED: {e}")
     if "wiki" in sources:
         scanners.append(("Wikipedia", scan_wiki(WIKI_ARTICLES + list(extra_wiki))))
     if "fred" in sources:
@@ -173,7 +217,7 @@ def scan(sources=None, extra_wiki=()):
 def main():
     parser = argparse.ArgumentParser(description="Rank real series by how hard their stability cracked recently")
     parser.add_argument("--top", type=int, default=10, help="how many results to show (default 10)")
-    parser.add_argument("--only", nargs="+", choices=["wiki", "fred", "market", "anime"],
+    parser.add_argument("--only", nargs="+", choices=["wiki", "fred", "market", "anime", "trending", "fresh_fred"],
                         help="scan only these sources")
     parser.add_argument("--add-wiki", nargs="+", default=[], metavar="ARTICLE",
                         help="extra Wikipedia articles to include this run")

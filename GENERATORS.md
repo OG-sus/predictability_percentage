@@ -28,6 +28,40 @@ is missing, check `output/digest/last_run.log`.
 
 ---
 
+## Chart finder & audience tools
+
+### chart_finder_gen.py — long series where the FSR engine shows the most · REAL
+```
+python chart_finder_gen.py                      # FRED (~35 topics) + science (CO2, sunspots, TSA) + Kaggle
+python chart_finder_gen.py --only fred science  # skip Kaggle (faster)
+```
+Ranks by several real cracks + long history + something current; skips series that touch zero.
+Saves each top result to `output/chartfinder/<name>.txt`. Also runs in the digest (section 10).
+Lesson: smoothed indexes (CPI) read flat - prefer raw prices.
+
+### yt_demand_gen.py — what people search on YouTube (Google Trends, YouTube mode)
+```
+python yt_demand_gen.py --rising                          # fastest-rising US YouTube searches
+python yt_demand_gen.py --interest "gas prices" "housing market"
+```
+Also runs in the digest (section 11). Search matters most for long-form; Shorts travel by feed.
+
+### tsa_gen.py — TSA airport screenings, daily since 2019 · REAL
+```
+python tsa_gen.py --since 2019 --window 8      # weekly totals + year-over-year
+python tsa_gen.py --daily --since 2026
+```
+
+### mlb_pitcher_gen.py — FSR on a pitcher's RAW per-start stats · REAL · k=0.5
+```
+python mlb_pitcher_gen.py "Justin Verlander" --career   # every start of the career
+python mlb_pitcher_gen.py "Cam Schlittler"              # one season
+```
+FSR on strikeouts, pitches, outs, batters faced, hits, walks, earned runs - no composite metrics.
+Saves `output/<name>_<season|career>_<stat>_per_start.txt` for each stat.
+
+---
+
 ## 0. scanner_gen.py — let the engine pick the topic · REAL
 
 Runs a sliding window over ~55 real series (Wikipedia attention, FRED, stocks/crypto, top airing anime)
@@ -35,7 +69,8 @@ and ranks them by how far their stability dropped recently vs. their own normal.
 ```
 python scanner_gen.py                          # scan everything, top 10
 python scanner_gen.py --top 20 --csv           # save all results to scan_results.csv
-python scanner_gen.py --only wiki fred         # sources: wiki, fred, market, anime
+python scanner_gen.py --only wiki fred         # sources: wiki, fred, market, anime, trending, fresh_fred
+python scanner_gen.py --only trending fresh_fred   # discovery: today's top Wikipedia + fresh FRED
 python scanner_gen.py --add-wiki "Hollow Knight: Silksong"   # extra articles this run
 ```
 Edit the `WIKI_ARTICLES` / `FRED_SERIES` / `MARKET_TICKERS` lists at the top of the file to change the basket.

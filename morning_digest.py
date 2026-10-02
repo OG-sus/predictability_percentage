@@ -12,6 +12,10 @@ if one source is down, the rest still run.
   5. Netflix Top 10 - this week's #1s, biggest new entries, longest runner
   6. Robotaxis      - Texas fleet counts vs a week ago
   7. Anime          - AniList top trending
+  8. AI status      - OpenAI/Anthropic incidents; appends to output/ai_incidents.jsonl
+  9. Economy pulse  - TSA travel, jobless claims, gas, mortgage, 10-yr, sentiment, eggs, beef (add to PULSE_FRED)
+ 10. Chart finder   - long FRED + science series ranked by how much the engine shows (data first)
+ 11. YouTube rising - fastest-rising US YouTube searches (Google Trends) to match against data
 
 Run:
     python morning_digest.py
@@ -40,7 +44,8 @@ MARKET_WATCH = {
     "TSLA": "Tesla", "SONY": "Sony", "MSFT": "Microsoft", "AAPL": "Apple", "WBD": "Warner Bros", "PSKY": "Paramount",
 }
 FRED_WATCH = ["DGS10", "MORTGAGE30US", "CPIAUCSL", "UNRATE", "PAYEMS", "REVOLSL", "ASPUS", "MSACSR",
-              "HOUST", "UMCSENT", "GASREGW", "DCOILWTICO", "PCU334112334112", "DRCCLACBS"]
+              "HOUST", "UMCSENT", "GASREGW", "DCOILWTICO", "PCU334112334112", "DRCCLACBS",
+              "TLMFGCONS", "TTLCONS", "DHHNGSP", "APU0000708111"]
 NETFLIX_TSV = "https://www.netflix.com/tudum/top10/data/all-weeks-global.tsv"
 
 
@@ -69,13 +74,21 @@ def section(title):
 def engine_picks(quick):
     from scanner_gen import scan
     results = scan(["fred", "market"] if quick else None)
-    lines = ["| # | source | series | normal | low | crack | cracked on | status |", "|---|---|---|---|---|---|---|---|"]
-    for i, r in enumerate(results[:10], 1):
-        status = "**still at the low**" if r["latest"] <= r["now"] + 1 else f"recovered to {r['latest']:.0f}%"
+    lines = ["Scans the fixed watchlists PLUS today's top Wikipedia articles and freshly updated FRED series.",
+             "**full arc** = spiked and already settled (rise, peak, fall) - the chart shape that works best.", "",
+             "| # | source | series | normal | low | crack | cracked on | status |", "|---|---|---|---|---|---|---|---|"]
+    for i, r in enumerate(results[:15], 1):
+        if r["latest"] >= r["normal"] - 10:
+            status = f"**full arc** (back to {r['latest']:.0f}%)"
+        elif r["latest"] <= r["now"] + 1:
+            status = "still spiking"
+        else:
+            status = f"recovering ({r['latest']:.0f}%)"
         lines.append(f"| {i} | {r['source']} | {r['series'][:50]} | {r['normal']:.0f}% | {r['now']:.0f}% | "
                      f"+{r['crack']:.0f} | {r['crack_date']} | {status} |")
     lines.append("")
-    lines += [f"- `{r['command']}`" for r in results[:3]]
+    arcs = [r for r in results if r["latest"] >= r["normal"] - 10][:3]
+    lines += [f"- full arc: `{r['command']}`" for r in arcs]
     return lines
 
 
@@ -183,6 +196,119 @@ def anime():
             for m in shows]
 
 
+# Economy pulse: fast, felt signals. Add a FRED series ID + label here to follow more.
+PULSE_FRED = {
+    "ICSA": "Weekly jobless claims",
+    "GASREGW": "Gas, regular ($/gal)",
+    "MORTGAGE30US": "30-yr mortgage rate (%)",
+    "DGS10": "10-yr Treasury yield (%)",
+    "UMCSENT": "Consumer sentiment",
+    "APU0000708111": "Eggs ($/dozen)",
+    "APU0000703112": "Ground beef ($/lb)",
+}
+
+
+@section("9. Economy pulse")
+def economy_pulse():
+    from FRED_gen import fetch_series
+    lines = ["| signal | latest | vs prior | vs 1 yr ago | |", "|---|---|---|---|---|"]
+    try:
+        from tsa_gen import fetch_daily
+        daily = fetch_daily(date_today().year - 1)
+        last = max(daily)
+        now28 = sum(daily.get(last - timedelta(days=i), 0) for i in range(28))
+        ago28 = sum(daily.get(last - timedelta(days=364 + i), 0) for i in range(28))
+        lines.append(f"| TSA travelers (28-day) | {daily[last]:,} ({last:%b %d}) | | {(now28 / ago28 - 1) * 100:+.1f}% | |")
+    except Exception as e:
+        log(f"  skip TSA: {e}")
+    for sid, label in PULSE_FRED.items():
+        try:
+            _, d, v = fetch_series(sid, since=str(datetime.now().year - 5))
+            prev = v[-2]
+            yr_i = next((i for i in range(len(d) - 1, -1, -1) if d[i] <= f"{int(d[-1][:4]) - 1}{d[-1][4:]}"), None)
+            yoy = f"{(v[-1] / v[yr_i] - 1) * 100:+.1f}%" if yr_i is not None else ""
+            tag = "**5-yr HIGH**" if v[-1] >= max(v) else "**5-yr LOW**" if v[-1] <= min(v) else ""
+            lines.append(f"| {label} | {v[-1]:,g} ({d[-1]}) | {(v[-1] / prev - 1) * 100:+.1f}% | {yoy} | {tag} |")
+        except Exception as e:
+            log(f"  skip {sid}: {e}")
+    return lines
+
+
+@section("10. Chart finder - long series with the most for the engine to show")
+def chart_finder():
+    """Data first: ranks long FRED + science series by calculator-worthiness (several real
+    cracks, long history, something current). Kaggle is skipped here to keep the run short -
+    run `python chart_finder_gen.py` for the full scan."""
+    import json
+    from chart_finder_gen import OUT, diversify, safe_name, scan_fred, scan_science
+    results = diversify(sorted([r for r in scan_science() if r] + [r for r in scan_fred(150) if r],
+                               key=lambda r: -r["score"]))
+    os.makedirs(OUT, exist_ok=True)
+    lines = ["| # | series | points | normal | low | now | shape |", "|---|---|---|---|---|---|---|"]
+    for i, r in enumerate(results[:12], 1):
+        with open(os.path.join(OUT, safe_name(r["name"]) + ".txt"), "w") as f:
+            f.write(", ".join(f"{v:g}" for v in r["_values"]))
+        lines.append(f"| {i} | {r['name'][:60]} | {r['points']} | {r['normal']:.0f}% | {r['lowest']:.0f}% | "
+                     f"{r['latest']:.0f}% | {r['shape']}{' - record level' if r['at_extreme'] else ''} |")
+    lines.append(f"\nSeries files: output/chartfinder/<name>.txt (window = points/25). Cracks for #1: "
+                 f"{', '.join(results[0]['crack_dates'])}" if results else "")
+    return lines
+
+
+@section("11. YouTube rising searches - what people want to watch")
+def youtube_rising():
+    """Audience first: the fastest-rising US YouTube searches for broad seed words.
+    Match these against real data (generators / chart finder) - most are news with no
+    series behind them, a few point straight at a long dataset."""
+    from yt_demand_gen import rising
+    lines = []
+    for seed, qs in rising().items():
+        lines.append(f"- **{seed}**: " + " | ".join(f"{q} ({v})" for q, v in qs))
+    return lines
+
+
+def date_today():
+    return datetime.now().date()
+
+
+AI_STATUS_PAGES = {
+    "OpenAI": "https://status.openai.com/api/v2/incidents.json",
+    "Anthropic": "https://status.anthropic.com/api/v2/incidents.json",
+}
+AI_INCIDENT_LOG = os.path.join(HERE, "output", "ai_incidents.jsonl")
+
+
+@section("8. AI service status (incident log)")
+def ai_status():
+    """Status pages only expose their last ~25-50 incidents, so every run appends any
+    new ones to output/ai_incidents.jsonl - that file becomes the long-run time series."""
+    import json
+    known = set()
+    if os.path.exists(AI_INCIDENT_LOG):
+        with open(AI_INCIDENT_LOG, encoding="utf-8") as f:
+            known = {json.loads(line)["id"] for line in f if line.strip()}
+    now = datetime.now(timezone.utc)
+    lines, added = [], 0
+    with open(AI_INCIDENT_LOG, "a", encoding="utf-8") as log_file:
+        for company, url in AI_STATUS_PAGES.items():
+            incidents = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=30).json()["incidents"]
+            for inc in incidents:
+                if inc["id"] not in known:
+                    log_file.write(json.dumps({"id": inc["id"], "company": company, "created_at": inc["created_at"],
+                                               "resolved_at": inc.get("resolved_at"), "impact": inc.get("impact"),
+                                               "name": inc["name"]}) + "\n")
+                    known.add(inc["id"])
+                    added += 1
+            created = [datetime.fromisoformat(i["created_at"].replace("Z", "+00:00")) for i in incidents]
+            last_day = sum(1 for t in created if now - t <= timedelta(days=1))
+            last_week = sum(1 for t in created if now - t <= timedelta(days=7))
+            ongoing = [i["name"] for i in incidents if not i.get("resolved_at")]
+            lines.append(f"- {company}: {last_day} incident(s) in 24h, {last_week} in 7 days"
+                         + (f" - **ongoing: {'; '.join(n[:60] for n in ongoing)}**" if ongoing else ""))
+    lines.append(f"- Logged {added} new incident(s) to output/ai_incidents.jsonl")
+    return lines
+
+
 def main():
     parser = argparse.ArgumentParser(description="Morning digest of what moved overnight")
     parser.add_argument("--quick", action="store_true", help="skip the slow Wikipedia/anime scan")
@@ -198,6 +324,10 @@ def main():
     parts += netflix()
     parts += robotaxis()
     parts += anime()
+    parts += ai_status()
+    parts += economy_pulse()
+    parts += chart_finder()
+    parts += youtube_rising()
 
     os.makedirs(OUT_DIR, exist_ok=True)
     path = os.path.join(OUT_DIR, f"{now:%Y-%m-%d}_{'am' if now.hour < 12 else 'pm'}.md")  # 7am + 5pm runs
