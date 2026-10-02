@@ -260,10 +260,19 @@ def youtube_rising():
     """Audience first: the fastest-rising US YouTube searches for broad seed words.
     Match these against real data (generators / chart finder) - most are news with no
     series behind them, a few point straight at a long dataset."""
-    from yt_demand_gen import rising
-    lines = []
-    for seed, qs in rising().items():
-        lines.append(f"- **{seed}**: " + " | ".join(f"{q} ({v})" for q, v in qs))
+    from yt_demand_gen import match, rising
+    found = rising()
+    matched, unmatched, seen = [], [], set()
+    for seed, qs in found.items():
+        for q, v in qs:
+            if q in seen or q.startswith("(failed"):
+                continue
+            seen.add(q)
+            hit = match(q)
+            (matched if hit else unmatched).append((v, q, hit))
+    lines = ["**Rising searches WITH long data behind them (ready to run):**"]
+    lines += [f"- **{q}** (rise {v}) → {hit}" for v, q, hit in sorted(matched, reverse=True)] or ["- _none today_"]
+    lines.append(f"\nNo chartable data (news): " + ", ".join(q for _, q, _ in sorted(unmatched, reverse=True)[:25]))
     return lines
 
 

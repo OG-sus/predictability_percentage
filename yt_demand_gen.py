@@ -16,8 +16,10 @@ Run:
     python yt_demand_gen.py --rising                       # default seeds
     python yt_demand_gen.py --rising price collapse record
     python yt_demand_gen.py --interest "gas prices" "housing market" "egg prices"
+    python yt_demand_gen.py --match "justin verlander last game" "iphone 18 price"
 """
 import argparse
+import re
 import time
 import warnings
 
@@ -74,11 +76,95 @@ def interest(terms, timeframe="today 3-m"):
     return raw
 
 
+# ── Matching: rising search -> real long data that exists for it ─────────────
+NOISE = re.compile(r"\b(last game|highlights?|news|today|live|stats?|reaction|video|full|explained|"
+                   r"update|2026|2025|review|prediction|trailer|interview|retire(s|d|ment)?)\b", re.I)
+
+
+def _clean(q):
+    return re.sub(r"\s+", " ", NOISE.sub(" ", q)).strip()
+
+
+def _mlb(q):
+    import requests
+    name = _clean(q)
+    if len(name.split()) < 2:
+        return None
+    people = requests.get("https://statsapi.mlb.com/api/v1/people/search", params={"names": name},
+                          timeout=15).json().get("people", [])
+    p = next((p for p in people if p["fullName"].lower() in q.lower()), None)
+    if not p:
+        return None
+    if p.get("primaryPosition", {}).get("abbreviation") == "P":
+        return f"MLB pitcher career data - `python mlb_pitcher_gen.py \"{p['fullName']}\" --career`"
+    return f"MLB player {p['fullName']} (hitter - career data via MLB Stats API; pitcher tool doesn't cover hitters yet)"
+
+
+_NETFLIX = None
+
+
+def _netflix(q):
+    global _NETFLIX
+    import csv as _csv, io, requests
+    if _NETFLIX is None:
+        text = requests.get("https://www.netflix.com/tudum/top10/data/all-weeks-global.tsv",
+                            headers={"User-Agent": "Mozilla/5.0"}, timeout=60).text
+        rows = list(_csv.DictReader(io.StringIO(text), delimiter="\t"))
+        _NETFLIX = {}
+        for r in rows:
+            _NETFLIX.setdefault(r["show_title"].lower(), set()).add(r["week"])
+    words = [w for w in re.findall(r"[a-z0-9]+", _clean(q).lower()) if w not in ("the", "a", "of")]
+    hit = next((t for t in _NETFLIX
+                if len(words) >= 2 and all(w in re.findall(r"[a-z0-9]+", t) for w in words)), None)
+    return f"Netflix Top 10: '{hit}' - {len(_NETFLIX[hit])} weeks of views/hours" if hit else None
+
+
+def _price(q):
+    m = re.match(r"\s*(.+?)\s+prices?\s*$", _clean(q), re.I)      # only "<item> price(s)"
+    if not m or m.group(1).lower().startswith(("the ", "a ")):     # not "the price is right"
+        return None
+    item = m.group(1).strip().lower()
+    from FRED_gen import fred
+    found = fred("series/search", search_text=f"{item} price", order_by="popularity", sort_order="desc",
+                 limit=20).get("seriess", [])
+    tokens = re.findall(r"[a-z]+", item)
+    s = next((s for s in found if s["observation_start"] <= "2016-01-01"
+              and all(t in s["title"].lower() for t in tokens)), None)   # title must name the item
+    return (f"FRED price series {s['id']} ({s['title'][:50]}, since {s['observation_start'][:4]}) - "
+            f"`python FRED_gen.py {s['id']} --since 2006`") if s else None
+
+
+def _wiki(q):
+    from pageviews_gen import resolve_title
+    try:
+        title = resolve_title(_clean(q))
+        return f"Wikipedia attention since 2015 - `python pageviews_gen.py \"{title}\" --days 3650 --weekly`"
+    except Exception:
+        return None
+
+
+def match(query):
+    """First real long-data source that fits this search, or None (news with nothing to chart)."""
+    for fn in (_mlb, _netflix, _price, _wiki):
+        try:
+            hit = fn(query)
+            if hit:
+                return hit
+        except Exception:
+            continue
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description="YouTube search demand via Google Trends")
     parser.add_argument("--rising", nargs="*", help="show rising searches for these seeds (default seeds if none)")
     parser.add_argument("--interest", nargs="+", help="relative YouTube search interest for these terms")
+    parser.add_argument("--match", nargs="+", help="find the real long data behind these search phrases")
     args = parser.parse_args()
+    if args.match:
+        for q in args.match:
+            print(f"  {q:<40} -> {match(q) or 'no long data found (news)'}")
+        return
     if args.interest:
         for t, v in sorted(interest(args.interest).items(), key=lambda x: -x[1]):
             print(f"  {t:<30} {v:>6.2f}x '{ANCHOR}'")
