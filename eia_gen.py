@@ -102,7 +102,8 @@ def main():
 
     hi = values.index(max(values))
     print(f"\n{label}: {len(values)} points, {dates[0]} to {dates[-1]}")
-    print(f"Latest {values[-1]:,g} | high {values[hi]:,g} ({dates[hi]}) | low {min(values):,g}")
+    fmt = (lambda x: f"{x:,.0f}") if max(values) >= 1000 else (lambda x: f"{x:,.3g}")
+    print(f"Latest {fmt(values[-1])} | high {fmt(values[hi])} ({dates[hi]}) | low {fmt(min(values))}")
     print(f"FSR (k={args.k}): {calculate_predictability(values, args.k):.1f}%")
     r = [calculate_predictability(values[i - window:i], args.k) for i in range(window, len(values) + 1)]
     lows = sorted(range(len(r)), key=r.__getitem__)[:3]
