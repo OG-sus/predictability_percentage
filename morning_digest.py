@@ -54,6 +54,43 @@ def log(msg):
     sys.stderr.flush()
 
 
+SEEN_PATH = os.path.join(OUT_DIR, "seen.json")
+SEEN_DAYS = 7     # an item shown in full comes back in full only after this many days
+
+
+def _load_seen():
+    import json
+    try:
+        with open(SEEN_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+SEEN = _load_seen()
+
+
+def split_fresh(kind, items, key):
+    """(fresh, repeats): fresh = not shown in full in the last SEEN_DAYS days."""
+    shown = SEEN.setdefault(kind, {})
+    cutoff = (datetime.now() - timedelta(days=SEEN_DAYS)).isoformat()
+    fresh, repeats = [], []
+    for it in items:
+        (repeats if shown.get(key(it), "") > cutoff else fresh).append(it)
+    return fresh, repeats
+
+
+def mark_shown(kind, items, key):
+    SEEN.setdefault(kind, {}).update({key(it): datetime.now().isoformat() for it in items})
+
+
+def save_seen():
+    import json
+    os.makedirs(OUT_DIR, exist_ok=True)
+    with open(SEEN_PATH, "w", encoding="utf-8") as f:
+        json.dump(SEEN, f, indent=1)
+
+
 def section(title):
     """Decorator: run a section, and on any failure record the error instead of crashing."""
     def wrap(fn):
@@ -77,6 +114,8 @@ def engine_picks(quick):
     lines = ["Scans the fixed watchlists PLUS today's top Wikipedia articles and freshly updated FRED series.",
              "**full arc** = spiked and already settled (rise, peak, fall) - the chart shape that works best.", "",
              "| # | source | series | normal | low | crack | cracked on | status |", "|---|---|---|---|---|---|---|---|"]
+    results, repeats = split_fresh("engine", results, lambda r: r["series"])
+    mark_shown("engine", results[:15], lambda r: r["series"])
     for i, r in enumerate(results[:15], 1):
         if r["latest"] >= r["normal"] - 10:
             status = f"**full arc** (back to {r['latest']:.0f}%)"
@@ -89,6 +128,8 @@ def engine_picks(quick):
     lines.append("")
     arcs = [r for r in results if r["latest"] >= r["normal"] - 10][:3]
     lines += [f"- full arc: `{r['command']}`" for r in arcs]
+    if repeats:
+        lines.append(f"\n_Shown in the last {SEEN_DAYS} days, still cracking:_ " + ", ".join(r["series"][:40] for r in repeats[:15]))
     return lines
 
 
@@ -243,6 +284,8 @@ def chart_finder():
     from chart_finder_gen import OUT, diversify, safe_name, scan_fred, scan_science
     results = diversify(sorted([r for r in scan_science() if r] + [r for r in scan_fred(150) if r],
                                key=lambda r: -r["score"]))
+    results, repeats = split_fresh("chartfinder", results, lambda r: r["name"].split(" - ")[0])
+    mark_shown("chartfinder", results[:12], lambda r: r["name"].split(" - ")[0])
     os.makedirs(OUT, exist_ok=True)
     lines = ["| # | series | points | normal | low | now | shape |", "|---|---|---|---|---|---|---|"]
     for i, r in enumerate(results[:12], 1):
@@ -251,7 +294,9 @@ def chart_finder():
         lines.append(f"| {i} | {r['name'][:60]} | {r['points']} | {r['normal']:.0f}% | {r['lowest']:.0f}% | "
                      f"{r['latest']:.0f}% | {r['shape']}{' - record level' if r['at_extreme'] else ''} |")
     lines.append(f"\nSeries files: output/chartfinder/<name>.txt (window = points/25). Cracks for #1: "
-                 f"{', '.join(results[0]['crack_dates'])}" if results else "")
+                 f"{', '.join(results[0]['crack_dates'])}" if results else "_no new series this run_")
+    if repeats:
+        lines.append(f"\n_Already shown this week:_ " + ", ".join(r["name"].split(" - ")[0] for r in repeats[:15]))
     return lines
 
 
@@ -270,8 +315,12 @@ def youtube_rising():
             seen.add(q)
             hit = match(q)
             (matched if hit else unmatched).append((v, q, hit))
-    lines = ["**Rising searches WITH long data behind them (ready to run):**"]
-    lines += [f"- **{q}** (rise {v}) → {hit}" for v, q, hit in sorted(matched, reverse=True)] or ["- _none today_"]
+    matched, repeats = split_fresh("rising", sorted(matched, reverse=True), lambda m: m[1])
+    mark_shown("rising", matched, lambda m: m[1])
+    lines = ["**NEW rising searches WITH long data behind them (ready to run):**"]
+    lines += [f"- **{q}** (rise {v}) → {hit}" for v, q, hit in matched] or ["- _nothing new today_"]
+    if repeats:
+        lines.append(f"\n_Still rising (shown before):_ " + ", ".join(q for _, q, _ in repeats))
     lines.append(f"\nNo chartable data (news): " + ", ".join(q for _, q, _ in sorted(unmatched, reverse=True)[:25]))
     return lines
 
@@ -337,6 +386,7 @@ def main():
     parts += economy_pulse()
     parts += chart_finder()
     parts += youtube_rising()
+    save_seen()
 
     os.makedirs(OUT_DIR, exist_ok=True)
     path = os.path.join(OUT_DIR, f"{now:%Y-%m-%d}_{'am' if now.hour < 12 else 'pm'}.md")  # 7am + 5pm runs

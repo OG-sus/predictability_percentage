@@ -146,26 +146,69 @@ def _price(q):
             f"`python FRED_gen.py {s['id']} --since 2006`") if s else None
 
 
+QUAKE_NOISE = re.compile(r"\b(sim|simulator|sounds?|movie|scene|game|the last day|drill|prank|snl|wkuk|"
+                         r"song|meme|asmr)\b", re.I)
+
+
+def _real_place(place):
+    """True only if the words name an actual place (geocoder agrees), not a meme/person/show."""
+    import requests
+    place = re.sub(r"\bstate\b", "", place, flags=re.I).strip()
+    if len(place) < 4 or not place.replace(" ", "").isalpha():
+        return False
+    r = requests.get("https://geocoding-api.open-meteo.com/v1/search", params={"name": place, "count": 1},
+                     timeout=20).json().get("results")
+    if not r:
+        return False
+    names = {str(r[0].get(k, "")).lower() for k in ("name", "admin1", "country")}
+    return place.lower() in names
+
+
 def _quake(q):
     m = re.search(r"(.*?)\s*earthquakes?\s*(?:in\s+)?(.*)", q, re.I)
-    if not m:
+    if not m or QUAKE_NOISE.search(q):
         return None
     place = _clean(m.group(1) or m.group(2) or "").strip(" -,")   # "earthquake today" -> worldwide
     if not place:
         return "USGS earthquake counts - `python quake_gen.py --world --minmag 5 --years 20`"
+    if not _real_place(place):
+        return None
     return f"USGS earthquake counts near {place} - `python quake_gen.py --place \"{place}\"`"
 
 
+NOT_A_RECALL = re.compile(r"total recall|active recall|mass recall|don'?t recall|recall saying|recall study", re.I)
+
+
+def _fda_months(search, kind="drug", events=False):
+    """Months of real openFDA data for this term (0 if none) - so the digest never points at empty data."""
+    from fda_gen import monthly_counts
+    try:
+        m = monthly_counts(kind, events, search)
+    except BaseException:          # monthly_counts exits on "no results"
+        return 0
+    vals = sorted(m.values())
+    return len(vals) if vals and vals[len(vals) // 2] >= 3 else 0   # median >= 3/month or it's noise
+
+
 def _fda(q):
-    m = re.search(r"(.*?)\s*(recall|recalled|fda|adverse|side effects?)\b", q, re.I)
+    """Only product-specific recall / adverse-event searches that have years of real FDA data.
+    'fda commissioner', 'fda nominee' etc. are news - no series measures them."""
+    if NOT_A_RECALL.search(q):
+        return None
+    m = re.search(r"(.*?)\s*\b(recall(?:s|ed)?|adverse events?|side effects?)\b", q, re.I)
     if not m:
         return None
-    item = _clean(m.group(1)).strip()
-    if m.group(2).lower().startswith(("adverse", "side")) and item:
-        return f"FDA adverse-event reports for {item} - `python fda_gen.py --events --search \"{item}\"`"
-    if item:
-        return f"FDA recalls mentioning {item} - `python fda_gen.py --search \"{item}\"`"
-    return "FDA drug recalls per month - `python fda_gen.py`"
+    item = re.sub(r"\b(on|fda|the)\b", " ", _clean(m.group(1)), flags=re.I).strip()
+    if not item:
+        return None
+    if m.group(2).lower().startswith(("adverse", "side")):
+        n = _fda_months(item, events=True)
+        return f"FDA adverse-event reports for {item} ({n} months) - `python fda_gen.py --events --search \"{item}\"`" if n >= 60 else None
+    for kind in ("drug", "food", "device"):
+        n = _fda_months(item, kind)
+        if n >= 60:
+            return f"FDA {kind} recalls mentioning {item} ({n} months) - `python fda_gen.py --kind {kind} --search \"{item}\"`"
+    return None
 
 
 ENERGY = re.compile(r"\b(oil|gas|natural gas|crude|drilling|rig|well|power grid|electricity|coal|refinery)\b", re.I)
@@ -175,10 +218,12 @@ def _eia(q):
     """Energy searches FRED can't serve well -> EIA presets (needs EIA_API_KEY)."""
     t = q.lower()
     grids = {"texas": "ERCO", "ercot": "ERCO", "california": "CISO", "pjm": "PJM", "new york": "NYIS", "miso": "MISO"}
-    if re.search(r"power grid|grid (failure|outage|demand)|blackout|electricity demand", t):
-        region = next((code for name, code in grids.items() if name in t), "US48")
+    region = next((code for name, code in grids.items() if name in t), None)
+    # a named US grid, or US-wide demand - not Cuba/Puerto Rico, board games, video games or "threat" news
+    if (region and re.search(r"grid|electricity|power|blackout", t)) or re.search(r"(us|u\.s\.|america\w*) (power )?grid demand|electricity demand", t):
+        region = region or "US48"
         return f"EIA daily grid demand ({region}) - `python eia_gen.py --preset grid --region {region} --since 2022`"
-    if re.search(r"crude (oil )?production|oil production|drilling|oil well|shale", t):
+    if re.search(r"(us|u\.s\.|american?|texas|shale)? ?(crude )?oil (production|output)|crude production|barrels per day", t):
         return "EIA U.S. crude oil production - `python eia_gen.py --preset crude --since 2000`"
     if "gas storage" in t or "natural gas storage" in t:
         return "EIA natural gas storage - `python eia_gen.py --preset gas_storage`"
