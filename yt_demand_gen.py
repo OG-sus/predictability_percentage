@@ -126,9 +126,11 @@ def _netflix(q):
         for r in rows:
             _NETFLIX.setdefault(r["show_title"].lower(), set()).add(r["week"])
     words = [w for w in re.findall(r"[a-z0-9]+", _clean(q).lower()) if w not in ("the", "a", "of")]
-    hit = next((t for t in _NETFLIX
-                if len(words) >= 2 and all(w in re.findall(r"[a-z0-9]+", t) for w in words)), None)
-    return f"Netflix Top 10: '{hit}' - {len(_NETFLIX[hit])} weeks of views/hours" if hit else None
+    hits = [t for t in _NETFLIX if len(words) >= 2 and all(w in re.findall(r"[a-z0-9]+", t) for w in words)]
+    hit = max(hits, key=lambda t: len(_NETFLIX[t]), default=None)   # "squid game", not "squid game: the challenge"
+    if not hit or len(_NETFLIX[hit]) < 10:      # a week or two in the Top 10 is too short to chart
+        return None
+    return f"Netflix Top 10: '{hit}' - {len(_NETFLIX[hit])} weeks of views/hours"
 
 
 def _price(q):
@@ -238,7 +240,8 @@ def _energy(q):
     words = [w for w in re.findall(r"[a-z]+", _clean(q).lower()) if w not in ("the", "us", "in", "of", "and")]
     found = fred("series/search", search_text=" ".join(words), order_by="popularity", sort_order="desc",
                  limit=20).get("seriess", [])
-    ok = [s for s in found if s["observation_start"] <= "2016-01-01" and all(w in s["title"].lower() for w in words)]
+    ok = [s for s in found if s["observation_start"] <= "2016-01-01" and s["frequency_short"] in ("D", "W", "M")
+          and all(w in s["title"].lower() for w in words)]      # yearly series are too few points
     us = [s for s in ok if re.search(r"united states|\bu\.s\.|\bus\b", s["title"], re.I)]   # prefer US series
     s = (us or ok or [None])[0]
     return (f"FRED energy series {s['id']} ({s['title'][:50]}, since {s['observation_start'][:4]}) - "
