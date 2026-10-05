@@ -127,7 +127,7 @@ def main():
     print(f"{args.window}-week window: typical {statistics.median(r):.1f}%, latest {r[-1]:.1f}%, lowest "
           + ", ".join(f"{r[i]:.1f}% (week of {labels[i + args.window - 1]})" for i in lows))
 
-    slug = args.site.replace("status.", "").split(".")[0] + f"_{args.series}" + (f"_{args.impact}" if args.impact else "")
+    slug = re.sub(r"^(www.|status.)", "", args.site).split(".")[0].replace("githubstatus", "github") + f"_{args.series}" + (f"_{args.impact}" if args.impact else "")
     path = os.path.join(HERE, "output", f"ai_outage_{slug}_weekly.txt")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as f:
