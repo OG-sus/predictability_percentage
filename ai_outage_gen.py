@@ -31,27 +31,47 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MONTHS = {m: i for i, m in enumerate(["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                                       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], 1)}
 RANK = {"none": 0, "minor": 1, "major": 2, "critical": 3}
-# "Jul 31, 06:18 - 07:04 UTC"  or  "Aug 14, 23:57 - Aug 15, 00:27 UTC"
-STAMP = re.compile(r"(\w{3}) (\d+), (\d\d):(\d\d) - (?:(\w{3}) (\d+), )?(\d\d):(\d\d) UTC")
+# "Jul 31, 06:18 - 07:04 UTC", "Aug 14, 23:57 - Aug 15, 00:27 UTC", "Oct 5, 14:57 - 15:21 PDT",
+# or a single time with no end ("Oct 6, 09:00 PDT" - usually a maintenance notice)
+STAMP = re.compile(r"(\w{3}) (\d+), (\d\d):(\d\d)(?: - (?:(\w{3}) (\d+), )?(\d\d):(\d\d))? ([A-Z]{2,4})")
+TZ_HOURS = {"UTC": 0, "GMT": 0, "PDT": -7, "PST": -8, "MDT": -6, "MST": -7, "CDT": -5, "CST": -6,
+            "EDT": -4, "EST": -5, "BST": 1, "CET": 1, "CEST": 2, "IST": 5.5, "JST": 9}
 
 
-def fetch_incidents(site):
-    """[(start, end, impact, name)] for every incident in the site's history, oldest first."""
-    out, page = [], 1
+def fetch_incidents(site, maintenance=False):
+    """[(start, end, impact, name)] for every incident in the site's history, oldest first.
+    Scheduled maintenance is left out unless maintenance=True (it's planned, not instability)."""
+    # follow redirects once up front: some hosts (status.zoom.us -> zoomstatus.com) drop ?page= on redirect
+    site = requests.get(f"https://{site}/history.json", timeout=30).url.split("/")[2]
+    out, page, seen_codes, last_months = [], 1, set(), None
     while True:
         body = requests.get(f"https://{site}/history.json", params={"page": page}, timeout=30).json()
         months = body["months"]
         created = body.get("page_status", {}).get("page", {}).get("created_at", "")[:7]   # e.g. "2023-01"
         incidents = [(m["year"], i) for m in months for i in m["incidents"]]
-        if not months:
+        key = [(m["name"], m["year"]) for m in months]
+        if not months or key == last_months:      # empty, or the site ignored ?page= and repeated itself
             break
+        last_months = key
         for year, inc in incidents:
+            if inc.get("code") in seen_codes:
+                continue
+            seen_codes.add(inc.get("code"))
+            if not maintenance and (inc.get("impact") == "maintenance" or inc["name"].startswith("[Scheduled]")):
+                continue
             m = STAMP.search(re.sub(r"<[^>]+>", "", inc["timestamp"]))
             if not m:
                 continue
-            mon, day, h1, m1, mon2, day2, h2, m2 = m.groups()
-            start = datetime(year, MONTHS[mon], int(day), int(h1), int(m1), tzinfo=timezone.utc)
-            end = datetime(year, MONTHS[mon2 or mon], int(day2 or day), int(h2), int(m2), tzinfo=timezone.utc)
+            mon, day, h1, m1, mon2, day2, h2, m2, tz = m.groups()
+            if tz not in TZ_HOURS:
+                continue
+            shift = timedelta(hours=-TZ_HOURS[tz])  # local -> UTC
+            start = datetime(year, MONTHS[mon], int(day), int(h1), int(m1), tzinfo=timezone.utc) + shift
+            if h2 is None:                         # single timestamp, no end: count it, zero duration
+                end = start
+            else:
+                end = datetime(year, MONTHS[mon2 or mon], int(day2 or day), int(h2), int(m2),
+                               tzinfo=timezone.utc) + shift
             if end < start:                       # crossed New Year (Dec 31 -> Jan 1)
                 end = end.replace(year=year + 1)
             out.append((start, end, inc.get("impact", "none"), inc["name"]))
