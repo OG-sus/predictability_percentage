@@ -106,10 +106,13 @@ if ($MusicFolder -and (Test-Path $MusicFolder)) {
     $tracks = Get-ChildItem $MusicFolder -Include *.mp3, *.wav -File -Recurse | Sort-Object { Get-Random }
     if ($tracks.Count -gt 0) {
         $playlistPath = Join-Path $RepoRoot "stream_infra\playlist.txt"
-        $tracks | ForEach-Object {
-            $p = $_.FullName -replace '\\', '/'
+        $lines = $tracks | ForEach-Object {
+            $p = ($_.FullName -replace '\\', '/') -replace "'", "'\''"
             "file '$p'"
-        } | Set-Content -Encoding UTF8 $playlistPath
+        }
+        # No BOM: Windows PowerShell's Set-Content -Encoding UTF8 prepends one, and ffmpeg's
+        # concat demuxer then reads line 1 as "<BOM>file" -> "unknown keyword 'file'".
+        [System.IO.File]::WriteAllLines($playlistPath, [string[]]$lines, (New-Object System.Text.UTF8Encoding $false))
         Write-Output "Looping $($tracks.Count) track(s) from $MusicFolder"
         $audioInput = @("-f", "concat", "-safe", "0", "-stream_loop", "-1", "-i", $playlistPath)
     } else {
