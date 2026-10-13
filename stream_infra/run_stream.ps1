@@ -44,7 +44,7 @@ $MusicFolder = Join-Path $PSScriptRoot "music"  # drop .mp3/.wav files here; emp
 $MusicVolumeDb = "-22dB"  # background level, not foreground - tune this if it's still too loud/quiet
 $Resolution = "1280x720"
 $FrameRate  = 20          # a ticker board doesn't need 30; renderer reads this via STREAM_FPS
-$VideoBitrate = "2500k"
+$VideoBitrate = "1500k"   # ~1.7 Mbps with audio; fits a 4 Mbps upload with headroom (one platform only)
 $Encoder    = "qsv"       # "qsv" = Intel Quick Sync (Iris Xe, near-zero CPU), "x264" = software fallback
 # ------------------------------------------------------------------
 
@@ -148,7 +148,7 @@ while ($true) {
     ) + $audioInput + @(
         "-map", "0:v", "-map", "1:a"
     ) + $videoCodecArgs + @(
-        "-b:v", $VideoBitrate, "-maxrate", $VideoBitrate, "-bufsize", "5000k",
+        "-b:v", $VideoBitrate, "-maxrate", $VideoBitrate, "-bufsize", "3000k",
         "-g", ($FrameRate * 2), "-r", $FrameRate,
         "-af", "volume=$MusicVolumeDb",
         "-c:a", "aac", "-b:a", "128k"
