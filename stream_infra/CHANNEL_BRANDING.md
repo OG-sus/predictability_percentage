@@ -93,6 +93,7 @@ Earth Watch runs 24/7 on live satellite and sensor data. Follows, subs and bits 
 
 Want the stability engine for your own business or project? That supports it too: predictability-api.com
 ```
+Set the panel's **Image Links To** to your tip page (whatever Stream Manager set up), so clicking the image opens it.
 
 ### 8. X / Twitter
 Keep your existing Twitter timeline panel (the extension), and set its header image to `08_twitter.png`.
