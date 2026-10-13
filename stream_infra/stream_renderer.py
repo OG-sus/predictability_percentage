@@ -445,6 +445,7 @@ def main():
                 if last_frame is None:
                     raise
             if not write_full_frame(out, last_frame):
+                sys.stderr.write("stream_renderer: output pipe closed (write returned 0), exiting\n")
                 break
 
             next_frame_at += frame_interval
@@ -458,10 +459,11 @@ def main():
             # sending the next few frames back to back. Resyncing on every small
             # stall used to throw that time away, which is why ffmpeg sat at
             # ~0.98x instead of 1.0x. Frames only take ~4ms, so catching up is cheap.
-    except (OSError, KeyboardInterrupt):
+    except (OSError, KeyboardInterrupt) as e:
         # OSError covers BrokenPipeError plus the EINVAL Windows raises when
         # ffmpeg has exited (e.g. the RTMP connection dropped).
-        pass
+        sys.stderr.write(f"stream_renderer: exiting on {type(e).__name__}: {e}\n")
+        sys.stderr.flush()
     except Exception:
         sys.stderr.write(f"stream_renderer: fatal error\n{traceback.format_exc()}")
         sys.stderr.flush()

@@ -100,6 +100,17 @@ if ($Platform -eq "both") {
 
 Set-Location $RepoRoot
 
+# --- One copy at a time ---
+# A second copy is actively harmful: each time it fails (Twitch only takes one connection per key)
+# its cleanup below kills EVERY stream_renderer.py on the machine, including the live one's, which
+# leaves the live ffmpeg streaming music over a black screen. A named mutex makes copy #2 bail out.
+$script:StreamMutex = New-Object System.Threading.Mutex($false, "Global\FSRStreamRunner")
+try { $gotMutex = $script:StreamMutex.WaitOne(0) } catch [System.Threading.AbandonedMutexException] { $gotMutex = $true }
+if (-not $gotMutex) {
+    Write-Error "The stream is already running in another window (or the scheduled task). Close that one first."
+    exit 1
+}
+
 # --- Audio source: your music folder on loop, or silence ---
 $audioInput = $null
 if ($MusicFolder -and (Test-Path $MusicFolder)) {
