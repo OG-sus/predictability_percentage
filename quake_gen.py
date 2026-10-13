@@ -54,6 +54,31 @@ def events(start, end, minmag, lat=None, lon=None, radius_km=None):
     return out
 
 
+def every_quake(args):
+    """One point per quake: the magnitude of every event near (lat, lon), oldest first."""
+    lat, lon = args.around
+    end = date.today() + timedelta(days=1)
+    start = end.replace(year=end.year - args.years)
+    ev = events(start, end, args.minmag, lat, lon, args.radius)
+    if len(ev) < args.window + 2:
+        raise SystemExit(f"Only {len(ev)} quakes - lower --minmag or widen --radius.")
+    mags = [m for _, m in ev]
+    big = sorted(ev, key=lambda x: -x[1])[:5]
+    print(f"\nEvery M{args.minmag}+ quake within {args.radius:.0f} km of ({lat}, {lon}): {len(ev)} quakes, "
+          f"{ev[0][0]} to {ev[-1][0]}")
+    print("Largest: " + ", ".join(f"M{m} ({d})" for d, m in big))
+    r = [calculate_predictability(mags[i - args.window:i], args.k) for i in range(args.window, len(mags) + 1)]
+    lo = r.index(min(r))
+    print(f"FSR (k={args.k}) overall {calculate_predictability(mags, args.k):.1f}% | {args.window}-quake window: "
+          f"typical {statistics.median(r):.1f}%, lowest {r[lo]:.1f}% ({ev[lo + args.window - 1][0]}), "
+          f"latest {r[-1]:.1f}%")
+    path = os.path.join(HERE, "output", f"quakes_every_{lat}_{lon}_mag.txt")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        f.write(", ".join(f"{m:g}" for m in mags))
+    print(f"\nSaved {path}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="FSR on weekly earthquake counts")
     parser.add_argument("--place", help="city/region name (geocoded)")
@@ -63,9 +88,15 @@ def main():
     parser.add_argument("--years", type=int, default=10)
     parser.add_argument("--window", type=int, default=12, help="sliding window in weeks (default 12)")
     parser.add_argument("--k", type=float, default=1.0)
+    parser.add_argument("--around", nargs=2, type=float, metavar=("LAT", "LON"),
+                        help="every quake near this epicenter, one point per quake (magnitude) - "
+                             "the best chart after a big quake; use with --minmag 3.5 --radius 250")
     args = parser.parse_args()
+    if args.around:
+        every_quake(args)
+        return
     if not args.place and not args.world:
-        parser.error("give --place NAME or --world")
+        parser.error("give --place NAME, --world, or --around LAT LON")
 
     end = date.today()
     start = end.replace(year=end.year - args.years)

@@ -62,6 +62,64 @@ Saves `output/<name>_<season|career>_<stat>_per_start.txt` for each stat.
 
 ---
 
+## Live-event & sensor generators (added October 2026) · all REAL
+
+What these are for, and the settings that matched the posted Shorts, is in **SHORTS_PLAYBOOK.md**.
+
+### pitch_velo_gen.py — every pitch of one type (or every batted ball) for a season · k=0.5
+```
+python pitch_velo_gen.py "Chris Sale"                    # prints pitch mix, uses most-thrown pitch
+python pitch_velo_gen.py "Drew Rasmussen" --pitch FC     # FF four-seam, SI, FC cutter, SL, ST sweeper, CU, KC, CH, FS splitter
+python pitch_velo_gen.py "Munetaka Murakami" --hitter    # exit velocity of every ball he hit
+```
+Prints the window to use (about one game's worth). Best posted the day the pitcher starts.
+
+### buoy_gen.py — NOAA ocean buoy sensors, hourly, last 45 days
+```
+python buoy_gen.py 42039                 # wave height (WVHT), Pensacola
+python buoy_gen.py 42001 --sensor GST    # wind gusts; PRES = air pressure (caption fact, reads flat)
+```
+For hurricanes. Waves crack the engine; pressure doesn't. Find buoys at ndbc.noaa.gov.
+
+### hurricane_gen.py — any active storm's track (6-hourly wind & pressure)
+```
+python hurricane_gen.py --active
+python hurricane_gen.py --storm ep202026
+```
+Short series (25-40 points). Best once the storm has peaked and is fading (full rise-peak-fall).
+Don't post a "start to finish" chart while it's still causing damage.
+
+### groundwater_gen.py — NASA groundwater storage from space, monthly since 2003
+```
+python groundwater_gen.py --preset texas_panhandle      # also high_plains, central_valley, southwest, phoenix
+python groundwater_gen.py --lat 31.8 --lon -106.5 --name el_paso
+```
+Needs `EARTHDATA_TOKEN` in .env (expires Dec 12 2026 - regenerate at urs.earthdata.nasa.gov, max 2
+tokens) and the "NASA GESDISC DATA ARCHIVE" app approved. NASA model estimate, not a single well.
+
+### ai_outage_gen.py — every incident on a company's public status page
+```
+python ai_outage_gen.py --since 2024-01-01 --series incidents --window 4      # Anthropic
+python ai_outage_gen.py --site www.githubstatus.com --series incidents        # any Statuspage site
+```
+Works for: status.anthropic.com, www.githubstatus.com, status.cursor.com, status.zoom.us,
+discordstatus.com, www.vercel-status.com, status.digitalocean.com. Not OpenAI (only 90 days public).
+
+### quake_gen.py + the "every quake near the epicenter" chart
+```
+python quake_gen.py --place "Los Angeles"      # weekly counts - only for very active areas
+```
+For a big quake, the better chart is the magnitude of every M3.5+ quake within 250 km of the
+epicenter since 2016 (USGS FDSN, one point per quake) - see SHORTS_PLAYBOOK.md.
+
+### eia_gen.py / fda_gen.py
+```
+python eia_gen.py --preset grid --region ERCO --since 2019   # daily grid demand (EIA_API_KEY)
+python fda_gen.py --events --search ozempic                  # FDA adverse-event reports per month
+```
+
+---
+
 ## 0. scanner_gen.py — let the engine pick the topic · REAL
 
 Runs a sliding window over ~55 real series (Wikipedia attention, FRED, stocks/crypto, top airing anime)
