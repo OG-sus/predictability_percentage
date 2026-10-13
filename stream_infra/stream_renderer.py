@@ -48,8 +48,14 @@ MARQUEE_SPEED_PX_S = 90
 MARQUEE_DIVIDER_EVERY = 8
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-FONT_PATH = os.path.join(HERE, "consola.ttf")
-LOGO_PATH = os.path.join(HERE, "brand_logo.png")
+# Consolas is a Windows font (gitignored, can't ship it), so on the Linux VPS fall back to
+# DejaVu Sans Mono (apt install fonts-dejavu-core), which has nearly the same metrics.
+FONT_PATH = next((p for p in (os.path.join(HERE, "consola.ttf"),
+                              "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
+                  if os.path.exists(p)), os.path.join(HERE, "consola.ttf"))
+LOGO_PATH = next((p for p in (os.path.join(HERE, "brand_logo.png"),
+                              os.path.join(os.path.dirname(HERE), "static", "images", "brand_logo.png"))
+                  if os.path.exists(p)), os.path.join(HERE, "brand_logo.png"))
 
 # ---- Brand palette, lifted from templates/stream_ticker.html + obs_ticker.html ----
 BG_DARK = (15, 17, 23)        # #0f1117

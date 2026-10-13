@@ -1,0 +1,25 @@
+# systemd unit for the 24/7 Earth Watch stream on the VPS.
+# Starts on boot, restarts if the whole script dies (run_stream.sh handles ffmpeg restarts itself).
+#
+# Install:
+#   cp /root/predictability_percentage/stream_infra/fsr-stream.service /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now fsr-stream
+# Watch it:   journalctl -u fsr-stream -f
+# Stop it:    systemctl stop fsr-stream
+# Platform:   edit STREAM_PLATFORM below (twitch / youtube / both), then systemctl restart fsr-stream
+
+[Unit]
+Description=FSR Earth Watch 24/7 stream
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/root/predictability_percentage
+Environment=STREAM_PLATFORM=twitch
+ExecStart=/bin/bash /root/predictability_percentage/stream_infra/run_stream.sh
+Restart=always
+RestartSec=30
+Nice=10
+
+[Install]
+WantedBy=multi-user.target
