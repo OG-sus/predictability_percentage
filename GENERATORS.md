@@ -297,10 +297,20 @@ python parlay_fsr_chart.py                    # same-game parlay chart
 ## 6. Stream + agents
 
 ```
-powershell -File stream_infra\run_stream.ps1                    # 24/7 ticker stream (Quick Sync, 20fps)
+powershell -File stream_infra\run_stream.ps1                    # 24/7 stream (Quick Sync, 20fps)
 python ticker_feed_writer.py --rotate-seconds 8 --columns 3 --rows-per-col 4
 python fsr_data_agent.py --interval 3600 --threshold 70         # periodic FSR checker (Bitcoin only so far)
 ```
+
+**Earth Watch (default stream view, `stream_infra/earth_watch.py`):** live GOES-19/GOES-18 full-disk
+Earth images (NOAA, new every 10 min) on the left, four live FSR sensor cards on the right
+(strongest active storm, worldwide quakes, Gulf buoy 42001 waves, Texas groundwater), market ticker
+along the bottom. When a hurricane (64 kt+) or an M6.5+ quake is active, the image switches to a
+NASA Worldview close-up of it with a LIVE EVENT badge. Data refreshes every 10 minutes on a
+background thread. All imagery is public-domain US government data.
+To get the old market-grid layout back: set `STREAM_LAYOUT=markets` before running.
+To change the cards: edit `CARD_ORDER` in stream_renderer.py and the card functions in earth_watch.py
+(e.g. `DEFAULT_BUOY`, `GROUNDWATER_FILE`).
 
 ---
 

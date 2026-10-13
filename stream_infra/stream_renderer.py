@@ -269,6 +269,82 @@ class Renderer:
         self.draw_marquee_live(img, all_assets)
         return img
 
+    # ---- Earth Watch layout: live satellite image + FSR sensor cards, ticker along the bottom ----
+    EW_IMG = 556
+    CARD_ORDER = ("storm", "quakes", "buoy", "water")
+
+    def draw_earth_header(self, img, draw, focus):
+        draw.rectangle([0, 0, WIDTH, 88], fill=BG_DARK)
+        draw.rectangle([0, 88, WIDTH, 90], fill=RED if focus else CYAN)
+        x = 20
+        if self.logo:
+            img.paste(self.logo, (x, 12), self.logo)
+            x += 54
+        draw.text((x, 14), "FSR™ EARTH WATCH", font=self.font_brand, fill=CYAN)
+        draw.text((x, 46), "Live from space, scored by the stability engine   .   predictability-api.com",
+                  font=self.font_tagline, fill=GRAY)
+
+    def draw_sparkline(self, draw, box, series, color):
+        x0, y0, x1, y1 = box
+        if len(series) < 2:
+            return
+        lo, hi = min(series), max(series)
+        span = (hi - lo) or 1.0
+        pts = [(x0 + (x1 - x0) * i / (len(series) - 1), y1 - (y1 - y0) * (v - lo) / span)
+               for i, v in enumerate(series)]
+        draw.line(pts, fill=(*color, 230), width=2)
+        draw.ellipse([pts[-1][0] - 3, pts[-1][1] - 3, pts[-1][0] + 3, pts[-1][1] + 3], fill=color)
+
+    def draw_earth_card(self, draw, x, y, w, h, card):
+        draw.rounded_rectangle([x, y, x + w, y + h], radius=8, fill=CARD_FILL, outline=CARD_BORDER)
+        score = card.get("score")
+        scolor = score_color(score) if score is not None else GRAY
+        draw.rectangle([x, y, x + 4, y + h], fill=scolor)
+        draw.text((x + 16, y + 10), card["title"][:46], font=self.font_category, fill=CYAN)
+        draw.text((x + 16, y + 30), card["value"][:44], font=self.font_item, fill=(235, 238, 244))
+        draw.text((x + 16, y + h - 24), card.get("note", "")[:58], font=self.font_category, fill=(120, 130, 145))
+        if score is not None:
+            txt = f"{score:.0f}%"
+            draw.text((x + w - 16 - draw.textlength(txt, font=self.font_brand), y + 8), txt,
+                      font=self.font_brand, fill=scolor)
+            draw.text((x + w - 16 - draw.textlength("FSR", font=self.font_category), y + 36), "FSR",
+                      font=self.font_category, fill=GRAY)
+        self.draw_sparkline(draw, (x + 16, y + 60, x + w - 16, y + h - 30), card.get("series", []), scolor)
+
+    def _earth_base(self, ew):
+        if ew["version"] == self._base_key:
+            return self._base
+        img = self.background.copy()
+        draw = ImageDraw.Draw(img, "RGBA")
+        self.draw_earth_header(img, draw, ew.get("focus"))
+        ix, iy = 22, 100
+        if ew.get("image") is not None:
+            img.paste(ew["image"].resize((self.EW_IMG, self.EW_IMG)), (ix, iy))
+        else:
+            draw.rectangle([ix, iy, ix + self.EW_IMG, iy + self.EW_IMG], fill=(8, 10, 16))
+        draw.rectangle([ix, iy + self.EW_IMG - 26, ix + self.EW_IMG, iy + self.EW_IMG], fill=(10, 12, 18, 200))
+        draw.text((ix + 10, iy + self.EW_IMG - 21), ew.get("caption", "")[:70], font=self.font_category, fill=GRAY)
+        if ew.get("focus"):
+            draw.rounded_rectangle([ix + 10, iy + 10, ix + 160, iy + 36], radius=6, fill=(*RED, 220))
+            draw.text((ix + 20, iy + 14), "LIVE EVENT", font=self.font_score, fill=(255, 255, 255))
+        cards = [ew["cards"][k] for k in self.CARD_ORDER if k in ew.get("cards", {})]
+        cx, cw, top, bottom = ix + self.EW_IMG + 22, WIDTH - (ix + self.EW_IMG + 22) - 22, 100, self.MARQUEE_TOP - 8
+        if cards:
+            gap = 8
+            ch = (bottom - top - gap * (len(cards) - 1)) // len(cards)
+            for n, card in enumerate(cards):
+                self.draw_earth_card(draw, cx, top + n * (ch + gap), cw, ch, card)
+        self.draw_marquee_static(draw)
+        self._base, self._base_key = img, ew["version"]
+        return img
+
+    def render_earth(self, ew, all_assets):
+        img = self._earth_base(ew).copy()
+        draw = ImageDraw.Draw(img, "RGBA")
+        self.draw_header_live(draw)
+        self.draw_marquee_live(img, all_assets)
+        return img
+
 
 def write_full_frame(out, data: bytes) -> bool:
     """Write exactly one frame's worth of bytes, looping on short writes
@@ -305,10 +381,18 @@ def rotation_loop(all_assets, columns, rows_per_col, rotate_seconds, state, stop
         stop_event.wait(rotate_seconds)
 
 
+LAYOUT = os.environ.get("STREAM_LAYOUT", "earth")  # "earth" (Earth Watch, default) or "markets" (old grid)
+
+
 def main():
     groups, all_assets = build_assets()
 
     stop_event = threading.Event()
+    earth = None
+    if LAYOUT == "earth":
+        from earth_watch import EarthWatch, refresh_loop as earth_loop
+        earth = EarthWatch()
+        threading.Thread(target=earth_loop, args=(earth, stop_event), daemon=True).start()
 
     def refresh_loop():
         while not stop_event.is_set():
@@ -335,8 +419,11 @@ def main():
     next_frame_at = time.time()
     try:
         while True:
-            cycle_elapsed = time.time() - state["cycle_start"]
-            img = renderer.render(state["batch"], all_assets, cycle_elapsed)
+            if earth is not None:
+                img = renderer.render_earth(earth.snapshot(), all_assets)
+            else:
+                cycle_elapsed = time.time() - state["cycle_start"]
+                img = renderer.render(state["batch"], all_assets, cycle_elapsed)
             if not write_full_frame(out, img.tobytes()):
                 break
 
