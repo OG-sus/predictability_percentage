@@ -87,6 +87,22 @@ Daily Shorts: pitchers' fastballs, hurricanes, anime, prices, all run through th
 [YouTube link]
 ```
 
+### 7. Support the stream
+```
+Earth Watch runs 24/7 on live satellite and sensor data. Follows, subs and bits keep it on the air and help pay for the data servers behind it.
+
+Want the stability engine for your own business or project? That supports it too: predictability-api.com
+```
+
+### 8. X / Twitter
+Keep your existing Twitter timeline panel (the extension), and set its header image to `08_twitter.png`.
+
+**Remove the old panels:** "The Proof (Technical Validation) The Math" and "Get the Ticker". They describe
+the old ticker stream and the OBS kit, not Earth Watch.
+
+**Panel images:** run `python stream_infra/make_panels.py` and upload `output/twitch_panels/01-08*.png`,
+one per panel in the order above (Edit panels > Image > upload). Rerun it any time for a fresh globe.
+
 ---
 
 ## Chat commands (Nightbot, free)
