@@ -90,6 +90,13 @@ def _km(lat1, lon1, lat2, lon2):
     return 12742 * math.asin(math.sqrt(a))
 
 
+def _missing_fraction(img):
+    """Share of pixels that are pure black = no satellite data there (real night/ocean is never 0,0,0
+    in GeoColor; coastline lines are drawn over gaps, so allow a little brightness)."""
+    small = img.resize((140, 140)).convert("L")
+    return sum(1 for p in small.getdata() if p < 6) / (140 * 140)
+
+
 def _wave_series(station, hours=72):
     """Hourly wave height (m) for one NDBC station, oldest first (first reading of each hour)."""
     lines = _get(NDBC_SERIES.format(st=station)).text.splitlines()
@@ -192,7 +199,7 @@ class EarthWatch:
             # Worldview's GOES tiles lag by a variable amount (GOES-West was 40-70 min behind on
             # Oct 13 2026), so step back until a frame has actual imagery in it.
             tries = []
-            for mins in (40, 70, 100, 150):
+            for mins in (40, 70, 100, 130, 180, 240):
                 t = now - timedelta(minutes=mins)
                 tries.append(t.replace(minute=t.minute // 10 * 10, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ"))
         else:  # elsewhere: polar-orbit true color, yesterday's (or the day before's) pass
@@ -204,15 +211,18 @@ class EarthWatch:
             r = _get(WORLDVIEW, timeout=60, params={
                 "REQUEST": "GetSnapshot", "TIME": when, "BBOX": bbox, "CRS": "EPSG:4326",
                 "LAYERS": f"{layer},Coastlines_15m", "FORMAT": "image/jpeg", "WIDTH": self.size, "HEIGHT": self.size})
-            if len(r.content) >= 20000:  # under ~20 KB = mostly-empty tile, no imagery yet
+            if len(r.content) < 20000:  # under ~20 KB = mostly-empty tile, no imagery yet
+                continue
+            img = Image.open(io.BytesIO(r.content)).convert("RGB")
+            if _missing_fraction(img) <= 0.05:  # partly-filled tiles have big pure-black gaps
                 break
         else:
             return None
-        img = Image.open(io.BytesIO(r.content)).convert("RGB")
         d = ImageDraw.Draw(img)
         c = self.size // 2
         d.ellipse([c - 14, c - 14, c + 14, c + 14], outline=(255, 77, 77), width=3)
-        return img, f"FROM SPACE  .  {focus['label']}  .  {source} via NASA Worldview"
+        stamp = when[11:16] + " UTC" if "T" in when else when  # how old the picture is
+        return img, f"FROM SPACE  .  {focus['label']}  .  {source}  .  {stamp}"
 
     # ---- sensor cards -----------------------------------------------------------------
     def _storms(self):
