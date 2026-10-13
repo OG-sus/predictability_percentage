@@ -61,6 +61,8 @@ FOCUS_QUAKE_MAG = 6.5    # so do M6.5+ quakes in the last 24 hours
 TOP_STORMS = 3           # storm card rotates through up to this many active storms, strongest first
 TOP_BUOYS = 5            # buoy card rotates through the buoys with the biggest waves right now
 ROTATE_SECONDS = 60      # each rotating card shows one item this long (cards are staggered 20s apart)
+EVENT_CYCLE_SECONDS = 240  # during a live event: the close-up loop for 3 min...
+GLOBE_SECONDS = 60         # ...then the whole globe for 1 min, repeating
 LOOP_FRAMES = 8          # close-up loop length: 8 frames x 10 min = the last ~80 minutes
 STORM_BUOY_KM = 800      # a buoy this close to a hurricane jumps to the front of the buoy rotation
 
@@ -145,7 +147,12 @@ class EarthWatch:
             cards[slot] = card
             ticks.append(tick % len(items))
         state["cards"] = cards
-        state["version"] = (state["version"], tuple(ticks))  # renderer redraws when either changes
+        globe = state.pop("globe", None)
+        phase = 0
+        if globe and state.get("focus") and time.time() % EVENT_CYCLE_SECONDS >= EVENT_CYCLE_SECONDS - GLOBE_SECONDS:
+            state["image"], state["caption"], state["focus"] = globe[0], globe[1], None
+            phase = 1
+        state["version"] = (state["version"], tuple(ticks), phase)  # renderer redraws when any change
         return state
 
     def refresh(self):
@@ -170,12 +177,17 @@ class EarthWatch:
             if image is not None:
                 focus = f
                 break
-        if image is None:
-            image, caption = self._safe(self._full_disk) or (None, None)
+        globe = self._safe(self._full_disk)  # always fetched: shown alone, or between close-up loops
+        if image is None and globe:
+            image, caption = globe
 
         with self._lock:
             if image is not None:
                 self._state["image"], self._state["caption"] = image, caption
+            if globe and focus is not None:
+                self._state["globe"] = globe
+            elif focus is None:
+                self._state.pop("globe", None)
             self._state["focus"] = focus
             self._state["sets"] = sets
             self._state["version"] += 1

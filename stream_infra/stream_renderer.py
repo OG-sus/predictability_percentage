@@ -474,13 +474,20 @@ def main():
             sleep_for = next_frame_at - time.time()
             if sleep_for > 0:
                 time.sleep(sleep_for)
-            elif sleep_for < -1.0:
-                # Way behind (machine asleep, long stall) - resync instead of spiraling.
-                next_frame_at = time.time()
-            # A short hiccup (a data refresh holding the GIL, etc.) is caught up by
-            # sending the next few frames back to back. Resyncing on every small
-            # stall used to throw that time away, which is why ffmpeg sat at
-            # ~0.98x instead of 1.0x. Frames only take ~4ms, so catching up is cheap.
+            elif sleep_for < -frame_interval:
+                # Behind (busy laptop, a data refresh, the stream deprioritized). ffmpeg times
+                # video by frame COUNT, so every frame we skip is lost time: it's what pushed
+                # speed to ~0.9x and made viewers buffer. Fill the gap by resending the last
+                # frame (a ~1 ms pipe write vs ~9 ms to draw one) so output stays real-time;
+                # viewers see a brief freeze instead of a buffering wheel.
+                missed = int(-sleep_for / frame_interval)
+                if missed > FPS * 10:  # machine slept / suspended - resync, don't flood ffmpeg
+                    next_frame_at = time.time()
+                else:
+                    for _ in range(missed):
+                        if not write_full_frame(out, last_frame):
+                            break
+                    next_frame_at += missed * frame_interval
     except (OSError, KeyboardInterrupt) as e:
         # OSError covers BrokenPipeError plus the EINVAL Windows raises when
         # ffmpeg has exited (e.g. the RTMP connection dropped).
