@@ -97,6 +97,15 @@ python groundwater_gen.py --lat 31.8 --lon -106.5 --name el_paso
 Needs `EARTHDATA_TOKEN` in .env (expires Dec 12 2026 - regenerate at urs.earthdata.nasa.gov, max 2
 tokens) and the "NASA GESDISC DATA ARCHIVE" app approved. NASA model estimate, not a single well.
 
+### rain_gen.py — NASA satellite rainfall (GPM IMERG), anywhere on Earth
+```
+python rain_gen.py --place "Tampa" --hours 72             # every 30 min, ~4 hours behind real time
+python rain_gen.py --place "Kathmandu" --daily 150        # daily totals through yesterday
+python rain_gen.py --place "Houston" --hours 48 --cumulative   # running storm total (no zeros)
+```
+Same EARTHDATA_TOKEN. Rain has many dry (zero) steps, which break FSR - use it during a storm or
+monsoon, or use --cumulative ("total rain so far"). The tool warns when it's too dry.
+
 ### ai_outage_gen.py — every incident on a company's public status page
 ```
 python ai_outage_gen.py --since 2024-01-01 --series incidents --window 4      # Anthropic

@@ -55,6 +55,16 @@ anime with nothing new happening (JJK), old national totals.
 
 ---
 
+## NASA data (Earthdata token)
+
+- **groundwater_gen.py** - underground water for any point on Earth, monthly since 2003.
+- **rain_gen.py** - satellite rainfall every 30 minutes (hours behind real time) or daily.
+  Best for a live storm or monsoon *caused by rain* hitting a named city. Not for floods caused by
+  dam/landslide breaks or glacier collapses - rain data won't show those.
+- Say "measured from space by NASA" / "NASA satellite estimate", not "this well" or "this gauge".
+
+---
+
 ## Script formula (~40 words, ~16 sec)
 
 1. What it is, and how long: "Every sweeper Gavin Williams threw this season: 852."
