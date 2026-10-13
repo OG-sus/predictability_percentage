@@ -91,9 +91,11 @@ youtube.com/@PredictabilityCalculator
 ```
 Earth Watch runs 24/7 on live satellite and sensor data. Follows, subs and bits keep it on the air and help pay for the data servers behind it.
 
+Tip the stream (any amount, by card): https://buy.stripe.com/00w28qfmJ6Yn6iybKD7ok03
+
 Want the stability engine for your own business or project? That supports it too: predictability-api.com
 ```
-Set the panel's **Image Links To** to your tip page (whatever Stream Manager set up), so clicking the image opens it.
+Set the panel's **Image Links To** to `https://buy.stripe.com/00w28qfmJ6Yn6iybKD7ok03` (Stripe tip page), so clicking the image opens it.
 
 ### 8. X / Twitter
 Keep your existing Twitter timeline panel (the extension), and set its header image to `08_twitter.png`.
@@ -119,6 +121,7 @@ in your chat. Add each command by pasting the line into your own chat:
 !commands add !water Groundwater for U.S. drought regions, measured from space by NASA. Several are at their lowest in 23 years.
 !commands add !data Everything here is live public data: NOAA, NASA, USGS. The stability scores come from the FSR engine at predictability-api.com
 !commands add !site predictability-api.com: score any time series for stability, free to try.
+!commands add !tip Tips keep Earth Watch live 24/7. Thank you! https://buy.stripe.com/00w28qfmJ6Yn6iybKD7ok03
 !commands add !youtube Daily Shorts on YouTube: youtube.com/@PredictabilityCalculator
 ```
 
