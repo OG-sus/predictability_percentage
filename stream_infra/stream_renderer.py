@@ -318,15 +318,36 @@ class Renderer:
                       font=self.font_category, fill=GRAY)
         self.draw_sparkline(draw, (x + 16, y + 60, x + w - 16, y + h - 30), card.get("series", []), scolor)
 
+    LOOP_FRAME_S = 0.5   # close-up loop: each satellite frame shows this long...
+    LOOP_HOLD_S = 2.5    # ...and the newest one holds a bit, so the loop reads as "now"
+
+    def _loop_index(self, n):
+        if n <= 1:
+            return 0
+        t = time.time() % ((n - 1) * self.LOOP_FRAME_S + self.LOOP_HOLD_S)
+        return min(int(t // self.LOOP_FRAME_S), n - 1)
+
     def _earth_base(self, ew):
-        if ew["version"] == self._base_key:
+        frames = ew.get("image") or []
+        if not isinstance(frames, list):
+            frames = [frames]
+        idx = self._loop_index(len(frames))
+        key = (ew["version"], idx)
+        if key == self._base_key:
+            return self._base
+        # One finished base per loop frame, kept until the data changes, so animating is a dict lookup.
+        cache = getattr(self, "_earth_cache", None)
+        if cache is None or cache.get("_v") != ew["version"]:
+            cache = self._earth_cache = {"_v": ew["version"]}
+        if idx in cache:
+            self._base, self._base_key = cache[idx], key
             return self._base
         img = self.background.copy()
         draw = ImageDraw.Draw(img, "RGBA")
         self.draw_earth_header(img, draw, ew.get("focus"))
         ix, iy = 22, 100
-        if ew.get("image") is not None:
-            img.paste(ew["image"].resize((self.EW_IMG, self.EW_IMG)), (ix, iy))
+        if frames:
+            img.paste(frames[idx].resize((self.EW_IMG, self.EW_IMG)), (ix, iy))
         else:
             draw.rectangle([ix, iy, ix + self.EW_IMG, iy + self.EW_IMG], fill=(8, 10, 16))
         draw.rectangle([ix, iy + self.EW_IMG - 26, ix + self.EW_IMG, iy + self.EW_IMG], fill=(10, 12, 18, 200))
@@ -342,7 +363,8 @@ class Renderer:
             for n, card in enumerate(cards):
                 self.draw_earth_card(draw, cx, top + n * (ch + gap), cw, ch, card)
         self.draw_marquee_static(draw)
-        self._base, self._base_key = img, ew["version"]
+        cache[idx] = img
+        self._base, self._base_key = img, key
         return img
 
     def render_earth(self, ew, all_assets):

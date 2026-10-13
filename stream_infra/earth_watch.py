@@ -61,6 +61,7 @@ FOCUS_QUAKE_MAG = 6.5    # so do M6.5+ quakes in the last 24 hours
 TOP_STORMS = 3           # storm card rotates through up to this many active storms, strongest first
 TOP_BUOYS = 5            # buoy card rotates through the buoys with the biggest waves right now
 ROTATE_SECONDS = 60      # each rotating card shows one item this long (cards are staggered 20s apart)
+LOOP_FRAMES = 8          # close-up loop length: 8 frames x 10 min = the last ~80 minutes
 STORM_BUOY_KM = 800      # a buoy this close to a hurricane jumps to the front of the buoy rotation
 
 
@@ -163,7 +164,7 @@ class EarthWatch:
             sets["water"] = water
 
         # Hurricane first, then a big quake; if one's close-up has no imagery, try the next.
-        focus, image, caption = None, None, None
+        focus, image, caption = None, None, None  # image = list of frames (one for a still)
         for f in [x.get("focus") for x in (storms, quake) if x and x.get("focus")]:
             image, caption = self._safe(lambda: self._closeup(f)) or (None, None)
             if image is not None:
@@ -185,44 +186,66 @@ class EarthWatch:
         self._goes_turn += 1
         img = Image.open(io.BytesIO(_get(GOES[name], timeout=60).content)).convert("RGB")
         img = img.resize((self.size, self.size), Image.LANCZOS)
-        return img, f"LIVE FROM SPACE  .  {name}  .  NOAA  .  {datetime.now(timezone.utc):%H:%M} UTC"
+        return [img], f"LIVE FROM SPACE  .  {name}  .  NOAA  .  {datetime.now(timezone.utc):%H:%M} UTC"
 
     def _closeup(self, focus):
-        """Worldview satellite close-up centered on the event, with a marker on it."""
+        """Worldview satellite close-up centered on the event, with a marker on it.
+        Over GOES coverage this is a loop of the last LOOP_FRAMES frames (10 min apart), oldest
+        first, so viewers watch the storm move instead of a near-identical still every 10 min."""
         lat, lon = focus["lat"], focus["lon"]
         half = 8.0
         bbox = f"{lat - half},{lon - half},{lat + half},{lon + half}"
         now = datetime.now(timezone.utc)
-        if -150 <= lon <= -20:  # GOES geostationary coverage: near-real-time, every 10 min
-            layer = "GOES-East_ABI_GeoColor" if lon > -105 else "GOES-West_ABI_GeoColor"
-            source = "GOES-East" if lon > -105 else "GOES-West"
-            # Worldview's GOES tiles lag by a variable amount (GOES-West was 40-70 min behind on
-            # Oct 13 2026), so step back until a frame has actual imagery in it.
-            tries = []
-            for mins in (40, 70, 100, 130, 180, 240):
-                t = now - timedelta(minutes=mins)
-                tries.append(t.replace(minute=t.minute // 10 * 10, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ"))
-        else:  # elsewhere: polar-orbit true color, yesterday's (or the day before's) pass
-            layer = "VIIRS_SNPP_CorrectedReflectance_TrueColor"
-            source = "NASA VIIRS"
-            tries = [(now - timedelta(days=d)).strftime("%Y-%m-%d") for d in (1, 2)]
-        r = None
-        for when in tries:
+
+        def fetch(layer, when):
             r = _get(WORLDVIEW, timeout=60, params={
                 "REQUEST": "GetSnapshot", "TIME": when, "BBOX": bbox, "CRS": "EPSG:4326",
                 "LAYERS": f"{layer},Coastlines_15m", "FORMAT": "image/jpeg", "WIDTH": self.size, "HEIGHT": self.size})
             if len(r.content) < 20000:  # under ~20 KB = mostly-empty tile, no imagery yet
-                continue
+                return None
             img = Image.open(io.BytesIO(r.content)).convert("RGB")
-            if _missing_fraction(img) <= 0.05:  # partly-filled tiles have big pure-black gaps
-                break
-        else:
-            return None
-        d = ImageDraw.Draw(img)
+            return img if _missing_fraction(img) <= 0.05 else None  # partly-filled tiles have black gaps
+
+        if -150 <= lon <= -20:  # GOES geostationary coverage: a new frame every 10 min
+            layer = "GOES-East_ABI_GeoColor" if lon > -105 else "GOES-West_ABI_GeoColor"
+            source = "GOES-East" if lon > -105 else "GOES-West"
+            # Worldview's GOES tiles lag by a variable amount (GOES-West was 40-100 min behind on
+            # Oct 13 2026), so step back until a frame has actual imagery in it...
+            newest = None
+            for mins in (40, 70, 100, 130, 180, 240):
+                t = now - timedelta(minutes=mins)
+                t = t.replace(minute=t.minute // 10 * 10, second=0, microsecond=0)
+                img = fetch(layer, t.strftime("%Y-%m-%dT%H:%M:%SZ"))
+                if img is not None:
+                    newest = (t, img)
+                    break
+            if newest is None:
+                return None
+            # ...then walk back from it for the rest of the loop (skipping any gappy frame).
+            frames, times = [newest[1]], [newest[0]]
+            for k in range(1, LOOP_FRAMES):
+                t = newest[0] - timedelta(minutes=10 * k)
+                img = self._safe(lambda: fetch(layer, t.strftime("%Y-%m-%dT%H:%M:%SZ")))
+                if img is not None:
+                    frames.append(img)
+                    times.append(t)
+            frames.reverse()
+            stamp = f"{times[-1]:%H:%M}-{times[0]:%H:%M} UTC loop" if len(frames) > 1 else f"{times[0]:%H:%M} UTC"
+        else:  # elsewhere: polar-orbit true color, one pass a day, so a still
+            layer, source = "VIIRS_SNPP_CorrectedReflectance_TrueColor", "NASA VIIRS"
+            frames, stamp = [], None
+            for d in (1, 2):
+                when = (now - timedelta(days=d)).strftime("%Y-%m-%d")
+                img = fetch(layer, when)
+                if img is not None:
+                    frames, stamp = [img], when
+                    break
+            if not frames:
+                return None
         c = self.size // 2
-        d.ellipse([c - 14, c - 14, c + 14, c + 14], outline=(255, 77, 77), width=3)
-        stamp = when[11:16] + " UTC" if "T" in when else when  # how old the picture is
-        return img, f"FROM SPACE  .  {focus['label']}  .  {source}  .  {stamp}"
+        for img in frames:
+            ImageDraw.Draw(img).ellipse([c - 14, c - 14, c + 14, c + 14], outline=(255, 77, 77), width=3)
+        return frames, f"FROM SPACE . {focus['label']} . {source} . {stamp}"
 
     # ---- sensor cards -----------------------------------------------------------------
     def _storms(self):
