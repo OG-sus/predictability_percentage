@@ -154,7 +154,8 @@ while ($true) {
         "-b:v", $VideoBitrate, "-maxrate", $VideoBitrate, "-bufsize", "3000k",
         "-g", ($FrameRate * 2), "-r", $FrameRate,
         "-af", "volume=$MusicVolumeDb",
-        "-c:a", "aac", "-b:a", "128k"
+        "-c:a", "aac", "-b:a", "128k",
+        "-shortest"   # renderer died -> end the stream so the loop restarts it (the music input never ends on its own)
     ) + $OutputArgs
     $runStart = Get-Date
     # Pipe through cmd, not PowerShell. A PowerShell pipe between two native

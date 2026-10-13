@@ -71,7 +71,7 @@ while true; do
     -c:v libx264 -preset veryfast -tune stillimage -pix_fmt yuv420p \
     -b:v "$VIDEO_BITRATE" -maxrate "$VIDEO_BITRATE" -bufsize 3000k \
     -g $((FRAME_RATE * 2)) -r "$FRAME_RATE" \
-    -af "volume=$MUSIC_VOLUME_DB" -c:a aac -b:a 128k \
+    -af "volume=$MUSIC_VOLUME_DB" -c:a aac -b:a 128k -shortest \
     "${OUTPUT[@]}"
   pkill -f "$HERE/stream_renderer.py" 2>/dev/null   # never leave a stale renderer behind
   ran=$(( $(date +%s) - start ))

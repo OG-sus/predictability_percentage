@@ -27,6 +27,7 @@ import os
 import sys
 import threading
 import time
+import traceback
 from datetime import datetime, timezone
 
 from PIL import Image, ImageDraw, ImageFont
@@ -423,14 +424,27 @@ def main():
 
     frame_interval = 1.0 / FPS
     next_frame_at = time.time()
+    last_frame, render_errors = None, 0
     try:
         while True:
-            if earth is not None:
-                img = renderer.render_earth(earth.snapshot(), all_assets)
-            else:
-                cycle_elapsed = time.time() - state["cycle_start"]
-                img = renderer.render(state["batch"], all_assets, cycle_elapsed)
-            if not write_full_frame(out, img.tobytes()):
+            # A drawing bug (odd data in a card, etc.) must never kill the stream: log it and
+            # resend the last good frame. Without this, the exception went straight to the
+            # os._exit below (no traceback printed) and ffmpeg kept streaming music over nothing.
+            try:
+                if earth is not None:
+                    img = renderer.render_earth(earth.snapshot(), all_assets)
+                else:
+                    cycle_elapsed = time.time() - state["cycle_start"]
+                    img = renderer.render(state["batch"], all_assets, cycle_elapsed)
+                last_frame = img.tobytes()
+            except Exception:
+                render_errors += 1
+                if render_errors <= 3 or render_errors % 1000 == 0:
+                    sys.stderr.write(f"stream_renderer: frame error #{render_errors}\n{traceback.format_exc()}")
+                    sys.stderr.flush()
+                if last_frame is None:
+                    raise
+            if not write_full_frame(out, last_frame):
                 break
 
             next_frame_at += frame_interval
@@ -448,6 +462,9 @@ def main():
         # OSError covers BrokenPipeError plus the EINVAL Windows raises when
         # ffmpeg has exited (e.g. the RTMP connection dropped).
         pass
+    except Exception:
+        sys.stderr.write(f"stream_renderer: fatal error\n{traceback.format_exc()}")
+        sys.stderr.flush()
     finally:
         stop_event.set()
         # Exit hard: the data-refresh thread can be stuck in a 20s network
