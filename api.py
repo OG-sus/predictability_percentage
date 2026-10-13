@@ -178,8 +178,10 @@ MAX_API_WINDOW_SIZE = 1000
 
 # Database Configuration
 DATABASE_URL = os.environ.get('DATABASE_URL')
-if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
-    SQLALCHEMY_DATABASE_URI = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+if DATABASE_URL and DATABASE_URL.startswith(("postgres://", "postgresql://")):
+    # Name the driver explicitly: SQLAlchemy 2.1 changed the default for plain "postgresql://"
+    # from psycopg2 (what we install) to psycopg 3, which crashed the Oct 13 2026 deploy.
+    SQLALCHEMY_DATABASE_URI = "postgresql+psycopg2://" + DATABASE_URL.split("://", 1)[1]
 else:
     SQLALCHEMY_DATABASE_URI = DATABASE_URL if DATABASE_URL else f"sqlite:///{os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')}"
 
