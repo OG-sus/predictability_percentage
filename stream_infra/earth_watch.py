@@ -89,15 +89,15 @@ class EarthWatch:
         if water is not None:
             cards["water"] = water
 
-        focus = None
-        if storms and storms.get("focus"):
-            focus = storms["focus"]
-        elif quake and quake.get("focus"):
-            focus = quake["focus"]
-        image, caption = (self._safe(lambda: self._closeup(focus)) if focus else None) or (None, None)
+        # Hurricane first, then a big quake; if one's close-up has no imagery, try the next.
+        focus, image, caption = None, None, None
+        for f in [x.get("focus") for x in (storms, quake) if x and x.get("focus")]:
+            image, caption = self._safe(lambda: self._closeup(f)) or (None, None)
+            if image is not None:
+                focus = f
+                break
         if image is None:
             image, caption = self._safe(self._full_disk) or (None, None)
-            focus = None if image is not None else focus
 
         with self._lock:
             if image is not None:
@@ -119,20 +119,28 @@ class EarthWatch:
         lat, lon = focus["lat"], focus["lon"]
         half = 8.0
         bbox = f"{lat - half},{lon - half},{lat + half},{lon + half}"
-        now = datetime.now(timezone.utc) - timedelta(minutes=40)
-        layer, when, source = None, None, None
+        now = datetime.now(timezone.utc)
         if -150 <= lon <= -20:  # GOES geostationary coverage: near-real-time, every 10 min
             layer = "GOES-East_ABI_GeoColor" if lon > -105 else "GOES-West_ABI_GeoColor"
-            when = now.replace(minute=now.minute // 10 * 10, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
             source = "GOES-East" if lon > -105 else "GOES-West"
-        else:  # elsewhere: yesterday's polar-orbit true color
+            # Worldview's GOES tiles lag by a variable amount (GOES-West was 40-70 min behind on
+            # Oct 13 2026), so step back until a frame has actual imagery in it.
+            tries = []
+            for mins in (40, 70, 100, 150):
+                t = now - timedelta(minutes=mins)
+                tries.append(t.replace(minute=t.minute // 10 * 10, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ"))
+        else:  # elsewhere: polar-orbit true color, yesterday's (or the day before's) pass
             layer = "VIIRS_SNPP_CorrectedReflectance_TrueColor"
-            when = (now - timedelta(days=1)).strftime("%Y-%m-%d")
             source = "NASA VIIRS"
-        r = _get(WORLDVIEW, timeout=60, params={
-            "REQUEST": "GetSnapshot", "TIME": when, "BBOX": bbox, "CRS": "EPSG:4326",
-            "LAYERS": f"{layer},Coastlines_15m", "FORMAT": "image/jpeg", "WIDTH": self.size, "HEIGHT": self.size})
-        if len(r.content) < 20000:  # mostly-empty tile (no imagery yet) - fall back to the full disk
+            tries = [(now - timedelta(days=d)).strftime("%Y-%m-%d") for d in (1, 2)]
+        r = None
+        for when in tries:
+            r = _get(WORLDVIEW, timeout=60, params={
+                "REQUEST": "GetSnapshot", "TIME": when, "BBOX": bbox, "CRS": "EPSG:4326",
+                "LAYERS": f"{layer},Coastlines_15m", "FORMAT": "image/jpeg", "WIDTH": self.size, "HEIGHT": self.size})
+            if len(r.content) >= 20000:  # under ~20 KB = mostly-empty tile, no imagery yet
+                break
+        else:
             return None
         img = Image.open(io.BytesIO(r.content)).convert("RGB")
         d = ImageDraw.Draw(img)
