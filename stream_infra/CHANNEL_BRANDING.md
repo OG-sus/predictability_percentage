@@ -1,7 +1,7 @@
 # Twitch channel copy - FSR Earth Watch
 
 Everything to paste into twitch.tv/stabilitynetwork for the Earth Watch stream.
-Replace `[YouTube link]` with your channel URL before pasting.
+YouTube: youtube.com/@PredictabilityCalculator (channel ID UClyK_yir0DBphTOKZ9eL0hA).
 
 ---
 
@@ -84,7 +84,7 @@ Try it free at predictability-api.com
 ```
 Daily Shorts: pitchers' fastballs, hurricanes, anime, prices, all run through the stability engine.
 
-[YouTube link]
+youtube.com/@PredictabilityCalculator
 ```
 
 ### 7. Support the stream
@@ -118,7 +118,7 @@ in your chat. Add each command by pasting the line into your own chat:
 !commands add !water Groundwater for U.S. drought regions, measured from space by NASA. Several are at their lowest in 23 years.
 !commands add !data Everything here is live public data: NOAA, NASA, USGS. The stability scores come from the FSR engine at predictability-api.com
 !commands add !site predictability-api.com: score any time series for stability, free to try.
-!commands add !youtube Daily Shorts on YouTube: [YouTube link]
+!commands add !youtube Daily Shorts on YouTube: youtube.com/@PredictabilityCalculator
 ```
 
 Optional timer (Nightbot > Timers): post `!fsr`'s text every 30 minutes, if at least 5 chat lines have gone by.
