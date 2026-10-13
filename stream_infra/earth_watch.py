@@ -106,7 +106,8 @@ def _wave_series(station, hours=72):
 def _short_name(name, station):
     """'Station 46006 - SE Papa - 600NM West of Eureka, CA' -> 'SE PAPA'"""
     parts = [x.strip() for x in name.split(" - ") if x.strip() and not x.strip().lower().startswith("station")]
-    name = re.sub(r"\s+AWS$", "", parts[0]) if parts else f"BUOY {station}"  # AWS = offshore weather station
+    name = re.sub(r"\s*\(.*$", "", parts[0]) if parts else f"BUOY {station}"  # drop "(256)"-style suffixes
+    name = re.sub(r"\s+AWS$", "", name)  # AWS = offshore weather station
     return name.upper()[:34]
 
 
