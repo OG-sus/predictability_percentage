@@ -44,7 +44,7 @@ $MusicFolder = Join-Path $PSScriptRoot "music"  # drop .mp3/.wav files here; emp
 $MusicVolumeDb = "-22dB"  # background level, not foreground - tune this if it's still too loud/quiet
 $Resolution = "1280x720"
 $FrameRate  = 20          # a ticker board doesn't need 30; renderer reads this via STREAM_FPS
-$VideoBitrate = "1500k"   # ~1.7 Mbps with audio; fits a 4 Mbps upload with headroom (one platform only)
+$VideoBitrate = "1100k"   # Verizon home internet sustains ~1.4 Mbps to Twitch (Oct 13 test), so ~1.2 total leaves headroom
 $Encoder    = "qsv"       # "qsv" = Intel Quick Sync (Iris Xe, near-zero CPU), "x264" = software fallback
 # ------------------------------------------------------------------
 
@@ -162,10 +162,10 @@ while ($true) {
     ) + $audioInput + @(
         "-map", "0:v", "-map", "1:a"
     ) + $videoCodecArgs + @(
-        "-b:v", $VideoBitrate, "-maxrate", $VideoBitrate, "-bufsize", "3000k",
+        "-b:v", $VideoBitrate, "-maxrate", $VideoBitrate, "-bufsize", "2200k",
         "-g", ($FrameRate * 2), "-r", $FrameRate,
         "-af", "volume=$MusicVolumeDb",
-        "-c:a", "aac", "-b:a", "128k",
+        "-c:a", "aac", "-b:a", "96k",
         "-shortest"   # renderer died -> end the stream so the loop restarts it (the music input never ends on its own)
     ) + $OutputArgs
     $runStart = Get-Date

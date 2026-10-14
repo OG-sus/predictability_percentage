@@ -61,8 +61,8 @@ FOCUS_QUAKE_MAG = 6.5    # so do M6.5+ quakes in the last 24 hours
 TOP_STORMS = 3           # storm card rotates through up to this many active storms, strongest first
 TOP_BUOYS = 5            # buoy card rotates through the buoys with the biggest waves right now
 ROTATE_SECONDS = 60      # each rotating card shows one item this long (cards are staggered 20s apart)
-EVENT_CYCLE_SECONDS = 240  # during a live event: the close-up loop for 3 min...
-GLOBE_SECONDS = 60         # ...then the whole globe for 1 min, repeating
+EVENT_CYCLE_SECONDS = 180  # during a live event: the close-up loop for 90 s...
+GLOBE_SECONDS = 90         # ...then the whole globe for 90 s, repeating
 LOOP_FRAMES = 8          # close-up loop length: 8 frames x 10 min = the last ~80 minutes
 STORM_BUOY_KM = 800      # a buoy this close to a hurricane jumps to the front of the buoy rotation
 
