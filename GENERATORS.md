@@ -121,6 +121,15 @@ python flu_gen.py --region tx         # a state, or hhs1..hhs10
 ```
 Never touches zero. 2025-26 peaked at 8.3%, the highest in the data. Prints "rising N weeks in a row".
 
+### tornado_gen.py — U.S. tornadoes per month since 1950 (NOAA SPC, no key)
+```
+python tornado_gen.py                                # 900+ months; final database + this year's preliminary reports
+python tornado_gen.py --days 2026-10-08 2026-10-12   # this year's reports day by day (an outbreak)
+python tornado_gen.py --state FL                     # one state (zero months - the tool warns)
+```
+Tornadoes are the least predictable thing we've scored: overall ~35%, typical 12-month window ~40%.
+This year's months are raw reports (run ~10-20% high). Daily counts are mostly zeros - chart monthly.
+
 ### ai_outage_gen.py — every incident on a company's public status page
 ```
 python ai_outage_gen.py --since 2024-01-01 --series incidents --window 4      # Anthropic
