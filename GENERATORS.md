@@ -284,7 +284,7 @@ Edit the price list inside the file to update, then run.
 
 | Command | It asks for | Source |
 |---|---|---|
-| `python nba_data_gen.py` | player name, stat (PTS/REB/AST), # games | nba_api |
+| `python nba_data_gen.py "Shai Gilgeous-Alexander" PTS` | player, stat (PTS/REB/AST/FG3M...), `--games 250 --seasons 3 --window 10`; no args = asks you | nba_api, season auto-detected (2026-27 from Oct 2026), regular season + playoffs, saves output/nba_<player>_<stat>_<n>games.txt |
 | `python nfl_data_gen.py` | player name, stat (Pass_Yds/Rush_Yds), season | pro-football-reference |
 | `python nhl_data_gen.py` | player name, stat (goals/shots), season end year | hockey-reference |
 | `python mlb_data_gen.py` | player name, stat (H/HR/SO), season, # games | pybaseball |
