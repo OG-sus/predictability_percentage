@@ -45,7 +45,7 @@ COLUMNS = 3
 ROWS_PER_COL = 7
 ROTATE_SECONDS = 20  # matches templates/stream_ticker.html's ROTATE_MS = 20000
 REFRESH_INTERVAL = 120
-MARQUEE_SPEED_PX_S = 90
+MARQUEE_PX_PER_FRAME = 4  # whole pixels per frame = perfectly even steps (4 px x 20 fps = 80 px/s)
 MARQUEE_DIVIDER_EVERY = 8
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -129,6 +129,7 @@ class Renderer:
         self.background = build_background()
         self.logo = load_logo()
         self.start_time = time.time()
+        self.frame_no = 0  # frames sent to ffmpeg so far (set by main); the ticker moves by this, not the clock
         self._ribbon_cache = None
         self._ribbon_cache_at = 0.0
         # Only the clock, live dot, progress bar and marquee move frame to
@@ -254,7 +255,9 @@ class Renderer:
         if not self._ribbon_img:
             return
         strip, ribbon_width = self._ribbon_img
-        offset = int(((time.time() - self.start_time) * MARQUEE_SPEED_PX_S) % ribbon_width)
+        # By frame count, not wall clock: ffmpeg plays frame N at N/FPS, so clock-based offsets
+        # jittered by however early/late each frame happened to be drawn.
+        offset = (self.frame_no * MARQUEE_PX_PER_FRAME) % ribbon_width
         img.paste(strip.crop((offset, 0, offset + WIDTH, strip.height)), (0, self.STRIP_TOP))
 
     def _base_frame(self, batch):
@@ -466,6 +469,7 @@ def main():
                     sys.stderr.flush()
                 if last_frame is None:
                     raise
+            renderer.frame_no += 1
             if not write_full_frame(out, last_frame):
                 sys.stderr.write("stream_renderer: output pipe closed (write returned 0), exiting\n")
                 break
@@ -485,6 +489,7 @@ def main():
                     next_frame_at = time.time()
                 else:
                     for _ in range(missed):
+                        renderer.frame_no += 1
                         if not write_full_frame(out, last_frame):
                             break
                     next_frame_at += missed * frame_interval
