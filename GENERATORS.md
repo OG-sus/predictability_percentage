@@ -130,6 +130,16 @@ python tornado_gen.py --state FL                     # one state (zero months - 
 Tornadoes are the least predictable thing we've scored: overall ~35%, typical 12-month window ~40%.
 This year's months are raw reports (run ~10-20% high). Daily counts are mostly zeros - chart monthly.
 
+### fire_gen.py — NASA FIRMS satellite fire detections, monthly since 2000 (FIRMS_MAP_KEY)
+```
+python fire_gen.py --preset indonesia               # MODIS, Nov 2000 to yesterday (first run ~35 min, then cached)
+python fire_gen.py --preset borneo --source VIIRS_SNPP --since 2012
+python fire_gen.py --bbox -125,32,-114,42 --name california
+python fire_gen.py --preset indonesia --daily 60    # day by day (fine during a fire season)
+```
+Presets: indonesia, borneo, sumatra, california, amazon, canada, australia (lat/lon boxes, not borders).
+Every fire season spikes; El Nino years spike harder. Free key, 5,000 calls / 10 min (the tool paces itself).
+
 ### ai_outage_gen.py — every incident on a company's public status page
 ```
 python ai_outage_gen.py --since 2024-01-01 --series incidents --window 4      # Anthropic
