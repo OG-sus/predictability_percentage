@@ -35,9 +35,15 @@ def player_id(name):
 
 
 def games(pid, season, group):
-    stats = requests.get(f"{API}/people/{pid}/stats", params={"stats": "gameLog", "group": group,
-                                                              "season": season}, timeout=30).json()["stats"]
-    return stats[0]["splits"] if stats else []
+    """Regular season plus postseason (gameType P), oldest first. The gameLog defaults to regular
+    season only, which left a pitcher's playoff starts - the whole reason for the Short - out."""
+    out = {}
+    for game_type in ("R", "P"):
+        stats = requests.get(f"{API}/people/{pid}/stats", params={
+            "stats": "gameLog", "group": group, "season": season, "gameType": game_type}, timeout=30).json()["stats"]
+        for g in (stats[0]["splits"] if stats else []):
+            out[g["game"]["gamePk"]] = g
+    return sorted(out.values(), key=lambda g: g["date"])
 
 
 def main():
