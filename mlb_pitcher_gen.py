@@ -37,11 +37,16 @@ def find_pitcher(name):
 
 
 def starts(pid, season):
-    stats = requests.get(f"{API}/people/{pid}/stats", timeout=20,
-                         params={"stats": "gameLog", "group": "pitching", "season": season}).json().get("stats", [])
-    if not stats:  # seasons with no appearances (injury year) come back empty
-        return []
-    return [s for s in stats[0]["splits"] if s["stat"].get("gamesStarted")]
+    """Every start of a season, regular season plus postseason (gameType P), oldest first.
+    The gameLog defaults to regular season only, which left playoff starts out."""
+    out = {}
+    for game_type in ("R", "P"):
+        stats = requests.get(f"{API}/people/{pid}/stats", timeout=20, params={
+            "stats": "gameLog", "group": "pitching", "season": season, "gameType": game_type}).json().get("stats", [])
+        for s in (stats[0]["splits"] if stats else []):  # injury years come back empty
+            if s["stat"].get("gamesStarted"):
+                out[s["game"]["gamePk"]] = s
+    return sorted(out.values(), key=lambda s: s["date"])
 
 
 def _outs(stat):
@@ -84,7 +89,7 @@ def main():
     parser = argparse.ArgumentParser(description="FSR on an MLB pitcher's raw per-start stats")
     parser.add_argument("name", help='pitcher name, e.g. "Cam Schlittler"')
     parser.add_argument("--season", type=int, default=datetime.now().year)
-    parser.add_argument("--career", action="store_true", help="every regular-season start of the career")
+    parser.add_argument("--career", action="store_true", help="every start of the career (regular season + postseason)")
     parser.add_argument("--window", type=int, help="sliding window in starts (default 5 season / 20 career)")
     args = parser.parse_args()
 

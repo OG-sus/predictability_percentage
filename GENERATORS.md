@@ -54,7 +54,7 @@ python tsa_gen.py --daily --since 2026
 
 ### mlb_pitcher_gen.py — FSR on a pitcher's RAW per-start stats · REAL · k=0.5
 ```
-python mlb_pitcher_gen.py "Justin Verlander" --career   # every start of the career
+python mlb_pitcher_gen.py "Justin Verlander" --career   # every start of the career (incl. postseason)
 python mlb_pitcher_gen.py "Cam Schlittler"              # one season
 ```
 FSR on strikeouts, pitches, outs, batters faced, hits, walks, earned runs - no composite metrics.
