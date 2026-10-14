@@ -45,7 +45,8 @@ COLUMNS = 3
 ROWS_PER_COL = 7
 ROTATE_SECONDS = 20  # matches templates/stream_ticker.html's ROTATE_MS = 20000
 REFRESH_INTERVAL = 120
-MARQUEE_PX_PER_FRAME = 4  # whole pixels per frame = perfectly even steps (4 px x 20 fps = 80 px/s)
+# Whole pixels per frame = perfectly even steps: 4 px x 20 fps = 80 px/s, 5 px x 15 fps (light mode) = 75
+MARQUEE_PX_PER_FRAME = max(1, round(80 / FPS))
 MARQUEE_DIVIDER_EVERY = 8
 
 HERE = os.path.dirname(os.path.abspath(__file__))

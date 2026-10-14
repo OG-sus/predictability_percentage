@@ -36,6 +36,11 @@ Run:
     powershell -File stream_infra\run_stream.ps1
 #>
 
+# -Light: for when you're using the PC too. 15 fps (a quarter less work) and normal priority,
+# so the stream gets a fair share of the CPU instead of whatever is left over.
+#     powershell -ExecutionPolicy Bypass -File stream_infra\run_stream.ps1 -Light
+param([switch]$Light)
+
 $ErrorActionPreference = "Stop"
 
 # --- CONFIG -----------------------------------------------------
@@ -44,6 +49,7 @@ $MusicFolder = Join-Path $PSScriptRoot "music"  # drop .mp3/.wav files here; emp
 $MusicVolumeDb = "-22dB"  # background level, not foreground - tune this if it's still too loud/quiet
 $Resolution = "1280x720"
 $FrameRate  = 20          # a ticker board doesn't need 30; renderer reads this via STREAM_FPS
+if ($Light) { $FrameRate = 15 }
 $VideoBitrate = "1100k"   # Verizon home internet sustains ~1.4 Mbps to Twitch (Oct 13 test), so ~1.2 total leaves headroom
 $Encoder    = "qsv"       # "qsv" = Intel Quick Sync (Iris Xe, near-zero CPU), "x264" = software fallback
 # ------------------------------------------------------------------
@@ -147,7 +153,7 @@ if ($Encoder -eq "qsv") {
 
 # Below-normal priority is inherited by the python + ffmpeg children, so
 # anything you're doing on the machine always wins over the stream.
-(Get-Process -Id $PID).PriorityClass = "BelowNormal"
+(Get-Process -Id $PID).PriorityClass = $(if ($Light) { "Normal" } else { "BelowNormal" })
 
 Write-Output "Streaming to $Platform at $Resolution/${FrameRate}fps via $Encoder ..."
 # Backoff so a flaky connection doesn't hammer Twitch/YouTube with rapid
