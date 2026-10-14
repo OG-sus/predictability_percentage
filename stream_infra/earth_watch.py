@@ -34,6 +34,7 @@ GOES = {
     "GOES-19 (East)": "https://cdn.star.nesdis.noaa.gov/GOES19/ABI/FD/GEOCOLOR/1808x1808.jpg",
     "GOES-18 (West)": "https://cdn.star.nesdis.noaa.gov/GOES18/ABI/FD/GEOCOLOR/1808x1808.jpg",
 }
+GOES_SUBLON = {"GOES-19 (East)": -75.2, "GOES-18 (West)": -137.0}  # where each satellite parks over the equator
 WORLDVIEW = "https://wvs.earthdata.nasa.gov/api/v1/snapshot"
 NHC_CURRENT = "https://www.nhc.noaa.gov/CurrentStorms.json"
 NHC_BTK = "https://ftp.nhc.noaa.gov/atcf/btk/b{id}.dat"
@@ -91,6 +92,26 @@ def _km(lat1, lon1, lat2, lon2):
     p1, p2 = math.radians(lat1), math.radians(lat2)
     a = math.sin((p2 - p1) / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(math.radians(lon2 - lon1) / 2) ** 2
     return 12742 * math.asin(math.sqrt(a))
+
+
+def _geo_xy(lat, lon, sub_lon):
+    """Where a lat/lon lands on a GOES full-disk image, as 0-1 fractions across and down
+    (GOES-R fixed-grid projection, NOAA's Product User Guide). None if it's over the horizon."""
+    req, rpol, h = 6378137.0, 6356752.31414, 42164160.0
+    phi, lam = math.radians(lat), math.radians(lon - sub_lon)
+    phic = math.atan((rpol ** 2 / req ** 2) * math.tan(phi))
+    rc = rpol / math.sqrt(1 - 0.00669438 * math.cos(phic) ** 2)
+    sx = h - rc * math.cos(phic) * math.cos(lam)
+    sy = -rc * math.cos(phic) * math.sin(lam)
+    sz = rc * math.sin(phic)
+    if h * (h - sx) < sy ** 2 + (req ** 2 / rpol ** 2) * sz ** 2:
+        return None
+    ext = 0.151872  # full-disk scan angle, radians
+    x = math.asin(-sy / math.sqrt(sx * sx + sy * sy + sz * sz))
+    y = math.atan(sz / sx)
+    gx, gy = (x + ext) / (2 * ext), (ext - y) / (2 * ext)
+    # keep the ring off the very edge of the disk, where it would be cut off or meaningless
+    return (gx, gy) if 0.04 < gx < 0.96 and 0.04 < gy < 0.96 else None
 
 
 def _missing_fraction(img):
@@ -172,33 +193,61 @@ class EarthWatch:
 
         # Hurricane first, then a big quake; if one's close-up has no imagery, try the next.
         focus, image, caption = None, None, None  # image = list of frames (one for a still)
+        closeup = False
         for f in [x.get("focus") for x in (storms, quake) if x and x.get("focus")]:
+            if f.get("kind") == "quake":
+                # A quake has nothing to see up close (often open ocean): mark it on the live globe.
+                image, caption = self._safe(lambda: self._full_disk(f)) or (None, None)
+                if image is not None:
+                    focus = f
+                    break
             image, caption = self._safe(lambda: self._closeup(f)) or (None, None)
             if image is not None:
-                focus = f
+                focus, closeup = f, True
                 break
-        globe = self._safe(self._full_disk)  # always fetched: shown alone, or between close-up loops
+        globe = None
+        if closeup or focus is None:  # shown alone, or for the globe minutes between close-up loops
+            globe = self._safe(lambda: self._full_disk(focus))
         if image is None and globe:
             image, caption = globe
 
         with self._lock:
             if image is not None:
                 self._state["image"], self._state["caption"] = image, caption
-            if globe and focus is not None:
+            if globe and closeup:
                 self._state["globe"] = globe
-            elif focus is None:
+            else:
                 self._state.pop("globe", None)
             self._state["focus"] = focus
             self._state["sets"] = sets
             self._state["version"] += 1
 
     # ---- images -----------------------------------------------------------------------
-    def _full_disk(self):
-        name = list(GOES)[self._goes_turn % len(GOES)]
-        self._goes_turn += 1
+    def _full_disk(self, focus=None):
+        """The whole globe from GOES East or West (they alternate each refresh). With a focus, use
+        the satellite that can see it best and put a red ring on the spot - returns None if
+        neither satellite can see it (the far side of the planet)."""
+        if focus:
+            seen = [(abs(focus["lon"] - GOES_SUBLON[n]), n) for n in GOES
+                    if _geo_xy(focus["lat"], focus["lon"], GOES_SUBLON[n]) is not None]
+            if not seen:
+                return None
+            name = min(seen)[1]
+        else:
+            name = list(GOES)[self._goes_turn % len(GOES)]
+            self._goes_turn += 1
         img = Image.open(io.BytesIO(_get(GOES[name], timeout=60).content)).convert("RGB")
+        n = img.width
         img = img.resize((self.size, self.size), Image.LANCZOS)
-        return [img], f"LIVE FROM SPACE  .  {name}  .  NOAA  .  {datetime.now(timezone.utc):%H:%M} UTC"
+        caption = f"LIVE FROM SPACE  .  {name}  .  NOAA  .  {datetime.now(timezone.utc):%H:%M} UTC"
+        if focus:
+            gx, gy = _geo_xy(focus["lat"], focus["lon"], GOES_SUBLON[name])
+            x, y = gx * self.size, gy * self.size
+            d = ImageDraw.Draw(img)
+            for r_, w in ((16, 3), (24, 2)):
+                d.ellipse([x - r_, y - r_, x + r_, y + r_], outline=(255, 77, 77), width=w)
+            caption = f"LIVE FROM SPACE . {focus['label']} . {name} . {datetime.now(timezone.utc):%H:%M} UTC"
+        return [img], caption
 
     def _closeup(self, focus):
         """Worldview satellite close-up centered on the event, with a marker on it.
@@ -209,14 +258,26 @@ class EarthWatch:
         bbox = f"{lat - half},{lon - half},{lat + half},{lon + half}"
         now = datetime.now(timezone.utc)
 
-        def fetch(layer, when):
-            r = _get(WORLDVIEW, timeout=60, params={
+        def snap(layers, when, size):
+            return _get(WORLDVIEW, timeout=60, params={
                 "REQUEST": "GetSnapshot", "TIME": when, "BBOX": bbox, "CRS": "EPSG:4326",
-                "LAYERS": f"{layer},Coastlines_15m", "FORMAT": "image/jpeg", "WIDTH": self.size, "HEIGHT": self.size})
-            if len(r.content) < 20000:  # under ~20 KB = mostly-empty tile, no imagery yet
+                "LAYERS": layers, "FORMAT": "image/jpeg", "WIDTH": size, "HEIGHT": size}).content
+
+        def fetch(layer, when):
+            if layer.endswith("_ABI_GeoColor"):
+                # Gap check on the infrared band, not the color image: the ocean at NIGHT is pure
+                # black in GeoColor (that rejected every night frame of Hurricane Simon), but in
+                # infrared it's gray day and night - only frames Worldview hasn't filled in yet are black.
+                ir = snap(layer.replace("GeoColor", "Band13_Clean_Infrared"), when, 140)
+                if len(ir) < 1500 or _missing_fraction(Image.open(io.BytesIO(ir)).convert("RGB")) > 0.05:
+                    return None
+            content = snap(f"{layer},Coastlines_15m", when, self.size)
+            if len(content) < 20000:  # under ~20 KB = mostly-empty tile, no imagery yet
                 return None
-            img = Image.open(io.BytesIO(r.content)).convert("RGB")
-            return img if _missing_fraction(img) <= 0.05 else None  # partly-filled tiles have black gaps
+            img = Image.open(io.BytesIO(content)).convert("RGB")
+            if not layer.endswith("_ABI_GeoColor") and _missing_fraction(img) > 0.05:
+                return None  # polar-orbit swaths: gaps between passes are black
+            return img
 
         if -150 <= lon <= -20:  # GOES geostationary coverage: a new frame every 10 min
             layer = "GOES-East_ABI_GeoColor" if lon > -105 else "GOES-West_ABI_GeoColor"
@@ -286,7 +347,7 @@ class EarthWatch:
         s, focus = active[0], None
         if int(s["intensity"]) >= FOCUS_STORM_KT:
             focus = {"lat": float(s["latitudeNumeric"]), "lon": float(s["longitudeNumeric"]),
-                     "label": f"Hurricane {s['name']}, {saffir(int(s['intensity']))}"}
+                     "label": f"Hurricane {s['name']}, {saffir(int(s['intensity']))}", "kind": "storm"}
         return {"cards": cards, "focus": focus}
 
     def _quakes(self):
@@ -308,7 +369,7 @@ class EarthWatch:
         focus = None
         if big and (big["properties"]["mag"] or 0) >= FOCUS_QUAKE_MAG:
             lon, lat = big["geometry"]["coordinates"][:2]
-            focus = {"lat": lat, "lon": lon, "label": f"M{big['properties']['mag']:.1f} earthquake"}
+            focus = {"lat": lat, "lon": lon, "label": f"M{big['properties']['mag']:.1f} earthquake", "kind": "quake"}
         return {"card": card, "focus": focus}
 
     def _buoys(self, storm_focus=None):
