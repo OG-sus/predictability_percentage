@@ -106,6 +106,21 @@ python rain_gen.py --place "Houston" --hours 48 --cumulative   # running storm t
 Same EARTHDATA_TOKEN. Rain has many dry (zero) steps, which break FSR - use it during a storm or
 monsoon, or use --cumulative ("total rain so far"). The tool warns when it's too dry.
 
+### drought_gen.py — U.S. Drought Monitor, weekly since 2000 (no key)
+```
+python drought_gen.py --metric d1                        # lower 48, % in drought (never near zero)
+python drought_gen.py --state TX --since 2020 --metric d1 # one state - start late enough to skip 0% years
+python drought_gen.py --state TX --since 2020            # DSCI: every drought level weighted, 0-500
+```
+Wet states sit at 0% for months, which breaks FSR; the tool warns. Texas is clean from 2020 on.
+
+### flu_gen.py — CDC flu-like illness (ILINet), weekly since 1997 (no key)
+```
+python flu_gen.py                     # national, 1,400+ weeks, every winter a full rise-peak-fall
+python flu_gen.py --region tx         # a state, or hhs1..hhs10
+```
+Never touches zero. 2025-26 peaked at 8.3%, the highest in the data. Prints "rising N weeks in a row".
+
 ### ai_outage_gen.py — every incident on a company's public status page
 ```
 python ai_outage_gen.py --since 2024-01-01 --series incidents --window 4      # Anthropic
