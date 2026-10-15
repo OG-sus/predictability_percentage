@@ -16,10 +16,16 @@ if one source is down, the rest still run.
   9. Economy pulse  - TSA travel, jobless claims, gas, mortgage, 10-yr, sentiment, eggs, beef (add to PULSE_FRED)
  10. Chart finder   - long FRED + science series ranked by how much the engine shows (data first)
  11. YouTube rising - fastest-rising US YouTube searches (Google Trends) to match against data
+ 12. Earth & NASA   - live scans that RUN the generators: big quakes, fire seasons, giant waves,
+                      drought spreading, flu, tornadoes, groundwater lows (digest_live.py)
+ 13. Sports         - tonight's/tomorrow's MLB starters and NBA stars, charts built; NFL primetime
+  0. Ready to chart - everything from 12-13 ranked by how viral it is right now (Wikipedia spike +
+                      YouTube rising), printed at the TOP of the digest
 
 Run:
     python morning_digest.py
     python morning_digest.py --quick     # skip the slow full scan (wiki/anime), ~1 min
+    python morning_digest.py --no-live   # skip sections 12-13 (they run generators, ~10-20 min)
 
 Scheduled at 7am and 5pm via Windows Task Scheduler - see register_digest_task.ps1.
 """
@@ -54,6 +60,7 @@ def log(msg):
     sys.stderr.flush()
 
 
+RISING_QUERIES = []  # filled by youtube_rising(), used to score the live items' virality
 SEEN_PATH = os.path.join(OUT_DIR, "seen.json")
 SEEN_DAYS = 7     # an item shown in full comes back in full only after this many days
 
@@ -307,6 +314,7 @@ def youtube_rising():
     series behind them, a few point straight at a long dataset."""
     from yt_demand_gen import match, rising
     found = rising()
+    RISING_QUERIES.extend(q for qs in found.values() for q, _ in qs if not q.startswith("(failed"))
     matched, unmatched, seen = [], [], set()
     for seed, qs in found.items():
         for q, v in qs:
@@ -367,9 +375,35 @@ def ai_status():
     return lines
 
 
+def live_sections():
+    """Sections 12-13 plus the 'Ready to chart' summary. Returns (section lines, summary lines)."""
+    import digest_live as L
+    sections, every = [], []
+    for title, scans in (("12. Earth & NASA - live (charts already built)", L.EARTH_SCANS),
+                         ("13. Sports - tonight & tomorrow (charts already built)", L.SPORTS_SCANS)):
+        log(f"-> {title}")
+        start = time.time()
+        items = L.run_scans(scans)
+        L.score_virality(items, RISING_QUERIES)
+        every += items
+        lines = [ln for it in sorted(items, key=L.viral_rank, reverse=True) for ln in L.fmt(it)] or ["_nothing notable_"]
+        sections += [f"## {title}", *lines, f"<sub>{time.time() - start:.0f}s</sub>", ""]
+    ready = [it for it in sorted(every, key=L.viral_rank, reverse=True)
+             if it["out"].get("file") and not it["broken"]][:8]
+    summary = ["## 0. Ready to chart - most viral first",
+               "Series files already saved; settings in brackets. Wikipedia = attention vs the last two months.", ""]
+    for i, it in enumerate(ready, 1):
+        _, ratio, yt = it["viral"] or (None, None, [])
+        heat = (f"Wikipedia {ratio:.1f}x" if ratio else "") + (" + YouTube rising" if yt else "")
+        summary.append(f"{i}. **{it['title']}** - {it['why']}" + (f" - {heat}" if heat else ""))
+        summary.append(f"   `{it['out']['file']}` ({it['out'].get('settings') or 'see section'})")
+    return sections, (summary + [""] if ready else [])
+
+
 def main():
     parser = argparse.ArgumentParser(description="Morning digest of what moved overnight")
     parser.add_argument("--quick", action="store_true", help="skip the slow Wikipedia/anime scan")
+    parser.add_argument("--no-live", action="store_true", help="skip the live generator scans (sections 12-13)")
     args = parser.parse_args()
 
     os.chdir(HERE)  # generators expect to run from the project folder (.env, fsr.py)
@@ -386,7 +420,12 @@ def main():
     parts += economy_pulse()
     parts += chart_finder()
     parts += youtube_rising()
+    ready = []
+    if not args.no_live:
+        live, ready = live_sections()
+        parts += live
     save_seen()
+    parts[2:2] = ready  # "Ready to chart" goes right under the title
 
     os.makedirs(OUT_DIR, exist_ok=True)
     path = os.path.join(OUT_DIR, f"{now:%Y-%m-%d}_{'am' if now.hour < 12 else 'pm'}.md")  # 7am + 5pm runs

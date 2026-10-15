@@ -152,7 +152,9 @@ def get_nba_player_stats(player_name, stat_type, num_games=82, seasons=2, window
             print(f"{label} at game index: {i}")
         print("\n---------------------------------\n")
 
-        safe = "".join(c if c.isalnum() else "_" for c in player_name).strip("_").lower()
+        import unicodedata  # "Luka Dončić" -> "luka_doncic": plain file names upload everywhere
+        plain = unicodedata.normalize("NFKD", player_name).encode("ascii", "ignore").decode()
+        safe = "".join(c if c.isalnum() else "_" for c in plain).strip("_").lower()
         out_path = os.path.join("output", f"nba_{safe}_{stat_type.lower()}_{len(stats)}games.txt")
         os.makedirs("output", exist_ok=True)
         with open(out_path, "w") as f:
