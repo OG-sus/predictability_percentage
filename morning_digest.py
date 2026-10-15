@@ -394,7 +394,7 @@ def live_sections():
                "Series files already saved; settings in brackets. Wikipedia = attention vs the last two months.", ""]
     for i, it in enumerate(ready, 1):
         _, ratio, yt = it["viral"] or (None, None, [])
-        heat = (f"Wikipedia {ratio:.1f}x" if ratio else "") + (" + YouTube rising" if yt else "")
+        heat = " + ".join(([f"Wikipedia {ratio:.1f}x"] if ratio else []) + (["YouTube rising"] if yt else []))
         summary.append(f"{i}. **{it['title']}** - {it['why']}" + (f" - {heat}" if heat else ""))
         summary.append(f"   `{it['out']['file']}` ({it['out'].get('settings') or 'see section'})")
     return sections, (summary + [""] if ready else [])
@@ -407,6 +407,10 @@ def main():
     args = parser.parse_args()
 
     os.chdir(HERE)  # generators expect to run from the project folder (.env, fsr.py)
+    try:  # the digest has arrows and accented names; a cp1252 console crashed the final print
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     now = datetime.now()
     parts = [f"# Morning digest - {now:%A %B %d, %Y  %I:%M %p}", ""]
     parts += engine_picks(args.quick)

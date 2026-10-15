@@ -126,6 +126,7 @@ def quakes():
         p = f["properties"]
         place = p["place"].split(", ")[-1] if ", " in p["place"] else p["place"]
         res = run_gen(["quake_gen.py", "--around", f"{lat:.3f}", f"{lon:.3f}"], timeout=300)
+        res["settings"] = res.get("settings") or "window 12, k=1"
         when = datetime.fromtimestamp(p["time"] / 1000, timezone.utc)
         out.append(item("quake", f"M{p['mag']:.1f} earthquake, {p['place']}",
                         f"{when:%b %d %H:%M} UTC, depth {f['geometry']['coordinates'][2]:.0f} km"
