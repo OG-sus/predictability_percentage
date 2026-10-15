@@ -50,7 +50,7 @@ $MusicVolumeDb = "-22dB"  # background level, not foreground - tune this if it's
 $Resolution = "1280x720"
 $FrameRate  = 20          # a ticker board doesn't need 30; renderer reads this via STREAM_FPS
 if ($Light) { $FrameRate = 15 }
-$VideoBitrate = "1100k"   # Verizon home internet sustains ~1.4 Mbps to Twitch (Oct 13 test), so ~1.2 total leaves headroom
+$VideoBitrate = "750k"    # Verizon home internet only got ~0.96 Mbps out on a busy evening (Oct 14), so ~0.82 total with audio
 $Encoder    = "qsv"       # "qsv" = Intel Quick Sync (Iris Xe, near-zero CPU), "x264" = software fallback
 # ------------------------------------------------------------------
 
@@ -168,10 +168,10 @@ while ($true) {
     ) + $audioInput + @(
         "-map", "0:v", "-map", "1:a"
     ) + $videoCodecArgs + @(
-        "-b:v", $VideoBitrate, "-maxrate", $VideoBitrate, "-bufsize", "2200k",
+        "-b:v", $VideoBitrate, "-maxrate", $VideoBitrate, "-bufsize", "1500k",
         "-g", ($FrameRate * 2), "-r", $FrameRate,
         "-af", "volume=$MusicVolumeDb",
-        "-c:a", "aac", "-b:a", "96k",
+        "-c:a", "aac", "-b:a", "64k",
         "-shortest"   # renderer died -> end the stream so the loop restarts it (the music input never ends on its own)
     ) + $OutputArgs
     $runStart = Get-Date
