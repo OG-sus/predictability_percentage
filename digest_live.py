@@ -107,10 +107,44 @@ def score_virality(items, rising_queries):
 
 def viral_rank(it):
     _, ratio, yt = it["viral"] or (None, None, [])
-    return (ratio or 0) + (3 if yt else 0)
+    # cap: a brand-new article (tiny baseline) can show 1,000x+ and would always win
+    return min(ratio or 0, 20) + (3 if yt else 0)
 
 
 # ---------------------------------------------------------------- Earth / NASA -------------
+def storms():
+    """Hurricanes (64 kt+) and rapidly intensifying storms: the 6-hourly wind chart, saved."""
+    active = requests.get("https://www.nhc.noaa.gov/CurrentStorms.json", headers=UA, timeout=30).json().get("activeStorms", [])
+    out = []
+    for st in sorted(active, key=lambda x: -int(x.get("intensity") or 0)):
+        kt = int(st.get("intensity") or 0)
+        p = subprocess.run([PY, "hurricane_gen.py", "--storm", st["id"]], cwd=HERE, capture_output=True, text=True,
+                           timeout=300, encoding="utf-8", errors="replace")
+        text = p.stdout
+        ri = re.search(r"Biggest 24h gain: \+(\d+) kt \((\d+) -> (\d+)\) ending (\d{4}-\d\d-\d\d) (\d\d)Z", text)
+        if ri:  # only count it if the burst ended in the last ~36 hours, not days ago
+            ended = datetime.strptime(f"{ri.group(4)} {ri.group(5)}", "%Y-%m-%d %H").replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) - ended > timedelta(hours=36):
+                ri = None
+        if kt < 64 and not (ri and int(ri.group(1)) >= 30 and kt >= 34):
+            continue  # hurricanes, or tropical storms that are rapidly intensifying right now
+        lines = text.splitlines()
+        wind = next((lines[i + 1] for i, ln in enumerate(lines) if ln.startswith("--- Wind") and i + 1 < len(lines)), "")
+        if not wind.strip():
+            continue
+        path = os.path.join("output", f"{st['name'].lower()}_{st['id']}_wind_6hourly.txt")
+        with open(os.path.join(HERE, path), "w") as f:
+            f.write(wind.strip())
+        cat = next((f"Cat {c}" for c, t in ((5, 137), (4, 113), (3, 96), (2, 83), (1, 64)) if kt >= t), st["classification"])
+        why = f"{cat}, {kt} kt / {round(kt * 1.15078)} mph, {st['pressure']} mb" + (
+            f", rapid intensification +{ri.group(1)} kt in 24h" if ri and int(ri.group(1)) >= 30 else "")
+        out.append(item("storm", f"Hurricane {st['name']}" if kt >= 64 else f"Storm {st['name']}", why,
+                        f"python hurricane_gen.py --storm {st['id']}",
+                        {"file": path, "settings": "window 4, k=1", "fsr": ""},
+                        query=f"Hurricane {st['name']} {datetime.now().year}", keywords=[st["name"]]))
+    return out
+
+
 def quakes():
     """M6+ in the last 72 hours: build the "every quake near the epicenter" chart."""
     feed = requests.get("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson",
@@ -353,7 +387,7 @@ def nfl():
     return out
 
 
-EARTH_SCANS = [quakes, fires, waves, drought, flu, tornadoes, groundwater]
+EARTH_SCANS = [storms, quakes, fires, waves, drought, flu, tornadoes, groundwater]
 SPORTS_SCANS = [mlb, nba, nfl]
 
 
@@ -384,7 +418,8 @@ def fmt(it):
         title, ratio, yt = it["viral"]
         tags = []
         if ratio:
-            tags.append(f"Wikipedia {ratio:.1f}x normal" + (f" ({title})" if title else ""))
+            shown = f"{ratio:.1f}x" if ratio < 50 else "50x+ (new article)"
+            tags.append(f"Wikipedia {shown} normal" + (f" ({title})" if title else ""))
         if yt:
             tags.append("YouTube rising: " + ", ".join(yt[:3]))
         if tags:
