@@ -101,7 +101,9 @@ if ($Platform -eq "both") {
         Write-Error "Set $envVarName in .env before running (platform is currently set to '$Platform')."
         exit 1
     }
-    $OutputArgs = @("-f", "flv", (Get-RtmpUrl $Platform $key))
+    # -rw_timeout: if Twitch/YouTube stops accepting data for 20 s (e.g. the 48-hour cutoff), ffmpeg exits
+    # instead of hanging on the dead connection, so the loop below reconnects.
+    $OutputArgs = @("-f", "flv", "-rw_timeout", "20000000", (Get-RtmpUrl $Platform $key))
 }
 
 Set-Location $RepoRoot

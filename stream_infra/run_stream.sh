@@ -40,10 +40,10 @@ case "$PLATFORM" in
     OUTPUT=(-f tee "[f=flv:onfail=ignore]$TWITCH_URL|[f=flv:onfail=ignore]$YOUTUBE_URL") ;;
   youtube)
     [ -n "$YOUTUBE_KEY" ] || { echo "Set YOUTUBE_STREAM_KEY in .env" >&2; exit 1; }
-    OUTPUT=(-f flv "$YOUTUBE_URL") ;;
+    OUTPUT=(-f flv -rw_timeout 20000000 "$YOUTUBE_URL") ;;
   *)
     [ -n "$TWITCH_KEY" ] || { echo "Set TWITCH_STREAM_KEY in .env" >&2; exit 1; }
-    OUTPUT=(-f flv "$TWITCH_URL") ;;
+    OUTPUT=(-f flv -rw_timeout 20000000 "$TWITCH_URL") ;;
 esac
 
 # --- Audio: music folder on loop, or silence ---
