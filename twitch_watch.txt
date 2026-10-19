@@ -1,0 +1,16 @@
+# Twitch recorder watchlist - one per line. Add or remove anytime.
+channel: stabilitynetwork
+channel: kaicenat
+channel: xqc
+channel: ishowspeed
+channel: zackrawrr
+channel: summit1g
+game: Grand Theft Auto V
+game: Just Chatting
+game: Fortnite
+game: Minecraft
+game: Counter-Strike
+game: Valheim
+game: Overwatch 2
+game: TEKKEN 8
+game: Science & Technology

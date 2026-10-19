@@ -140,6 +140,16 @@ python fire_gen.py --preset indonesia --daily 60    # day by day (fine during a 
 Presets: indonesia, borneo, sumatra, california, amazon, canada, australia (lat/lon boxes, not borders).
 Every fire season spikes; El Nino years spike harder. Free key, 5,000 calls / 10 min (the tool paces itself).
 
+### twitch_recorder.py — Twitch viewership history (TWITCH_CLIENT_ID + TWITCH_CLIENT_SECRET)
+```
+powershell -ExecutionPolicy Bypass -File register_twitch_task.ps1   # once: records every 10 minutes
+python twitch_recorder.py --chart xqc                               # a channel's live viewers, every snapshot
+python twitch_recorder.py --chart "Grand Theft Auto V" --game       # a game's total viewers (top 300 streams)
+python twitch_recorder.py --top                                     # biggest + steadiest channels so far
+```
+Twitch's API only has "right now", so the history starts the day the recorder starts. Logs top 100 streams
+plus everything in twitch_watch.txt (edit freely). Sports-style k=0.5 by default.
+
 ### ai_outage_gen.py — every incident on a company's public status page
 ```
 python ai_outage_gen.py --since 2024-01-01 --series incidents --window 4      # Anthropic
