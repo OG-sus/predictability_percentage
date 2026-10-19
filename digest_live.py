@@ -391,6 +391,108 @@ EARTH_SCANS = [storms, quakes, fires, waves, drought, flu, tornadoes, groundwate
 SPORTS_SCANS = [mlb, nba, nfl]
 
 
+# ---------------------------------------------------------------- gaming & entertainment --
+STEAM_UA = {"User-Agent": "Mozilla/5.0 (predictability-api.com digest)"}
+
+
+def _steam_monthly(appid):
+    """Average concurrent players per month since the game's first month on SteamCharts."""
+    pts = requests.get(f"https://steamcharts.com/app/{appid}/chart-data.json", headers=STEAM_UA, timeout=30).json()
+    months = {}
+    for ms, players in pts:
+        if players is None:
+            continue
+        key = datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%Y-%m")
+        months.setdefault(key, []).append(players)
+    return [(m, statistics.mean(v)) for m, v in sorted(months.items())]
+
+
+def steam():
+    """Steam's 50 most-played games right now: flag a record month or a surge (this month 1.5x+ its
+    6-month median). Saves the monthly player series (since 2012 for older games)."""
+    ranks = requests.get("https://api.steampowered.com/ISteamChartsService/GetMostPlayedGames/v1/",
+                         headers=STEAM_UA, timeout=30).json()["response"]["ranks"][:50]
+
+    def one(r):
+        try:
+            m = _steam_monthly(r["appid"])
+        except Exception:
+            return None
+        if len(m) < 13:
+            return None  # too new for a long chart
+        vals = [v for _, v in m]
+        cur, prev = vals[-1], vals[:-1]
+        surge = cur / (statistics.median(prev[-6:]) or 1)
+        record = cur >= max(prev)
+        if not (record or surge >= 1.5):
+            return None
+        name = requests.get("https://store.steampowered.com/api/appdetails", headers=STEAM_UA, timeout=30,
+                            params={"appids": r["appid"], "filters": "basic"}).json()
+        name = (name.get(str(r["appid"]), {}).get("data") or {}).get("name") or f"app {r['appid']}"
+        return r, m, cur, surge, record, name
+
+    with ThreadPoolExecutor(6) as ex:
+        hits = [h for h in ex.map(one, ranks) if h]
+    out = []
+    for r, m, cur, surge, record, name in sorted(hits, key=lambda h: -h[3])[:4]:
+        slug = "".join(c if c.isalnum() else "_" for c in name.lower()).strip("_")[:40]
+        path = os.path.join("output", f"steam_{slug}_monthly.txt")
+        with open(os.path.join(HERE, path), "w") as f:
+            f.write(", ".join(f"{v:.0f}" for _, v in m))
+        why = (f"#{r['rank']} on Steam today, {r.get('peak_in_game', 0):,} at today's peak; "
+               f"{m[-1][0]} averaging {cur:,.0f} players" + (" - an ALL-TIME monthly high" if record else "")
+               + (f", {surge:.1f}x its last 6 months" if surge >= 1.5 else "") + f" ({len(m)} months of data)")
+        out.append(item("steam", name, why, f"(Steam app {r['appid']}, SteamCharts monthly averages)",
+                        {"file": path, "settings": "window 6, k=1", "fsr": ""},
+                        query=f"{name} video game", keywords=[name]))
+    return out
+
+
+def netflix_spikes():
+    """This week's Netflix #1s: is the title at its biggest Wikipedia attention in 10 years?
+    (The East of Eden find, automated.) Saves 10 years of daily views."""
+    import csv as _csv
+    import io as _io
+    text = requests.get("https://www.netflix.com/tudum/top10/data/all-weeks-global.tsv",
+                        headers={"User-Agent": "Mozilla/5.0"}, timeout=60).text
+    rows = list(_csv.DictReader(_io.StringIO(text), delimiter="	"))
+    week = max(r["week"] for r in rows)
+    titles = {(r["show_title"], r["category"]) for r in rows if r["week"] == week and r["weekly_rank"] in ("1", "2")}
+    out = []
+    end = date.today() - timedelta(1)
+    start = end - timedelta(3649)
+    for title, cat in sorted(titles):
+        try:
+            hit = requests.get("https://en.wikipedia.org/w/api.php", headers=UA, timeout=20, params={
+                "action": "query", "list": "search", "srsearch": title, "srlimit": 1, "format": "json"}).json()
+            page = hit["query"]["search"][0]["title"]
+            u = ("https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/"
+                 f"{requests.utils.quote(page.replace(' ', '_'), safe='')}/daily/{start:%Y%m%d}/{end:%Y%m%d}")
+            it = requests.get(u, headers=UA, timeout=30).json().get("items", [])
+        except Exception:
+            continue
+        v = [i["views"] for i in it]
+        if len(v) < 700:  # under ~2 years of history: it's a new page, not a 10-year story
+            continue
+        peak_i = max(range(len(v)), key=v.__getitem__)
+        if peak_i < len(v) - 21:
+            continue  # the all-time peak isn't in the last 3 weeks
+        older = max(v[:-60]) if len(v) > 60 else 1
+        slug = "".join(c if c.isalnum() else "_" for c in page.lower()).strip("_")[:40]
+        path = os.path.join("output", f"wiki_{slug}_daily_10yr.txt")
+        with open(os.path.join(HERE, path), "w") as f:
+            f.write(", ".join(str(x) for x in v))
+        out.append(item("netflix", f"{title} (Netflix {cat})",
+                        f"Wikipedia '{page}' just hit its biggest day in {len(v) // 365} years: {v[peak_i]:,} views "
+                        f"({v[peak_i] / (older or 1):.1f}x its previous record); typical day {statistics.median(v):,.0f}",
+                        f'python pageviews_gen.py "{page}" --days 3650', {"file": path, "settings": "window 28, k=1", "fsr": ""},
+                        query=page, keywords=[title]))
+    return out
+
+
+ENTERTAINMENT_SCANS = [steam, netflix_spikes]
+
+
 def run_scans(scans):
     items = []
     for scan in scans:

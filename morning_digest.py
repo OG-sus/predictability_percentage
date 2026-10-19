@@ -19,6 +19,7 @@ if one source is down, the rest still run.
  12. Earth & NASA   - live scans that RUN the generators: big quakes, fire seasons, giant waves,
                       drought spreading, flu, tornadoes, groundwater lows (digest_live.py)
  13. Sports         - tonight's/tomorrow's MLB starters and NBA stars, charts built; NFL primetime
+ 14. Gaming/ent.    - Steam's top 50 games with record/surge months; Netflix #1s at a 10-year Wikipedia peak
   0. Ready to chart - everything from 12-13 ranked by how viral it is right now (Wikipedia spike +
                       YouTube rising), printed at the TOP of the digest
 
@@ -114,13 +115,26 @@ def section(title):
     return wrap
 
 
+def wiki_what(r):
+    """Wikipedia's one-line description of a spiking article ("Nepalese-Indian mountaineer"), so a
+    bare name in the table says what it is."""
+    try:
+        title = r["series"].replace(" ", "_")
+        d = requests.get(f"https://en.wikipedia.org/api/rest_v1/page/summary/{requests.utils.quote(title, safe='')}",
+                         headers={"User-Agent": "predictability-api.com digest"}, timeout=15).json()
+        return (d.get("description") or "")[:45]
+    except Exception:
+        return ""
+
+
 @section("1. Engine picks - biggest stability cracks")
 def engine_picks(quick):
     from scanner_gen import scan
     results = scan(["fred", "market"] if quick else None)
     lines = ["Scans the fixed watchlists PLUS today's top Wikipedia articles and freshly updated FRED series.",
              "**full arc** = spiked and already settled (rise, peak, fall) - the chart shape that works best.", "",
-             "| # | source | series | normal | low | crack | cracked on | status |", "|---|---|---|---|---|---|---|---|"]
+             "| # | source | series | what it is | normal | low | crack | cracked on | status |",
+             "|---|---|---|---|---|---|---|---|---|"]
     results, repeats = split_fresh("engine", results, lambda r: r["series"])
     mark_shown("engine", results[:15], lambda r: r["series"])
     for i, r in enumerate(results[:15], 1):
@@ -130,8 +144,8 @@ def engine_picks(quick):
             status = "still spiking"
         else:
             status = f"recovering ({r['latest']:.0f}%)"
-        lines.append(f"| {i} | {r['source']} | {r['series'][:50]} | {r['normal']:.0f}% | {r['now']:.0f}% | "
-                     f"+{r['crack']:.0f} | {r['crack_date']} | {status} |")
+        lines.append(f"| {i} | {r['source']} | {r['series'][:50]} | {wiki_what(r) if r['source'] == 'wiki' else ''} | "
+                     f"{r['normal']:.0f}% | {r['now']:.0f}% | +{r['crack']:.0f} | {r['crack_date']} | {status} |")
     lines.append("")
     arcs = [r for r in results if r["latest"] >= r["normal"] - 10][:3]
     lines += [f"- full arc: `{r['command']}`" for r in arcs]
@@ -380,7 +394,8 @@ def live_sections():
     import digest_live as L
     sections, every = [], []
     for title, scans in (("12. Earth & NASA - live (charts already built)", L.EARTH_SCANS),
-                         ("13. Sports - tonight & tomorrow (charts already built)", L.SPORTS_SCANS)):
+                         ("13. Sports - tonight & tomorrow (charts already built)", L.SPORTS_SCANS),
+                         ("14. Gaming & entertainment (charts already built)", L.ENTERTAINMENT_SCANS)):
         log(f"-> {title}")
         start = time.time()
         items = L.run_scans(scans)
@@ -388,8 +403,18 @@ def live_sections():
         every += items
         lines = [ln for it in sorted(items, key=L.viral_rank, reverse=True) for ln in L.fmt(it)] or ["_nothing notable_"]
         sections += [f"## {title}", *lines, f"<sub>{time.time() - start:.0f}s</sub>", ""]
-    ready = [it for it in sorted(every, key=L.viral_rank, reverse=True)
-             if it["out"].get("file") and not it["broken"]][:8]
+    candidates = [it for it in sorted(every, key=L.viral_rank, reverse=True)
+                  if it["out"].get("file") and not it["broken"]]
+    # Don't repeat: an item shown in the last 3 days stays out unless its numbers changed (a new month,
+    # a new record, a new week of flu data). The key is the title plus every number in the "why".
+    import re as _re
+    sig = lambda it: it["title"] + "|" + "".join(_re.findall(r"[\d.,]+", it["why"]))
+    cutoff = (datetime.now() - timedelta(days=3)).isoformat()
+    shown = SEEN.setdefault("ready", {})
+    fresh = [it for it in candidates if shown.get(sig(it), "") <= cutoff]
+    repeats = [it for it in candidates if shown.get(sig(it), "") > cutoff]
+    ready = fresh[:8]
+    shown.update({sig(it): datetime.now().isoformat() for it in ready})
     summary = ["## 0. Ready to chart - most viral first",
                "Series files already saved; settings in brackets. Wikipedia = attention vs the last two months.", ""]
     for i, it in enumerate(ready, 1):
@@ -398,7 +423,11 @@ def live_sections():
                           + (["YouTube rising"] if yt else []))
         summary.append(f"{i}. **{it['title']}** - {it['why']}" + (f" - {heat}" if heat else ""))
         summary.append(f"   `{it['out']['file']}` ({it['out'].get('settings') or 'see section'})")
-    return sections, (summary + [""] if ready else [])
+    if repeats:
+        summary.append("")
+        summary.append("_Still running (shown in the last 3 days, numbers unchanged):_ "
+                       + ", ".join(it["title"] for it in repeats[:10]))
+    return sections, (summary + [""] if ready or repeats else [])
 
 
 def main():
