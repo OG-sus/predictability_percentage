@@ -74,12 +74,18 @@ SOLAR_WIND_URL = "https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json"   
 SEA_ICE_URL = "https://noaadata.apps.nsidc.org/NOAA/G02135/north/daily/data/N_seaice_extent_daily_v4.0.csv"
 WORLD_TEMP_URL = "https://climatereanalyzer.org/clim/t2_daily/json/era5_world_t2_day.json"  # ERA5, daily since 1940
 
+CARD_COLORS = {  # title + line color per card type (RGB)
+    "storm": (255, 120, 90), "quakes": (190, 150, 255), "aurora": (90, 235, 160), "solar": (255, 220, 90),
+    "ocean": (80, 175, 255), "ice": (190, 230, 255), "fire": (255, 140, 40), "temp": (255, 105, 140),
+    "water": (60, 140, 255),
+}
+
 FOCUS_STORM_KT = 64      # hurricanes (64 kt+) take over the main image
 FOCUS_QUAKE_MAG = 6.5    # so do M6.5+ quakes in the last 24 hours
 
 TOP_STORMS = 3           # storm card rotates through up to this many active storms, strongest first
 TOP_BUOYS = 5            # buoy card rotates through the buoys with the biggest waves right now
-ROTATE_SECONDS = 60      # each rotating card shows one item this long (cards are staggered 20s apart)
+ROTATE_SECONDS = 45      # each rotating card shows one item this long (cards are staggered 15s apart)
 EVENT_CYCLE_SECONDS = 180  # during a live event: the close-up loop for 90 s...
 GLOBE_SECONDS = 90         # ...then the whole globe for 90 s, repeating
 LOOP_FRAMES = 8          # close-up loop length: 8 frames x 10 min = the last ~80 minutes
@@ -179,10 +185,11 @@ class EarthWatch:
         for n, (slot, items) in enumerate(sorted(state.pop("sets").items())):
             if not items:
                 continue
-            tick = int((time.time() + n * 20) // ROTATE_SECONDS)  # stagger so cards don't all flip at once
+            tick = int((time.time() + n * 15) // ROTATE_SECONDS)  # stagger so cards don't all flip at once
             card = dict(items[tick % len(items)])
-            if len(items) > 1:
-                card["note"] = f"{tick % len(items) + 1}/{len(items)}  .  " + card.get("note", "")
+            group = [c for c in items if card.get("group") and c.get("group") == card["group"]]
+            if len(group) > 1:  # count within the card's own group: fire 2/5, waves 3/5 - not the whole slot
+                card["note"] = f"{group.index(items[tick % len(items)]) + 1}/{len(group)}  .  " + card.get("note", "")
             cards[slot] = card
             ticks.append(tick % len(items))
         state["cards"] = cards
@@ -206,8 +213,8 @@ class EarthWatch:
         if buoys:
             sets["buoy"] = buoys
         water = self._safe(self._waters) or []
-        fire, temp = self._safe(self._fires), self._safe(self._world_temp)
-        water = [c for c in (fire, temp) if c] + water  # bottom slot: fires, world temp, groundwater
+        fires, temp = self._safe(self._fires) or [], self._safe(self._world_temp)
+        water = fires + ([temp] if temp else []) + water  # bottom slot: fires, world temp, groundwater
         if water:
             sets["water"] = water
         # Extra cards ride along in the existing slots so the screen keeps four cards:
@@ -238,6 +245,17 @@ class EarthWatch:
             globe = self._safe(lambda: self._full_disk(focus))
         if image is None and globe:
             image, caption = globe
+
+        for items in sets.values():
+            for c in items:
+                t = c.get("title", "")
+                kind = next((k for p, k in (("HURRICANE", "storm"), ("TROPICS", "storm"), ("EARTHQUAKES", "quakes"),
+                                            ("AURORA", "aurora"), ("SOLAR", "solar"), ("OCEAN", "ocean"),
+                                            ("ARCTIC", "ice"), ("EARTH'S", "temp"), ("FIRES", "fire"),
+                                            ("WATER", "water")) if t.startswith(p)), None)
+                if kind:
+                    c["color"] = CARD_COLORS[kind]
+                    c.setdefault("group", {"storm": "storm", "ocean": "ocean", "fire": "fire", "water": "water"}.get(kind))
 
         with self._lock:
             if image is not None:
@@ -482,11 +500,16 @@ class EarthWatch:
         days = sorted(rows)
         last = days[-1]
         v = [rows[d] for d in days[-90:]]
+        ref, prev = [], None
+        for (y, m, d) in days[-90:]:  # same calendar days one year earlier (faint line)
+            prev = rows.get((y - 1, m, d), prev)
+            ref.append(prev)
         same = sorted(x for (y, m, d), x in rows.items() if (m, d) == last[1:])
         rank = same.index(rows[last]) + 1
         tag = "lowest on record for the date" if rank == 1 else f"#{rank} lowest for the date"
         return {"title": "ARCTIC SEA ICE  .  NSIDC", "value": f"{rows[last]:.2f} million km2  .  {tag}",
-                "score": fsr(v, 14), "series": v, "note": f"of {len(same)} years since 1979  .  daily  .  2-week stability"}
+                "score": fsr(v, 14), "series": v, "ref": ref,
+                "note": f"faint line = last year  .  #{rank} of {len(same)} years since 1979"}
 
     def _world_temp(self):
         """Earth's average air temperature (ERA5) for the last 90 days, ranked for the date since 1940."""
@@ -497,14 +520,20 @@ class EarthWatch:
         prev = [x for x in years.get(str(int(now_year) - 1), []) if x is not None]
         v = (prev + cur)[-90:]
         doy = len(cur) - 1
+        prev2 = [x for x in years.get(str(int(now_year) - 2), []) if x is not None]
+        both = prev2 + prev
+        end = len(prev2) + len(cur)  # same day-of-year, one year earlier
+        ref = both[max(0, end - 90):end] if len(both) >= end else None
         same = sorted(((d[doy], y) for y, d in years.items() if len(d) > doy and d[doy] is not None), reverse=True)
         rank = [y for _, y in same].index(now_year) + 1
         tag = "warmest on record for the date" if rank == 1 else f"#{rank} warmest for the date"
         return {"title": "EARTH'S TEMPERATURE  .  WORLDWIDE", "value": f"{cur[-1]:.2f} C  .  {tag}",
-                "score": fsr(v, 14), "series": v, "note": f"of {len(same)} years since 1940  .  ERA5  .  2-week stability"}
+                "score": fsr(v, 14), "series": v, "ref": ref,
+                "note": f"faint line = last year  .  #{rank} of {len(same)} years since 1940"}
 
     def _fires(self):
-        """Fire hotspots NASA's satellites saw worldwide each day, last FIRE_DAYS days."""
+        """Fire hotspots NASA's satellites saw each day for the last FIRE_DAYS days: one worldwide card,
+        then the five busiest regions yesterday (fire 1/5 ... 5/5), each with its own 30-day line."""
         from dotenv import dotenv_values
         key = dotenv_values(os.path.join(ROOT, ".env")).get("FIRMS_MAP_KEY")
         if not key:
@@ -512,12 +541,12 @@ class EarthWatch:
         import csv
         import json
         cache = json.load(open(FIRE_CACHE)) if os.path.exists(FIRE_CACHE) else {}
+        regions = cache.get("_regions", {})  # day -> {region: hotspots}
         today = datetime.now(timezone.utc).date()
         days = [str(today - timedelta(n)) for n in range(FIRE_DAYS, 0, -1)]  # complete days only
-        top = cache.get("_top", {})
         for day in days:
-            # NRT days keep filling in for ~2 days, so re-fetch the most recent two
-            if day in cache and day < str(today - timedelta(2)):
+            # NRT days keep filling in for ~2 days, so the most recent two are always refetched
+            if day in cache and day in regions and day < str(today - timedelta(2)):
                 continue
             text = _get(FIRMS_AREA.format(key=key, day=day), timeout=120).text
             if not text.startswith("latitude"):
@@ -530,17 +559,28 @@ class EarthWatch:
                 name = next((n for n, a, b, c, d in FIRE_REGIONS if a <= la <= b and c <= lo <= d), None)
                 if name:
                     tally[name] = tally.get(name, 0) + 1
-            top[day] = max(tally, key=tally.get) if tally else ""
-        cache["_top"] = top
+            regions[day] = tally
+        cache["_regions"] = regions
+        cache.pop("_top", None)
         os.makedirs(os.path.dirname(FIRE_CACHE), exist_ok=True)
         json.dump(cache, open(FIRE_CACHE, "w"))
-        v = [cache[d] for d in days if d in cache]
-        if len(v) < 8:
+        have = [d for d in days if d in cache and d in regions]
+        if len(have) < 8:
             return None
-        last = max(d for d in days if d in cache)
-        return {"title": "FIRES  .  WORLDWIDE", "value": f"{v[-1]:,} fire hotspots yesterday",
-                "score": fsr(v, 7), "series": v,
-                "note": f"busiest: {top.get(last, '?')}  .  NASA FIRMS  .  7-day stability"}
+        last = have[-1]
+        world = [cache[d] for d in have]
+        out = [{"title": "FIRES  .  WORLDWIDE", "value": f"{world[-1]:,} fire hotspots yesterday",
+                "score": fsr(world, 7), "series": world, "group": None,  # no counter: regions are 1/5..5/5
+                "note": "NASA FIRMS satellites  .  7-day stability"}]
+        top5 = sorted(regions[last].items(), key=lambda kv: -kv[1])[:5]
+        for rank, (name, n) in enumerate(top5, 1):
+            v = [regions[d].get(name, 0) for d in have]
+            share = n / world[-1] * 100 if world[-1] else 0
+            score = fsr(v, 7) if min(v[-7:]) > 0 else None  # a zero day breaks FSR - show no score then
+            out.append({"title": f"FIRES  .  {name.upper()}", "value": f"{n:,} hotspots yesterday  .  #{rank} on Earth",
+                        "score": score, "series": v, "group": "fire",
+                        "note": f"{share:.0f}% of the world's fires  .  NASA FIRMS"})
+        return out
 
     def _waters(self):
         cards = []

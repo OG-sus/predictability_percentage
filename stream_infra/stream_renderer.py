@@ -295,14 +295,20 @@ class Renderer:
         draw.text((x, 46), "Live from space, scored by the stability engine   .   predictability-api.com",
                   font=self.font_tagline, fill=GRAY)
 
-    def draw_sparkline(self, draw, box, series, color):
+    def draw_sparkline(self, draw, box, series, color, ref=None):
+        """The card's line; `ref` (e.g. last year, same dates) is drawn faint underneath on the same scale."""
         x0, y0, x1, y1 = box
         if len(series) < 2:
             return
-        lo, hi = min(series), max(series)
+        ref = [r for r in (ref or []) if r is not None]
+        both = series + ref
+        lo, hi = min(both), max(both)
         span = (hi - lo) or 1.0
-        pts = [(x0 + (x1 - x0) * i / (len(series) - 1), y1 - (y1 - y0) * (v - lo) / span)
-               for i, v in enumerate(series)]
+        to_pts = lambda vals: [(x0 + (x1 - x0) * i / (len(vals) - 1), y1 - (y1 - y0) * (v - lo) / span)
+                               for i, v in enumerate(vals)]
+        if len(ref) >= 2:
+            draw.line(to_pts(ref), fill=(*color, 70), width=2)
+        pts = to_pts(series)
         draw.line(pts, fill=(*color, 230), width=2)
         draw.ellipse([pts[-1][0] - 3, pts[-1][1] - 3, pts[-1][0] + 3, pts[-1][1] + 3], fill=color)
 
@@ -311,7 +317,10 @@ class Renderer:
         score = card.get("score")
         scolor = score_color(score) if score is not None else GRAY
         draw.rectangle([x, y, x + 4, y + h], fill=scolor)
-        draw.text((x + 16, y + 10), card["title"][:46], font=self.font_category, fill=CYAN)
+        # Each card type has its own color (title + line) so fires never look like waves; the side bar and
+        # the score number keep the green/amber/red stability meaning.
+        accent = tuple(card["color"]) if card.get("color") else None
+        draw.text((x + 16, y + 10), card["title"][:46], font=self.font_category, fill=accent or CYAN)
         draw.text((x + 16, y + 30), card["value"][:44], font=self.font_item, fill=(235, 238, 244))
         draw.text((x + 16, y + h - 24), card.get("note", "")[:58], font=self.font_category, fill=(120, 130, 145))
         if score is not None:
@@ -320,7 +329,8 @@ class Renderer:
                       font=self.font_brand, fill=scolor)
             draw.text((x + w - 16 - draw.textlength("FSR", font=self.font_category), y + 36), "FSR",
                       font=self.font_category, fill=GRAY)
-        self.draw_sparkline(draw, (x + 16, y + 60, x + w - 16, y + h - 30), card.get("series", []), scolor)
+        self.draw_sparkline(draw, (x + 16, y + 60, x + w - 16, y + h - 30), card.get("series", []),
+                            accent or scolor, ref=card.get("ref"))
 
     LOOP_FRAME_S = 0.5   # close-up loop: each satellite frame shows this long...
     LOOP_HOLD_S = 2.5    # ...and the newest one holds a bit, so the loop reads as "now"
