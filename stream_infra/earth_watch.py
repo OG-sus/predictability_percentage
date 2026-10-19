@@ -56,6 +56,18 @@ WATER_REGIONS = {
 }
 WATER_STALE_DAYS = 32
 
+# Worldwide fire card (NASA FIRMS, needs FIRMS_MAP_KEY in .env). Daily counts are cached so a refresh
+# only downloads days it hasn't seen; one world-day is ~0.5 MB and ~35 of the key's 5,000 calls / 10 min.
+FIRMS_AREA = "https://firms.modaps.eosdis.nasa.gov/api/area/csv/{key}/MODIS_NRT/world/1/{day}"
+FIRE_CACHE = os.path.join(ROOT, "output", "firms_cache", "world_daily.json")
+FIRE_DAYS = 30
+FIRE_REGIONS = (  # rough boxes, only for naming the busiest region on the card
+    ("South America", -35, 6, -82, -34), ("Central Africa", -20, 15, 5, 50), ("Indonesia", -12, 8, 94, 141),
+    ("Australia", -45, -10, 110, 155), ("India", 5, 30, 65, 100), ("USA", 24, 50, -125, -66),
+    ("Canada", 49, 72, -141, -52), ("Siberia", 50, 75, 60, 180), ("Mexico", 14, 33, -118, -86),
+    ("Southeast Asia", 8, 28, 92, 110), ("Europe", 35, 70, -10, 45),
+)
+
 FOCUS_STORM_KT = 64      # hurricanes (64 kt+) take over the main image
 FOCUS_QUAKE_MAG = 6.5    # so do M6.5+ quakes in the last 24 hours
 
@@ -187,7 +199,10 @@ class EarthWatch:
         buoys = self._safe(lambda: self._buoys(storms.get("focus") if storms else None))
         if buoys:
             sets["buoy"] = buoys
-        water = self._safe(self._waters)
+        water = self._safe(self._waters) or []
+        fire = self._safe(self._fires)
+        if fire:
+            water = [fire] + water  # the bottom slot rotates: fires worldwide, then groundwater regions
         if water:
             sets["water"] = water
 
@@ -414,6 +429,45 @@ class EarthWatch:
                           "note": ("nearest buoy to the hurricane" if st == storm_st else "biggest waves now")
                                   + f"  .  {where.get(st, 'NOAA ' + st)}  .  24h stability"})
         return cards
+
+    def _fires(self):
+        """Fire hotspots NASA's satellites saw worldwide each day, last FIRE_DAYS days."""
+        from dotenv import dotenv_values
+        key = dotenv_values(os.path.join(ROOT, ".env")).get("FIRMS_MAP_KEY")
+        if not key:
+            return None
+        import csv
+        import json
+        cache = json.load(open(FIRE_CACHE)) if os.path.exists(FIRE_CACHE) else {}
+        today = datetime.now(timezone.utc).date()
+        days = [str(today - timedelta(n)) for n in range(FIRE_DAYS, 0, -1)]  # complete days only
+        top = cache.get("_top", {})
+        for day in days:
+            # NRT days keep filling in for ~2 days, so re-fetch the most recent two
+            if day in cache and day < str(today - timedelta(2)):
+                continue
+            text = _get(FIRMS_AREA.format(key=key, day=day), timeout=120).text
+            if not text.startswith("latitude"):
+                continue
+            rows = list(csv.DictReader(io.StringIO(text)))
+            cache[day] = len(rows)
+            tally = {}
+            for r in rows:
+                la, lo = float(r["latitude"]), float(r["longitude"])
+                name = next((n for n, a, b, c, d in FIRE_REGIONS if a <= la <= b and c <= lo <= d), None)
+                if name:
+                    tally[name] = tally.get(name, 0) + 1
+            top[day] = max(tally, key=tally.get) if tally else ""
+        cache["_top"] = top
+        os.makedirs(os.path.dirname(FIRE_CACHE), exist_ok=True)
+        json.dump(cache, open(FIRE_CACHE, "w"))
+        v = [cache[d] for d in days if d in cache]
+        if len(v) < 8:
+            return None
+        last = max(d for d in days if d in cache)
+        return {"title": "FIRES  .  WORLDWIDE", "value": f"{v[-1]:,} fire hotspots yesterday",
+                "score": fsr(v, 7), "series": v,
+                "note": f"busiest: {top.get(last, '?')}  .  NASA FIRMS  .  7-day stability"}
 
     def _waters(self):
         cards = []
