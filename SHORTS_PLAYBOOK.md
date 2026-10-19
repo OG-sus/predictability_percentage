@@ -34,9 +34,13 @@ are in **GENERATORS.md**. The morning digest (7 AM / 5 PM) lands in `output/dige
 | Big truck sales | FRED HTRUCKSSAAR monthly | 12 | 2 | steady on every platform |
 | K-shaped economy | Wikipedia "Recession shapes" weekly | 12 | 2 | best on TikTok |
 | Texas groundwater (NASA) | groundwater_gen.py texas_panhandle | 6 | 1 | the "stopped moving" angle |
+| Drought (lower 48 + Tennessee) | drought_gen.py, weekly since 2000 / 2020 | 12 / 24 | 1 | great on TikTok; lower-48 flat chart missed on YouTube |
+| Pitchers in October (Snell, Jax, Martinez, Messick) | pitch_velo_gen / mlb_pitcher_gen, playoffs included | ~1 game | 0.5 | best TikTok numbers (250-270) |
+| Indonesia fires (NASA FIRMS) | fire_gen.py --preset indonesia, monthly since 2001 | 12 | 1 | strong; Wikipedia 3-6x during the season |
 
 **Flopped:** single stocks, diesel, abstract econ (lipstick effect), the 5th AI audit in a row (Discord),
-anime with nothing new happening (JJK), old national totals.
+anime with nothing new happening (JJK), old national totals, interest rates (mortgage, 10-yr: 50-100 views),
+niche anime (check AniList "on lists" first - 50k+ or skip; Vampire Hunter D had ~900 watching).
 
 ---
 
@@ -52,6 +56,15 @@ anime with nothing new happening (JJK), old national totals.
 - **Flat line, spike at the end:** avoid, unless it's a live event and you're doing Part 1 of a series.
 - **When the engine is flat at an extreme, the flatness is the story**: groundwater at a 23-year low
   and its most stable ever = "it stopped moving."
+
+**What the engine actually is:** FSR = 100 x e^(-k x |CV|), CV = standard deviation / mean of the window.
+It scores swings relative to the average. That's why near-zero data breaks it (tiny mean), why huge
+totals read flat (tiny relative swings), and why a big window smooths things.
+
+- **Window rule of thumb:** points / 25 for long daily series (e.g. 5,903 days -> ~236, use a trading year).
+- **Calculator limit: 5,000 points per upload.** Longer daily series: start later or go weekly.
+- **Zeros:** a wider window (Tennessee drought at 24) or a later start date can get around them.
+- **Verify the k:** match the chart's overall "Score:" against the generator's printout.
 
 ---
 
@@ -104,8 +117,10 @@ Read the overall **Score** on your chart screenshot to confirm the k before quot
 
 ## Daily routine
 
-1. Read the morning digest: section 2 (storms), 7 (anime), 11 (rising searches), plus tonight's
-   MLB/NBA/NFL starters.
+1. Read the digest (7 AM / 5 PM), **section 0 "Ready to chart" first** - files are already saved and
+   ranked by how viral they are (Wikipedia spike + YouTube rising). Items shown in the last 3 days are
+   held back unless their numbers changed. Then 12 (Earth/NASA), 13 (sports tonight), 14 (Steam +
+   Netflix), 1 (engine picks, with a "what it is" column), 11 (rising searches).
 2. Pick something **current** with long data behind it.
 3. Run the generator, chart it in the calculator, screenshot.
 4. Write the script with the numbers from the screenshot's settings.
@@ -116,4 +131,26 @@ Read the overall **Score** on your chart screenshot to confirm the k before quot
 ## Accounts & keys (`.env`, never paste keys in chat)
 
 FRED_API_KEY, EIA_API_KEY, KAGGLE_API_TOKEN, NASA_API_KEY, CENSUS_API_KEY, EARTHDATA_TOKEN
-(expires **Dec 12, 2026 10:27 PM MT** - make a new one at urs.earthdata.nasa.gov, max 2 active).
+(expires **Dec 12, 2026 10:27 PM MT** - make a new one at urs.earthdata.nasa.gov, max 2 active),
+FIRMS_MAP_KEY (NASA fires), TWITCH_CLIENT_ID + TWITCH_CLIENT_SECRET (twitch_recorder), TWITCH_STREAM_KEY.
+
+---
+
+## Tools added Oct 13-19, 2026 (details in GENERATORS.md)
+
+- **fire_gen.py** - NASA FIRMS fire hotspots, any region, monthly since 2001 (first run of a region ~35 min).
+- **drought_gen.py** - US Drought Monitor, lower 48 or any state, weekly since 2000.
+- **flu_gen.py** - CDC flu-like illness, weekly since 1997. **tornado_gen.py** - US tornadoes per month since 1950.
+- **nfl_gen.py** - every game since 1999 from nflverse (multi-season). The older **nfl_data_gen.py** scrapes
+  Pro-Football-Reference one season at a time.
+- **nba_data_gen.py** - auto-detects the season, combines the last 3 (regular season + playoffs).
+- **pitch_velo_gen.py / mlb_pitcher_gen.py** - now include postseason games.
+- **twitch_recorder.py** - snapshots Twitch viewers every 10 min (register_twitch_task.ps1 schedules it);
+  `--chart <channel>`, `--chart "<game>" --game`, `--top`. History starts when the recorder starts.
+- **Steam** (in the digest): SteamCharts monthly players since 2012 for the top 50 games; combine
+  editions (GTA V = Legacy 271590 + Enhanced 3240220).
+- **Earth Watch stream** - globe + 4 rotating card slots: hurricanes; quakes/aurora/solar wind; ocean
+  buoys/sea ice; fires (worldwide + top 5 regions)/world temperature/groundwater. Restart the stream
+  (Ctrl+C, rerun run_stream.ps1) after code changes. `-Light` = 15 fps for using the PC at the same time.
+- **Stream notes:** 750k video + 64k audio fits the Verizon upload; a full C: drive (CoinPoker filled
+  %TEMP% with 25 MB Firefox-history copies) stalls everything - check free space first.
