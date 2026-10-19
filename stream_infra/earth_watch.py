@@ -68,6 +68,12 @@ FIRE_REGIONS = (  # rough boxes, only for naming the busiest region on the card
     ("Southeast Asia", 8, 28, 92, 110), ("Europe", 35, 70, -10, 45),
 )
 
+# Space weather, sea ice and world temperature cards (all free, no key)
+KP_URL = "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json"          # 3-hourly, last ~7 days
+SOLAR_WIND_URL = "https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json"             # 1-minute, ~1 week
+SEA_ICE_URL = "https://noaadata.apps.nsidc.org/NOAA/G02135/north/daily/data/N_seaice_extent_daily_v4.0.csv"
+WORLD_TEMP_URL = "https://climatereanalyzer.org/clim/t2_daily/json/era5_world_t2_day.json"  # ERA5, daily since 1940
+
 FOCUS_STORM_KT = 64      # hurricanes (64 kt+) take over the main image
 FOCUS_QUAKE_MAG = 6.5    # so do M6.5+ quakes in the last 24 hours
 
@@ -200,11 +206,18 @@ class EarthWatch:
         if buoys:
             sets["buoy"] = buoys
         water = self._safe(self._waters) or []
-        fire = self._safe(self._fires)
-        if fire:
-            water = [fire] + water  # the bottom slot rotates: fires worldwide, then groundwater regions
+        fire, temp = self._safe(self._fires), self._safe(self._world_temp)
+        water = [c for c in (fire, temp) if c] + water  # bottom slot: fires, world temp, groundwater
         if water:
             sets["water"] = water
+        # Extra cards ride along in the existing slots so the screen keeps four cards:
+        # quake slot also shows aurora (Kp) and solar wind; ocean slot also shows Arctic sea ice.
+        space = [c for c in (self._safe(self._aurora), self._safe(self._solar_wind)) if c]
+        if space and sets.get("quakes"):
+            sets["quakes"] = sets["quakes"][:1] + space
+        ice = self._safe(self._sea_ice)
+        if ice and sets.get("buoy"):
+            sets["buoy"] = [b for b in sets["buoy"] if b.get("title", "").startswith("OCEAN")] + [ice]
 
         # Hurricane first, then a big quake; if one's close-up has no imagery, try the next.
         focus, image, caption = None, None, None  # image = list of frames (one for a still)
@@ -429,6 +442,66 @@ class EarthWatch:
                           "note": ("nearest buoy to the hurricane" if st == storm_st else "biggest waves now")
                                   + f"  .  {where.get(st, 'NOAA ' + st)}  .  24h stability"})
         return cards
+
+    def _aurora(self):
+        """Planetary Kp index (0-9), every 3 hours for the last week. Kp 5+ is a geomagnetic storm."""
+        rows = _get(KP_URL).json()
+        v = [float(r["Kp"]) for r in rows if r.get("Kp") is not None]
+        if len(v) < 9:
+            return None
+        kp = v[-1]
+        level = next((f"G{g} storm" for g, t in ((5, 9), (4, 8), (3, 7), (2, 6), (1, 5)) if kp >= t), None)
+        where = ("auroras deep into the US" if kp >= 7 else "auroras in the northern US" if kp >= 5
+                 else "auroras near the Arctic Circle" if kp >= 3 else "quiet")
+        # Kp sits near 0 when space is quiet, and FSR breaks near zero (it would show a red score at the
+        # calmest moment), so only score it once the last day has real activity in it.
+        score = fsr(v, 8) if sum(v[-8:]) / 8 >= 2 else None
+        return {"title": "AURORA WATCH  .  SPACE WEATHER", "value": f"Kp {kp:.1f}" + (f"  .  {level}" if level else "  .  calm"),
+                "score": score, "series": v, "note": f"{where}  .  NOAA, 3-hourly  .  24h stability"}
+
+    def _solar_wind(self):
+        """Solar wind speed from the active upstream spacecraft, every 10 minutes for the last day."""
+        rows = [r for r in _get(SOLAR_WIND_URL, timeout=60).json() if r.get("active") and r.get("proton_speed")]
+        rows.sort(key=lambda r: r["time_tag"])
+        v = [float(r["proton_speed"]) for r in rows[-1440::10]]  # last 24 h, one reading per 10 min
+        if len(v) < 20:
+            return None
+        return {"title": "SOLAR WIND  .  FROM THE SUN", "value": f"{v[-1]:.0f} km/s  ({v[-1] * 2237 / 1000:,.0f}k mph)",
+                "score": fsr(v, 18), "series": v,
+                "note": f"density {rows[-1].get('proton_density') or 0:.1f}/cm3  .  NOAA real time  .  3h stability"}
+
+    def _sea_ice(self):
+        """Arctic sea ice extent, last 90 days, ranked against the same date every year since 1979."""
+        import csv
+        rows = {}
+        for r in csv.reader(io.StringIO(_get(SEA_ICE_URL, timeout=90).text)):
+            try:
+                rows[(int(r[0]), int(r[1]), int(r[2]))] = float(r[3])
+            except (ValueError, IndexError):
+                continue
+        days = sorted(rows)
+        last = days[-1]
+        v = [rows[d] for d in days[-90:]]
+        same = sorted(x for (y, m, d), x in rows.items() if (m, d) == last[1:])
+        rank = same.index(rows[last]) + 1
+        tag = "lowest on record for the date" if rank == 1 else f"#{rank} lowest for the date"
+        return {"title": "ARCTIC SEA ICE  .  NSIDC", "value": f"{rows[last]:.2f} million km2  .  {tag}",
+                "score": fsr(v, 14), "series": v, "note": f"of {len(same)} years since 1979  .  daily  .  2-week stability"}
+
+    def _world_temp(self):
+        """Earth's average air temperature (ERA5) for the last 90 days, ranked for the date since 1940."""
+        series = _get(WORLD_TEMP_URL, timeout=90).json()
+        years = {s["name"]: s["data"] for s in series if s["name"].isdigit()}
+        now_year = max(years, key=int)
+        cur = [x for x in years[now_year] if x is not None]
+        prev = [x for x in years.get(str(int(now_year) - 1), []) if x is not None]
+        v = (prev + cur)[-90:]
+        doy = len(cur) - 1
+        same = sorted(((d[doy], y) for y, d in years.items() if len(d) > doy and d[doy] is not None), reverse=True)
+        rank = [y for _, y in same].index(now_year) + 1
+        tag = "warmest on record for the date" if rank == 1 else f"#{rank} warmest for the date"
+        return {"title": "EARTH'S TEMPERATURE  .  WORLDWIDE", "value": f"{cur[-1]:.2f} C  .  {tag}",
+                "score": fsr(v, 14), "series": v, "note": f"of {len(same)} years since 1940  .  ERA5  .  2-week stability"}
 
     def _fires(self):
         """Fire hotspots NASA's satellites saw worldwide each day, last FIRE_DAYS days."""
